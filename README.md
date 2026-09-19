@@ -97,9 +97,9 @@ The threshold is not 0.5 and is not tuned on the test devices: it is chosen on a
 
 Per-device spread at this budget: F1@1 mean 0.631, sd 0.132, min 0.187, max 0.803 over 50 held-out devices. Strict IoU is 0.187: one-pixel-wide lines are punished hard by IoU, and it is reported rather than hidden. Pixel accuracy is not reported as a result — predicting no line anywhere already scores 92.9 %.
 
-![**(a)** F1@1 against the fraction of the plane measured, for every budget in the run. **(b)** how the score depends on the tolerance &tau; — how much of the remaining error is sub-pixel placement rather than a missed line.](docs/figures/f1_cost_and_tolerance.png)
+![(a) F1@1 against the fraction of the plane measured, for every budget in the run. (b) how the score depends on the tolerance &tau; — how much of the remaining error is sub-pixel placement rather than a missed line.](docs/figures/f1_cost_and_tolerance.png)
 
-***(a)** F1@1 against the fraction of the plane measured, for every budget in the run. **(b)** how the score depends on the tolerance &tau; — how much of the remaining error is sub-pixel placement rather than a missed line.*
+*(a) F1@1 against the fraction of the plane measured, for every budget in the run. (b) how the score depends on the tolerance &tau; — how much of the remaining error is sub-pixel placement rather than a missed line.*
 
 <!-- RESULTS:END -->
 

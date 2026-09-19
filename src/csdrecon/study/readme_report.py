@@ -45,8 +45,8 @@ DOCS_FIGURES = os.path.join("docs", "figures")
 FIGURES: Sequence[Tuple[str, str, str]] = (
     ("f1_cost_and_tolerance.png",
      os.path.join("figures", "08_cost_and_tolerance.png"),
-     "**(a)** F1@1 against the fraction of the plane measured, for every "
-     "budget in the run. **(b)** how the score depends on the tolerance "
+     "(a) F1@1 against the fraction of the plane measured, for every "
+     "budget in the run. (b) how the score depends on the tolerance "
      "&tau; — how much of the remaining error is sub-pixel placement "
      "rather than a missed line."),
 )
