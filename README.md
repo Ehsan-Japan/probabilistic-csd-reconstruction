@@ -134,8 +134,3 @@ Nine checks on the metric the study is reported in — that a one-pixel offset
 scores zero at τ = 0 and one at τ = 1, that an empty prediction is not
 rewarded, that scores are averaged per device. They need no data, no model
 and no simulator, and run in under a second.
-
-## License
-
-MIT — see [LICENSE](LICENSE). If you use this code, please cite the paper
-(see [CITATION.cff](CITATION.cff)).
