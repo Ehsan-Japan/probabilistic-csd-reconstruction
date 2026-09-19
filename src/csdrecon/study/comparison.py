@@ -81,7 +81,7 @@ def collect(configs: Optional[Sequence[StudyConfig]] = None
             # Every tolerance-dependent metric, so the tau figures can be
             # drawn from the table alone.
             **{f"{k}@{t}": m.get(f"{k}@{t}")
-               for k in ("f1", "precision", "recall", "accuracy")
+               for k in ("f1", "precision", "recall", "accuracy", "coverage")
                for t in TAUS},
             "f1@1_std": m.get("f1@1_std"),
             "f1@1_min": m.get("f1@1_min"),

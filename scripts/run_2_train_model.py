@@ -28,9 +28,7 @@ from csdrecon.config import log
 
 # The folder names run_1 created.  A list, trained in the order given, or
 # "ALL" for every folder in data/.
-CONFIG_NAMES = [
-    "3_rays_40_points_500_samples",
-]
+CONFIG_NAMES = "ALL"        # or a list: ["4_rays_40_points_300_samples", ...]
 
 # None uses each folder's own config.json; a number overrides it everywhere.
 # More devices need FEWER epochs, not more.

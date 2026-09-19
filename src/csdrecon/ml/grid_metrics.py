@@ -59,6 +59,29 @@ def tolerant_f1(pred: np.ndarray, true: np.ndarray, tau: float) -> Dict[str, flo
             "accuracy": 1.0 - (fp + fn) / float(pred.size)}
 
 
+def coverage_at_tau(visited: np.ndarray, tau: float) -> float:
+    """
+    The fraction of the diagram that lies within tau pixels of a MEASURED
+    pixel — the reach of the measurement at the tolerance the score is read
+    at.
+
+    At tau = 0 this is the plain coverage: the fraction of pixels the rays
+    actually touched.  At tau > 0 it is the area a reader should compare the
+    tolerant score against, because a predicted pixel within tau of a
+    measured one is a pixel the measurement could have decided by itself.
+    The gap between coverage@tau and 100% is the part of the plane the
+    network has to infer rather than interpolate.
+
+    Euclidean distance, the same convention tolerant_f1 uses.
+    """
+    visited = visited > 0.5
+    if not visited.any():
+        return 0.0
+    if tau <= 0:
+        return float(visited.mean())
+    return float((distance_transform_edt(~visited) <= tau).mean())
+
+
 def iou(pred: np.ndarray, true: np.ndarray) -> float:
     """Strict intersection-over-union of the two line sets."""
     pred, true = pred > 0.5, true > 0.5

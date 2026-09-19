@@ -29,9 +29,7 @@ from csdrecon.config import log
 
 # Folder names that have been through run_1 and run_2.  Scored in the order
 # given, or "ALL" for every folder in data/.
-CONFIG_NAMES = [
-    "3_rays_40_points_500_samples",
-]
+CONFIG_NAMES = "ALL"        # or a list: ["4_rays_40_points_300_samples", ...]
 
 # Put the listed configurations side by side afterwards and write
 # results/<sweep name>/.  Exactly what run_4 does; this just saves a command.

@@ -46,7 +46,7 @@ import matplotlib.pyplot as plt
 
 from ..ml import grid_train
 from ..config import log
-from ..ml.grid_metrics import evaluate, iou, tolerant_f1
+from ..ml.grid_metrics import coverage_at_tau, evaluate, iou, tolerant_f1
 from .config import StudyConfig
 from .dataset import load_split
 
@@ -136,6 +136,11 @@ def score(cfg: StudyConfig) -> Tuple[Dict, List[Dict], np.ndarray, np.ndarray,
         "n_test_devices": int(len(X)),
         "threshold": threshold,
         "coverage": float(X[:, 1].mean()),
+        # How far the MEASUREMENT reaches at each tolerance the score is read
+        # at: the fraction of the plane within tau pixels of a measured pixel.
+        # coverage@0 is the plain coverage above.
+        **{f"coverage@{tau}": float(np.mean(
+            [coverage_at_tau(v, tau) for v in X[:, 1]])) for tau in TAUS},
         "true_line_fraction": float(Y.mean()),
         "predicted_line_fraction": float(pred.mean()),
         **evaluate(pred, Y, taus=TAUS),
@@ -342,12 +347,18 @@ def _results_text(cfg: StudyConfig, metrics: Dict, rows: List[Dict]) -> str:
         "  tolerant scores (a predicted line pixel counts if a true one lies",
         "  within tau pixels).  tau = 1 is the headline number.",
         "",
-        f"  {'tau':>5}{'precision':>12}{'recall':>10}{'F1':>10}",
+        "  coverage@tau is how far the MEASUREMENT reaches at that tolerance:",
+        "  the fraction of the plane within tau pixels of a measured pixel.",
+        "  The rest of the plane is inferred, not interpolated.",
+        "",
+        f"  {'tau':>5}{'precision':>12}{'recall':>10}{'F1':>10}"
+        f"{'coverage@tau':>15}",
     ]
     for tau in TAUS:
         lines.append(f"  {tau:>5}{metrics[f'precision@{tau}']:>12.4f}"
                      f"{metrics[f'recall@{tau}']:>10.4f}"
-                     f"{metrics[f'f1@{tau}']:>10.4f}")
+                     f"{metrics[f'f1@{tau}']:>10.4f}"
+                     f"{100 * metrics[f'coverage@{tau}']:>14.3f}%")
     lines += [
         "",
         f"  strict IoU              {metrics['iou']:.4f}",

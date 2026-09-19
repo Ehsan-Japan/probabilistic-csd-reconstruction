@@ -48,6 +48,7 @@ costs one training run.
 | `run_5_render_device_figures.py` | redraw the per-device pictures — more devices, 300 dpi — without regenerating data or retraining |
 | `run_6_threshold_report.py` | the probability maps, and where the binarisation threshold falls |
 | `run_7_benchmarking.py` | the geometry ablation: the same budget spent as a corner fan, parallel oblique lines, horizontal cuts and vertical cuts |
+| `run_8_device_gallery.py` | contact sheets: every device of a split on one page — raw sensor, background-differenced sensor and ground truth — for checking what the simulator produced |
 | `benchmark.py` | one budget, four scenarios — our fan of rays vs Hernandes-style line cuts vs parallel oblique lines vs a lattice.  Self-contained: measure, train, score, table, figure, all in one file |
 
 `_common.py` is shared boilerplate (import path, headless plotting, the
@@ -63,7 +64,9 @@ data/3_rays_40_points_500_samples/
     config.json          the settings; steps 2-4 read them back, so the
                          programs cannot silently disagree
     train.npz test.npz   the measurements and the answers
-    dataset_summary.txt  <- the numbers to quote in the paper
+    dataset_summary.txt  the budget and the split, in one screen
+    dataset_summary.json the split EVIDENCE — the numbers to quote in the
+                         paper (see below)
     figures/             per-device pictures
     model/               unet.pt, training_curve.png, model_structure.yaml
     evaluation/          results.txt, metrics.json, per_device.csv, figures/
@@ -94,7 +97,9 @@ Storing it with the pool is what makes a sweep safe: every cell reads the
 same stored assignment, so device 37 cannot be a training device in the
 3-ray cell and a test device in the 5-ray cell.
 
-`dataset_summary.txt` (written by step 1) reports three things:
+`dataset_summary.json` (written by step 1) records three things;
+`dataset_summary.txt` beside it is the one-screen summary of the budget and
+the split, and does not repeat them:
 
 1. **Every diagram is an unfiltered capacitance draw.** There is no
    acceptance test: the capacitances are drawn at random and whatever the

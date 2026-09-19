@@ -514,30 +514,6 @@ def fig_iou(models, out_dir):
     ax.set_xlim(-0.6, len(ms) - 0.4)
     return _save(fig, out_dir, "07_iou_per_model")
 
-
-def fig_efficiency(models, out_dir):
-    """
-    Accuracy per unit of measurement — is the extra ray worth what it costs?
-
-    F1 divided by the fraction of the grid measured.  A falling bar means the
-    budget is into diminishing returns.
-    """
-    ms = sorted(models, key=lambda m: m.get("coverage"))
-    fig, ax = plt.subplots(figsize=_cat_figsize(len(ms)))
-    eff = [m.get(HEADLINE) / (100 * m.get("coverage")) for m in ms]
-    rounded_bars(ax, np.arange(len(ms)), eff, 0.52, [m.color for m in ms])
-    for i, (m, e) in enumerate(zip(ms, eff)):
-        ax.annotate(f"{e:.3f}", (i, e), textcoords="offset points",
-                    xytext=(0, 5), ha="center", fontsize=9, color=INK_2)
-    _style(ax, "", "F1 @ 1 px per 1% of the grid measured",
-           "Accuracy per unit of measurement")
-    _cat_ticks(ax, [f"{m.label}  ({100*m.get('coverage'):.2f}%)" for m in ms])
-    ax.set_xlim(-0.6, len(ms) - 0.4)
-    _cat_note(fig, "falling bars = diminishing returns: the extra rays cost "
-                   "more measurement than the accuracy they add")
-    return _save(fig, out_dir, "08_efficiency_per_coverage")
-
-
 def fig_gain_over_baseline(models, out_dir):
     """How much each model gains over the cheapest one in the sweep."""
     if len(models) < 2:
@@ -745,32 +721,6 @@ def fig_device_box(models, out_dir):
                    "device")
     return _save(fig, out_dir, "20_per_device_box")
 
-
-def fig_device_ecdf(models, out_dir):
-    """
-    What fraction of devices reach a given accuracy.
-
-    Read it as "N% of devices score at least X" — a curve entirely to the
-    right of another is a model that is better on every quantile, which is a
-    much stronger statement than a higher mean.
-    """
-    ms = [m for m in models if len(m.per_device)]
-    if not ms:
-        return None
-    fig, ax = plt.subplots(figsize=(6.4, 4.4))
-    for m in ms:
-        v = np.sort(m.device(HEADLINE))
-        y = 100 * (1 - np.arange(len(v)) / len(v))
-        ax.step(v, y, where="post", color=m.color, lw=LINE_W, label=m.label,
-                zorder=3)
-    _style(ax, HEADLINE_LABEL, "devices scoring at least this (%)",
-           "How many devices reach a given accuracy", grid_axis="both")
-    ax.set_xlim(0, 1); ax.set_ylim(0, 100)
-    if len(ms) > 1:
-        ax.legend(loc="lower left")
-    return _save(fig, out_dir, "21_per_device_ecdf")
-
-
 def fig_device_hist(models, out_dir):
     """The per-device distribution, one panel per model, on a shared axis."""
     ms = [m for m in models if len(m.per_device)]
@@ -794,43 +744,6 @@ def fig_device_hist(models, out_dir):
                  fontsize=12, color=INK)
     fig.tight_layout(rect=[0, 0, 1, 0.96])
     return _save(fig, out_dir, "22_per_device_histograms")
-
-
-def fig_difficulty(models, out_dir):
-    """
-    Does accuracy depend on how dense the device's honeycomb is?
-
-    One panel per model, one dot per device: F1 against the fraction of the
-    diagram that is transition line.  A downward trend means dense devices
-    are the hard ones, which is a statement about the measurement, not the
-    network — thin rays cross a fine honeycomb at fewer places.
-    """
-    ms = sorted([m for m in models if len(m.per_device)],
-                key=lambda m: m.n_rays)
-    if not ms:
-        return None
-    fig, axes = plt.subplots(1, len(ms), figsize=(3.4 * len(ms) + 0.6, 3.9),
-                             squeeze=False, sharey=True, sharex=True)
-    for ax, m in zip(axes[0], ms):
-        dens = 100 * m.device("true_line_pixels") / 10000.0
-        v = m.device(HEADLINE)
-        ax.scatter(dens, v, s=18, color=m.color, alpha=0.55, edgecolor="none",
-                   zorder=3)
-        if len(dens) > 2:
-            k, c = np.polyfit(dens, v, 1)
-            xs = np.linspace(dens.min(), dens.max(), 10)
-            ax.plot(xs, k * xs + c, color=INK_2, lw=1.2, zorder=4)
-            r = float(np.corrcoef(dens, v)[0, 1])
-            ax.set_title(f"{m.label}\nr = {r:+.2f}", loc="left", fontsize=10)
-        _style(ax, "transition-line pixels (% of the diagram)", "",
-               grid_axis="both")
-        ax.set_ylim(0, 1)
-    axes[0][0].set_ylabel(HEADLINE_LABEL)
-    fig.suptitle("Is accuracy limited by how dense the honeycomb is?",
-                 x=0.02, ha="left", fontsize=12, color=INK)
-    fig.tight_layout(rect=[0, 0, 1, 0.92])
-    return _save(fig, out_dir, "26_accuracy_vs_line_density")
-
 
 # ══════════════════════════════════════════════════════════════════════════
 #  C. Tolerance — how accuracy shifts with tau, model by model
@@ -896,35 +809,6 @@ def fig_tau_grid(models, out_dir):
     ax.grid(False)
     fig.colorbar(im, ax=ax, fraction=0.04, pad=0.03, label="F1")
     return _save(fig, out_dir, "41_tau_grid")
-
-
-def fig_tau_gain(models, out_dir):
-    """
-    What each extra pixel of tolerance buys.
-
-    A large first step (tau 0 -> 1) means the reconstruction is right but
-    misaligned by a pixel; gains that keep coming at tau 2 and 3 mean the
-    lines are genuinely displaced, not merely rounded.
-    """
-    ms = sorted(models, key=lambda m: (m.n_points, m.n_rays))
-    steps = [(0, 1), (1, 2), (2, 3)]
-    fig, ax = plt.subplots(figsize=(7.6, 4.4))
-    n = len(ms)
-    group_w, bar_w = 0.8, 0.8 / max(n, 1) * 0.86
-    for i, m in enumerate(ms):
-        xs = np.arange(len(steps)) - group_w / 2 + group_w * (i + 0.5) / n
-        gains = [m.get(f"f1@{b}") - m.get(f"f1@{a}") for a, b in steps]
-        rounded_bars(ax, xs, gains, bar_w, m.color)
-        ax.plot([], [], "s", color=m.color, ms=8, label=m.label)
-    _style(ax, "", "F1 gained by allowing one more pixel",
-           "What each pixel of tolerance is worth")
-    ax.set_xticks(range(len(steps)),
-                  [f"tau {a} -> {b}" for a, b in steps])
-    ax.set_xlim(-0.6, len(steps) - 0.4)
-    if len(ms) > 1:
-        ax.legend(loc="upper right", ncol=2 if len(ms) > 4 else 1)
-    return _save(fig, out_dir, "42_tau_gain")
-
 
 def fig_tau_normalised(models, out_dir):
     """
@@ -1115,82 +999,15 @@ def fig_generalisation_gap(models, out_dir):
     ax.set_aspect("equal")
     return _save(fig, out_dir, "32_generalisation_gap")
 
-
-# ══════════════════════════════════════════════════════════════════════════
-#  D. One-page overview
-# ══════════════════════════════════════════════════════════════════════════
-
-def fig_overview(models, out_dir):
-    """The four panels worth putting on one slide."""
-    ms = sorted(models, key=lambda m: m.n_rays)
-    fig, axes = plt.subplots(2, 2, figsize=(11.5, 8.4))
-
-    ax = axes[0, 0]
-    ax.errorbar([m.n_rays for m in ms], [m.get(HEADLINE) for m in ms],
-                yerr=[m.get("f1@1_std", 0.0) for m in ms], fmt="o-",
-                color=SERIES[0], lw=LINE_W, ms=MARK_S, capsize=3, zorder=3)
-    _style(ax, "number of rays", HEADLINE_LABEL, "Accuracy vs rays")
-    _int_axis(ax, [m.n_rays for m in ms])
-    ax.set_ylim(0, 1)
-
-    ax = axes[0, 1]
-    for m in ms:
-        ax.plot(TAUS, [m.get(f"f1@{t}") for t in TAUS], "o-", color=m.color,
-                lw=LINE_W, ms=MARK_S, label=m.label, zorder=3)
-    _style(ax, "tolerance tau (pixels)", "F1", "Sub-pixel or missing?")
-    ax.set_xticks(list(TAUS)); ax.set_ylim(0, 1)
-    if len(ms) > 1:
-        ax.legend(loc="lower right")
-
-    ax = axes[1, 0]
-    have = [m for m in ms if len(m.per_device)]
-    if have:
-        rng = np.random.default_rng(0)
-        for i, m in enumerate(have):
-            v = m.device(HEADLINE)
-            ax.scatter(i + rng.uniform(-0.15, 0.15, len(v)), v, s=10,
-                       color=m.color, alpha=0.35, edgecolor="none", zorder=2)
-            ax.boxplot([v], positions=[i], widths=0.4, showfliers=False,
-                       patch_artist=True, zorder=3,
-                       medianprops=dict(color=INK, lw=1.5),
-                       boxprops=dict(facecolor=SURFACE, edgecolor=m.color,
-                                     lw=1.3),
-                       whiskerprops=dict(color=m.color, lw=1.1),
-                       capprops=dict(color=m.color, lw=1.1))
-        ax.set_xticks(range(len(have)), [m.label for m in have])
-        ax.set_xlim(-0.6, len(have) - 0.4)
-    _style(ax, "", HEADLINE_LABEL, "Spread over held-out devices")
-    ax.set_ylim(0, 1)
-
-    ax = axes[1, 1]
-    truth = 100 * ms[0].get("true_line_fraction")
-    pred = [100 * m.device("predicted_line_pixels").mean() / 10000.0
-            if len(m.per_device) else np.nan for m in ms]
-    rounded_bars(ax, np.arange(len(ms)), pred, 0.52, [m.color for m in ms])
-    ax.axhline(truth, color=INK_2, lw=1.2, ls=(0, (4, 3)), zorder=4)
-    ax.annotate(f"true {truth:.2f}%", (len(ms) - 0.5, truth),
-                textcoords="offset points", xytext=(0, 5), ha="right",
-                fontsize=9, color=INK_2)
-    _style(ax, "", "pixels called a line (%)", "Over-drawing")
-    ax.set_xticks(range(len(ms)), [m.label for m in ms])
-    ax.set_xlim(-0.6, len(ms) - 0.4)
-
-    fig.suptitle("Measurement budget vs transition-line recovery",
-                 x=0.02, ha="left", fontsize=14, color=INK)
-    fig.tight_layout(rect=[0, 0, 1, 0.95])
-    return _save(fig, out_dir, "00_overview")
-
-
 # ══════════════════════════════════════════════════════════════════════════
 
 GALLERY = [
-    fig_overview,
     fig_f1_vs_rays, fig_f1_vs_coverage, fig_f1_vs_tolerance,
     fig_metric_bars, fig_precision_recall, fig_precision_recall_vs_rays,
-    fig_iou, fig_efficiency, fig_gain_over_baseline, fig_heatmap,
+    fig_iou, fig_gain_over_baseline, fig_heatmap,
     fig_train_size, fig_line_budget, fig_threshold, fig_summary_table,
-    fig_device_box, fig_device_ecdf, fig_device_hist, fig_difficulty,
-    fig_tau_all_metrics, fig_tau_grid, fig_tau_gain, fig_tau_normalised,
+    fig_device_box, fig_device_hist,
+    fig_tau_all_metrics, fig_tau_grid, fig_tau_normalised,
     fig_tau_band, fig_tau_to_target,
     fig_training_loss, fig_validation_f1, fig_generalisation_gap,
 ]

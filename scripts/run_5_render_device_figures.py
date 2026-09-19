@@ -16,7 +16,7 @@ from csdrecon.config import log
 #  SETTINGS  —  None means "use what run_1 recorded in config.json"
 # ══════════════════════════════════════════════════════════════════════════
 
-CONFIG_NAMES = ["3_rays_40_points_500_samples"]      # or "ALL"
+CONFIG_NAMES = "ALL"        # or a list: ["4_rays_40_points_300_samples", ...]
 
 # Overrides for this run only; nothing is written back to config.json.
 FIGURES = None        # e.g. {"charge_sensor": True, "rays_on_truth": True}
