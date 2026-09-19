@@ -104,13 +104,11 @@ Per-device spread at this budget: F1@1 mean 0.631, sd 0.132, min 0.187, max 0.80
 
 ![The network: two input channels — the measured ray signal and the visited mask — through the U-Net to one probability per pixel.](docs/figures/unet_io.png)
 
-*What the network sees and what it returns. The two input channels are the
-measured sensor value where a ray passed and the visited mask, so "measured
-and low" is distinguishable from "never measured". The encoder halves the
-plane three times (100² → 50² → 25² → 12²) while widening 32 → 64 → 128 to a
-256-channel bottleneck; the decoder walks back up with skip connections, and
-a sigmoid head returns one probability of a transition line per pixel of the
-whole 100 × 100 plane — including the pixels no ray ever touched.*
+*Two input channels on the 100 × 100 grid — the sensor value at
+ray-visited pixels, and the binary visited mask — through a depth-3
+U-Net (32 → 64 → 128, 256-channel bottleneck; 100² → 50² → 25² → 12²,
+skip connections) to a sigmoid head returning P(transition line) per
+pixel over the whole plane, measured or not.*
 
 | | |
 |---|---|

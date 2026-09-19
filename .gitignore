@@ -32,6 +32,7 @@ CLAUDE.local.md
 # and the Illustrator .ai/.jsx sources).  Listed here so a stray copy back
 # into the working tree is never committed by accident; the figures the
 # README shows are copied into docs/figures/ instead.
+/csd-materials/
 /literature/
 /citations/
 /illustrator/
