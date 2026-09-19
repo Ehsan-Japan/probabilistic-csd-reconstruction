@@ -29,22 +29,22 @@ from run_1_generate_dataset import CONFIG as TEMPLATE
 # START FROM EMPTY.  True deletes results/ before anything runs, so what is
 # on disk afterwards came from THIS run and nothing else — no stale figures,
 # no half-finished cell from a setting you have since changed.
-FRESH_START = True
+FRESH_START = False
 
 # True ALSO empties data/, which is where the simulated DEVICE POOLS
 # live.  Those are the expensive part and they do not depend on the budget,
 # so leaving this False keeps the devices and still gives a clean results/ —
 # the same fresh answer, minutes faster.
-WIPE_DEVICE_POOLS = True
+WIPE_DEVICE_POOLS = False
 
 # The measurement budget.  Every (rays, points) combination is one cell:
 # one folder, one trained model, one row in the final table.
-RAYS = [4]
-POINTS = [40]
+RAYS = [4, 5, 6, 7, 8]
+POINTS = [40, 50, 60]
 
 # Dataset sizes.  The SAME for every cell on purpose, so the cells differ
 # only in how the devices were measured — never in which devices, or how many.
-N_TRAIN = 300
+N_TRAIN = 500
 N_TEST = 50
 
 # How long to train each cell.

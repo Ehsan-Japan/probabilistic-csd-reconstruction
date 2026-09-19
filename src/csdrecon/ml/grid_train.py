@@ -102,6 +102,18 @@ def _soft_dice(logits: torch.Tensor, target: torch.Tensor,
     return (1 - (2 * inter + eps) / (p.sum(1) + t.sum(1) + eps)).mean()
 
 
+def device() -> torch.device:
+    """
+    The GPU when there is one, the CPU otherwise.
+
+    One place, so training, thresholding and scoring all agree.  Nothing
+    about the study depends on which it is: the same seeds, the same data
+    and the same architecture give the same model up to floating-point
+    reassociation.
+    """
+    return torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+
 def predict(net, X: np.ndarray, batch: int = 16) -> np.ndarray:
     """
     Per-pixel probabilities for a stack of inputs.
@@ -110,11 +122,13 @@ def predict(net, X: np.ndarray, batch: int = 16) -> np.ndarray:
     network is only ever shown the measurement — signal + visited.
     """
     net.eval()
+    dev = next(net.parameters()).device
     Xn = X[:, :NET_CHANNELS]
     out = []
     with torch.no_grad():
         for i in range(0, len(Xn), batch):
-            out.append(torch.sigmoid(net(torch.tensor(Xn[i:i + batch]))).numpy())
+            xb = torch.tensor(Xn[i:i + batch]).to(dev)
+            out.append(torch.sigmoid(net(xb)).cpu().numpy())
     return np.concatenate(out)
 
 
@@ -161,13 +175,14 @@ def train(X: np.ndarray, Y: np.ndarray, epochs: int = 40,
     n_val = max(1, int(VAL_FRACTION * len(X)))
     vi, ti = idx[:n_val], idx[n_val:]
     Xv, Yv = X[vi], Y[vi]
-    Xt = torch.tensor(X[ti][:, :NET_CHANNELS])
-    Yt = torch.tensor(Y[ti])
+    dev = device()
+    Xt = torch.tensor(X[ti][:, :NET_CHANNELS]).to(dev)
+    Yt = torch.tensor(Y[ti]).to(dev)
 
-    net = RayToLinesNet(in_channels=NET_CHANNELS)
+    net = RayToLinesNet(in_channels=NET_CHANNELS).to(dev)
     pos = float(Y.mean())
     pos_w = min((1 - pos) / max(pos, 1e-6), MAX_POS_WEIGHT)
-    bce = nn.BCEWithLogitsLoss(pos_weight=torch.tensor([pos_w]))
+    bce = nn.BCEWithLogitsLoss(pos_weight=torch.tensor([pos_w], device=dev))
 
     def loss_fn(logits, target):
         # BCE gets the pixels right, Dice keeps the prediction from spreading
@@ -177,6 +192,7 @@ def train(X: np.ndarray, Y: np.ndarray, epochs: int = 40,
     opt = torch.optim.Adam(net.parameters(), lr=LEARNING_RATE)
 
     if verbose:
+        log.detail(f"  training on {dev.type}")
         log.detail(f"  {net.n_params/1e3:.0f}k params, "
                    f"{len(Xt)} train / {len(Xv)} val, positives {100*pos:.2f}%")
 
@@ -184,7 +200,7 @@ def train(X: np.ndarray, Y: np.ndarray, epochs: int = 40,
     best_f1, best_state = -1.0, None
     for ep in range(1, epochs + 1):
         net.train()
-        perm = torch.randperm(len(Xt))
+        perm = torch.randperm(len(Xt), device=dev)
         tot = 0.0
         for b in range(0, len(Xt), BATCH_SIZE):
             sl = perm[b:b + BATCH_SIZE]
@@ -226,7 +242,8 @@ def save(net, threshold: float, path: str, n_rays: int, n_points: int,
     measurement it was not trained for.
     """
     os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
-    torch.save({"state_dict": net.state_dict(), "threshold": threshold,
+    state = {k: v.cpu() for k, v in net.state_dict().items()}
+    torch.save({"state_dict": state, "threshold": threshold,
                 "n_rays": n_rays, "n_points": n_points,
                 **(extra or {})}, path)
 
@@ -237,4 +254,4 @@ def load(path: str) -> Tuple[RayToLinesNet, Dict]:
     net = RayToLinesNet()
     net.load_state_dict(ck["state_dict"])
     net.eval()
-    return net, ck
+    return net.to(device()), ck
