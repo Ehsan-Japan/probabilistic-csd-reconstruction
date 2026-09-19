@@ -71,7 +71,7 @@ python scripts/run_9_update_readme.py      # rewrite the Results section below
 
 ## Results
 
-From `results/4_rays_40_points_300_samples/`, regenerated on 2026-09-19. 1 measurement budget, 300 training and 50 held-out devices (disjoint by device ID, seed 12345), 100 × 100 px diagrams.
+From `results/4_rays_40_points_300_samples/`. 1 measurement budget, 300 training and 50 held-out devices (disjoint by device ID, seed 12345), 100 × 100 px diagrams.
 
 ### Every budget
 
