@@ -354,9 +354,8 @@ def fig_f1_vs_rays(models, out_dir):
     return _save(fig, out_dir, "01_f1_vs_rays")
 
 
-def fig_f1_vs_coverage(models, out_dir):
-    """The same result on the honest axis: what the measurement cost."""
-    fig, ax = plt.subplots(figsize=(6.4, 4.4))
+def _panel_f1_vs_coverage(ax, models):
+    """The result on the honest axis: what the measurement cost."""
     ms = sorted(models, key=lambda m: m.get("coverage"))
     x = [100 * m.get("coverage") for m in ms]
     y = [m.get(HEADLINE) for m in ms]
@@ -371,12 +370,10 @@ def fig_f1_vs_coverage(models, out_dir):
            "Accuracy against measurement cost")
     ax.set_ylim(0, 1)
     ax.set_xlim(left=0)
-    return _save(fig, out_dir, "02_f1_vs_coverage")
 
 
-def fig_f1_vs_tolerance(models, out_dir):
+def _panel_f1_vs_tolerance(ax, models):
     """How much of the error is sub-pixel misalignment rather than a miss."""
-    fig, ax = plt.subplots(figsize=(6.4, 4.4))
     for m in models:
         y = [m.get(f"f1@{t}") for t in TAUS]
         ax.plot(TAUS, y, "o-", color=m.color, lw=LINE_W, ms=MARK_S,
@@ -387,10 +384,42 @@ def fig_f1_vs_tolerance(models, out_dir):
     ax.set_ylim(0, 1)
     if len(models) > 1:
         ax.legend(loc="lower right")
+
+
+def fig_f1_vs_coverage(models, out_dir):
+    """The same result on the honest axis: what the measurement cost."""
+    fig, ax = plt.subplots(figsize=(6.4, 4.4))
+    _panel_f1_vs_coverage(ax, models)
+    return _save(fig, out_dir, "02_f1_vs_coverage")
+
+
+def fig_f1_vs_tolerance(models, out_dir):
+    """How much of the error is sub-pixel misalignment rather than a miss."""
+    fig, ax = plt.subplots(figsize=(6.4, 4.4))
+    _panel_f1_vs_tolerance(ax, models)
     fig.text(0.01, -0.02,
              "a predicted line pixel counts as correct if a true one lies "
              "within tau pixels", fontsize=8, color=MUTED)
     return _save(fig, out_dir, "03_f1_vs_tolerance")
+
+
+def fig_cost_and_tolerance(models, out_dir):
+    """
+    The two axes the study is read on, side by side: what the measurement
+    cost, and how much of what is left is sub-pixel placement.  One figure,
+    because the two questions are asked of the same numbers — the README
+    shows this instead of the same pair stacked one after the other.
+    """
+    fig, axes = plt.subplots(1, 2, figsize=(11.6, 4.4))
+    _panel_f1_vs_coverage(axes[0], models)
+    _panel_f1_vs_tolerance(axes[1], models)
+    for ax, letter in zip(axes, "ab"):
+        ax.set_title(f"({letter}) {ax.get_title()}", loc="left")
+    fig.text(0.01, -0.02,
+             "a predicted line pixel counts as correct if a true one lies "
+             "within tau pixels", fontsize=8, color=MUTED)
+    fig.tight_layout()
+    return _save(fig, out_dir, "08_cost_and_tolerance")
 
 
 def fig_metric_bars(models, out_dir):
@@ -1003,6 +1032,7 @@ def fig_generalisation_gap(models, out_dir):
 
 GALLERY = [
     fig_f1_vs_rays, fig_f1_vs_coverage, fig_f1_vs_tolerance,
+    fig_cost_and_tolerance,
     fig_metric_bars, fig_precision_recall, fig_precision_recall_vs_rays,
     fig_iou, fig_gain_over_baseline, fig_heatmap,
     fig_train_size, fig_line_budget, fig_threshold, fig_summary_table,
