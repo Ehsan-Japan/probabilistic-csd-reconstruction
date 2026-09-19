@@ -101,22 +101,6 @@ Per-device spread at this budget: F1@1 mean 0.631, sd 0.132, min 0.187, max 0.80
 
 <!-- RESULTS:END -->
 
-## Layout
-
-```
-scripts/            the programs you run — a settings block and a few lines each
-src/csdrecon/       the library.  Nothing here has a command line.
-    config/         parameter space, paths, figure house style
-    simulation/     the device model (QArray, constant-capacitance)
-    ml/             the ray cutting, the U-Net, training, metrics
-    study/          the pipeline stages, the sweep, the figure gallery
-    visualization/  drawing measurements and predictions over a diagram
-tests/              metric tests — `pytest -q`, no data or model needed
-docs/figures/       the figures shown in this README (copied from a run)
-data/               simulated device pools (generated; not in git)
-results/            one folder per run: datasets, models, scores (not in git)
-```
-
 ## Method
 
 ![The network: two input channels — the measured ray signal and the visited mask — through the U-Net to one probability per pixel.](docs/figures/unet_io.png)
