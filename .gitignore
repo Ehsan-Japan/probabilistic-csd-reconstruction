@@ -26,3 +26,12 @@ HANDOFF.md
 CLAUDE.md
 CLAUDE.local.md
 .claude/settings.local.json
+
+# --- Reference material and figure sources, not part of the public repo ---
+# They live outside the repo, in ../csd-materials/ (other people's papers,
+# and the Illustrator .ai/.jsx sources).  Listed here so a stray copy back
+# into the working tree is never committed by accident; the figures the
+# README shows are copied into docs/figures/ instead.
+/literature/
+/citations/
+/illustrator/

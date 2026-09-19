@@ -114,6 +114,21 @@ results/            one folder per run: datasets, models, scores (not in git)
 
 ## Method
 
+![The simulated device. (a) the constant-capacitance network, (b) the four capacitance matrices it is drawn from.](docs/figures/dqd_model.png)
+
+*The simulated device and the parameters it is drawn from. **(a)** the
+constant-capacitance network of the double dot with its charge sensor: each
+plunger gate couples to its own dot (C_d1g1, C_d2g2) and, more weakly, to the
+other (C_d2g1, C_d1g2); the dots are coupled by C_d1d2, and the sensor dot
+QD_s couples to both dots and to its own gate V_g3. The semicircular hop
+marks a crossing without a connection. **(b)** the model's four capacitance
+matrices; every entry is drawn independently and uniformly per device, so a
+device is one point of a parameter box rather than a perturbation of a
+template. For legibility (a) leaves out the sensor gate's cross-talk to the
+plunger gates (c_s1g1, c_s1g2), the dot self-capacitances (c_d1d1, c_d2d2)
+and c_d2g3; all of them are in the model and appear in (b). The ranges are in
+`src/csdrecon/config/capacitance_config.py`.*
+
 | | |
 |---|---|
 | **Simulator** | QArray, constant-capacitance model. QD₁ and QD₂ on plunger gates coupled through C_m; a third dot is the charge sensor. Capacitances are drawn at random per device. The ground truth is the exact charge-state boundary from the simulator, not an edge-detected image. Noise-free. |
@@ -122,7 +137,7 @@ results/            one folder per run: datasets, models, scores (not in git)
 | **Network input** | 2 channels: the raw sensor value where a ray passed, and a visited mask, so "measured and low" is distinguishable from "never measured". |
 | **Network** | fully convolutional U-Net, depth 3 (32→64→128, bottleneck 256), sigmoid head → one probability per pixel. |
 | **Loss** | BCEWithLogits with the positive class weighted by its rarity (capped at 8) + soft Dice. Adam 1e-3, batch 16. |
-| **Metric** | tolerant **F1@τ**: a predicted pixel counts when a true line pixel lies within τ, and vice versa. τ = 0…3 are all reported; τ = 1 is the headline. Pixel accuracy is reported only to be dismissed — predicting nothing already scores ≈ 93 %. |
+| **Metric** | tolerant **F1@τ**: a predicted pixel counts when a true line pixel lies within τ, and vice versa. τ = 0…3 are all reported. |
 
 ## Tests
 
