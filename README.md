@@ -160,14 +160,3 @@ scores zero at τ = 0 and one at τ = 1, that an empty prediction is not
 rewarded, that scores are averaged per device. They need no data, no model
 and no simulator, and run in under a second.
 
-## Limitations
-
-Simulation only and noise-free; constant-capacitance model; double dot; fixed
-100 × 100 resolution and a fixed 2 × 2 window size (only its origin varies);
-fixed ray origin; the rays are non-adaptive; strict IoU is low because
-one-pixel-wide lines are punished hard by IoU.
-
-## License
-
-MIT — see [LICENSE](LICENSE). If you use this code, please cite the paper
-(see [CITATION.cff](CITATION.cff)).
