@@ -12,10 +12,9 @@ E. Alizadeh Kashtiban, T. Fujita, A. Oiwa — Osaka University
 constant-capacitance network of the double dot with its charge sensor: each
 plunger gate couples to its own dot (C_d1g1, C_d2g2) and, more weakly, to the
 other (C_d2g1, C_d1g2); the dots are coupled by C_d1d2, and the sensor dot
-QD_s couples to both dots and to its own gate V_g3. The semicircular hop
-marks a crossing without a connection. **(b)** the model's four capacitance
-matrices; every entry is drawn independently and uniformly per device. The
-ranges are in `src/csdrecon/config/capacitance_config.py`.*
+QD_s couples to both dots and to its own gate V_g3. **(b)** the model's four
+capacitance matrices; every entry is drawn independently and uniformly per
+device. The ranges are in `src/csdrecon/config/capacitance_config.py`.*
 
 A charge stability diagram (CSD) is normally acquired as a full raster scan of
 the (V₁, V₂) plane, and the cost of that scan grows with the square of the
