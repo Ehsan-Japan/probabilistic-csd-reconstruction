@@ -298,31 +298,17 @@ def fig_probability(prob, Y, threshold: float, out_path: str,
                     cfg: StudyConfig):
     """
     The network outputs a probability per pixel; the threshold is what turns
-    it into a picture.  Separating the two matters: a low F1 caused by a
-    badly placed threshold looks nothing like one caused by a network that
-    cannot see the lines, and the histogram tells them apart at a glance.
+    it into a picture.  Showing the map itself, before any cut is made, keeps
+    the two separate: a low F1 caused by a badly placed threshold looks
+    nothing like one caused by a network that cannot see the lines.
     """
-    line = Y > 0.5
-    fig, axes = plt.subplots(1, 2, figsize=(9.6, 3.8))
-    bins = np.linspace(0, 1, 60)
-    axes[0].hist(prob[line].ravel(), bins=bins, color=LINE_C, alpha=0.7,
-                 density=True, label="pixels on a true line")
-    axes[0].hist(prob[~line].ravel(), bins=bins, color="#888888", alpha=0.6,
-                 density=True, label="background pixels")
-    axes[0].axvline(threshold, color="#c0392b", lw=1.5,
-                    label=f"threshold {threshold:g}")
-    axes[0].set_yscale("log")
-    axes[0].set_xlabel("predicted probability of a transition line")
-    axes[0].set_ylabel("density (log)")
-    axes[0].legend(frameon=False, fontsize=8)
-
-    im = axes[1].imshow(prob[0], origin="lower", cmap="magma", vmin=0, vmax=1,
-                        interpolation="nearest")
-    axes[1].set_title("probability map, device 1", fontsize=9)
-    _blank(axes[1])
-    fig.colorbar(im, ax=axes[1], fraction=0.046, pad=0.04)
-    for s in ("top", "right"):
-        axes[0].spines[s].set_visible(False)
+    fig, ax = plt.subplots(figsize=(4.8, 3.8))
+    im = ax.imshow(prob[0], origin="lower", cmap="magma", vmin=0, vmax=1,
+                   interpolation="nearest")
+    ax.set_title(f"probability map, device 1  (threshold {threshold:g})",
+                 fontsize=9)
+    _blank(ax)
+    fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
     fig.tight_layout()
     fig.savefig(out_path, dpi=200)
     plt.close(fig)
