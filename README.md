@@ -39,8 +39,6 @@ cd probabilistic-csd-reconstruction
 pip install -r requirements.txt        # or:  pip install -e .
 ```
 
-Python ≥ 3.10. Runs on CPU; CUDA is used automatically when available.
-
 ## Run the study
 
 ```bash
@@ -120,6 +118,16 @@ results/            one folder per run: datasets, models, scores (not in git)
 ```
 
 ## Method
+
+![The network: two input channels — the measured ray signal and the visited mask — through the U-Net to one probability per pixel.](docs/figures/unet_io.png)
+
+*What the network sees and what it returns. The two input channels are the
+measured sensor value where a ray passed and the visited mask, so "measured
+and low" is distinguishable from "never measured". The encoder halves the
+plane three times (100² → 50² → 25² → 12²) while widening 32 → 64 → 128 to a
+256-channel bottleneck; the decoder walks back up with skip connections, and
+a sigmoid head returns one probability of a transition line per pixel of the
+whole 100 × 100 plane — including the pixels no ray ever touched.*
 
 | | |
 |---|---|
