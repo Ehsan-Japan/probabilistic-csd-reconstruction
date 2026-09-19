@@ -1,0 +1,22 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.ipynb_checkpoints/
+.pytest_cache/
+
+# --- Virtual environments ---
+venv/
+.venv/
+env/
+
+# --- Generated: reproducible from the code in this repo ---
+/data/
+/results/
+
+# --- OS / editor ---
+.DS_Store
+Thumbs.db
+.vscode/

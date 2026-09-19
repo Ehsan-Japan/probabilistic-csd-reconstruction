@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "csdrecon"
+version = "1.0.0"
+description = "Probabilistic reconstruction of quantum-dot charge stability diagrams from sparse ray measurements"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [
+  { name = "E. Alizadeh Kashtiban" },
+  { name = "T. Fujita" },
+  { name = "A. Oiwa" },
+]
+keywords = ["quantum dots", "charge stability diagram", "U-Net", "sparse sampling"]
+dependencies = [
+  "numpy>=1.24",
+  "scipy>=1.10",
+  "matplotlib>=3.7",
+  "pillow>=9.5",
+  "torch>=2.0",
+  "qarray>=1.6",
+  "PyYAML>=6.0",
+]
+
+[project.urls]
+Repository = "https://github.com/EhsanAlizadehKashtiban/probabilistic-csd-reconstruction"
+
+[tool.setuptools.packages.find]
+where = ["src"]

@@ -1,0 +1,18 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite the paper below."
+title: "probabilistic-csd-reconstruction"
+abstract: >-
+  Probabilistic reconstruction of the charge-transition lines of a double
+  quantum dot from a few percent of the gate-voltage plane, measured along
+  rays.
+authors:
+  - family-names: "Alizadeh Kashtiban"
+    given-names: "Ehsan"
+    affiliation: "Graduate School of Science and SANKEN, Osaka University"
+  - family-names: "Fujita"
+    given-names: "Takafumi"
+    affiliation: "SANKEN, Osaka University"
+  - family-names: "Oiwa"
+    given-names: "Akira"
+    affiliation: "SANKEN, Osaka University"
+license: MIT

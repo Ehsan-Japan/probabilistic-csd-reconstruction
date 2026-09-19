@@ -1,0 +1,8 @@
+# Pinned to the versions this study was run with.
+numpy>=1.24
+scipy>=1.10
+matplotlib>=3.7
+pillow>=9.5
+torch>=2.0
+qarray>=1.6
+PyYAML>=6.0
