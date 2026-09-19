@@ -6,6 +6,17 @@ measurements.**
 E. Alizadeh Kashtiban, T. Fujita, A. Oiwa — Osaka University
 (Graduate School of Science and SANKEN).
 
+![The simulated device. (a) the constant-capacitance network, (b) the four capacitance matrices it is drawn from.](docs/figures/dqd_model.png)
+
+*The simulated device and the parameters it is drawn from. **(a)** the
+constant-capacitance network of the double dot with its charge sensor: each
+plunger gate couples to its own dot (C_d1g1, C_d2g2) and, more weakly, to the
+other (C_d2g1, C_d1g2); the dots are coupled by C_d1d2, and the sensor dot
+QD_s couples to both dots and to its own gate V_g3. The semicircular hop
+marks a crossing without a connection. **(b)** the model's four capacitance
+matrices; every entry is drawn independently and uniformly per device. The
+ranges are in `src/csdrecon/config/capacitance_config.py`.*
+
 A charge stability diagram (CSD) is normally acquired as a full raster scan of
 the (V₁, V₂) plane, and the cost of that scan grows with the square of the
 resolution. Here the plane is measured only along a **fan of rays** fired from
@@ -113,21 +124,6 @@ results/            one folder per run: datasets, models, scores (not in git)
 ```
 
 ## Method
-
-![The simulated device. (a) the constant-capacitance network, (b) the four capacitance matrices it is drawn from.](docs/figures/dqd_model.png)
-
-*The simulated device and the parameters it is drawn from. **(a)** the
-constant-capacitance network of the double dot with its charge sensor: each
-plunger gate couples to its own dot (C_d1g1, C_d2g2) and, more weakly, to the
-other (C_d2g1, C_d1g2); the dots are coupled by C_d1d2, and the sensor dot
-QD_s couples to both dots and to its own gate V_g3. The semicircular hop
-marks a crossing without a connection. **(b)** the model's four capacitance
-matrices; every entry is drawn independently and uniformly per device, so a
-device is one point of a parameter box rather than a perturbation of a
-template. For legibility (a) leaves out the sensor gate's cross-talk to the
-plunger gates (c_s1g1, c_s1g2), the dot self-capacitances (c_d1d1, c_d2d2)
-and c_d2g3; all of them are in the model and appear in (b). The ranges are in
-`src/csdrecon/config/capacitance_config.py`.*
 
 | | |
 |---|---|
