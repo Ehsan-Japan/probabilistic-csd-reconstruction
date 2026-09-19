@@ -414,7 +414,9 @@ def fig_cost_and_tolerance(models, out_dir):
     _panel_f1_vs_coverage(axes[0], models)
     _panel_f1_vs_tolerance(axes[1], models)
     for ax, letter in zip(axes, "ab"):
-        ax.set_title(f"({letter}) {ax.get_title()}", loc="left")
+        # loc="left" on both ends: _style() puts the title there, and
+        # get_title() reads the centre one, which is empty.
+        ax.set_title(f"({letter}) {ax.get_title(loc='left')}", loc="left")
     fig.text(0.01, -0.02,
              "a predicted line pixel counts as correct if a true one lies "
              "within tau pixels", fontsize=8, color=MUTED)

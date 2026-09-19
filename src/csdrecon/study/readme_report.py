@@ -43,12 +43,12 @@ DOCS_FIGURES = os.path.join("docs", "figures")
 # (name in docs/figures, path inside the run folder, caption).  A figure
 # that the run did not produce is skipped rather than linked broken.
 FIGURES: Sequence[Tuple[str, str, str]] = (
-    ("f1_vs_coverage.png", os.path.join("figures", "02_f1_vs_coverage.png"),
-     "F1@1 against the fraction of the plane measured, for every budget in "
-     "the run."),
-    ("f1_vs_tolerance.png", os.path.join("figures", "03_f1_vs_tolerance.png"),
-     "How the score depends on the tolerance &tau; — how much of the "
-     "remaining error is sub-pixel placement rather than a missed line."),
+    ("f1_cost_and_tolerance.png",
+     os.path.join("figures", "08_cost_and_tolerance.png"),
+     "**(a)** F1@1 against the fraction of the plane measured, for every "
+     "budget in the run. **(b)** how the score depends on the tolerance "
+     "&tau; — how much of the remaining error is sub-pixel placement "
+     "rather than a missed line."),
 )
 
 # Kept up to date in docs/figures/ so the file in the repo is never a stale
