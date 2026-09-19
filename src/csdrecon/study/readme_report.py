@@ -49,9 +49,6 @@ FIGURES: Sequence[Tuple[str, str, str]] = (
     ("f1_vs_tolerance.png", os.path.join("figures", "03_f1_vs_tolerance.png"),
      "How the score depends on the tolerance &tau; — how much of the "
      "remaining error is sub-pixel placement rather than a missed line."),
-    ("probability.png", None,     # filled in per best configuration below
-     "The probability map, and where the threshold falls. Background pixels "
-     "and pixels on a true line are separated before any cut is made."),
 )
 
 TAUS = (0, 1, 2, 3)

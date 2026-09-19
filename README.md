@@ -13,9 +13,7 @@ one corner of the window. A ray crossing a charge-transition line produces a
 local maximum in the charge-sensor current, so the traces along the rays carry
 sparse evidence of where the lines are. A small U-Net turns those traces into
 a **per-pixel probability** that a transition line passes through each pixel of
-the whole plane, and the question the study asks is:
-
-> how little of the grid can we measure and still recover every line?
+the whole plane.
 
 Two properties distinguish the output from an image reconstruction: it is a
 **calibrated probability map**, not a picture, and the **threshold** that turns
@@ -96,10 +94,6 @@ Per-device spread at this budget: F1@1 mean 0.631, sd 0.132, min 0.187, max 0.80
 
 *How the score depends on the tolerance &tau; — how much of the remaining error is sub-pixel placement rather than a missed line.*
 
-![The probability map, and where the threshold falls. Background pixels and pixels on a true line are separated before any cut is made.](docs/figures/probability.png)
-
-*The probability map, and where the threshold falls. Background pixels and pixels on a true line are separated before any cut is made.*
-
 <!-- RESULTS:END -->
 
 ## Layout
@@ -130,25 +124,6 @@ results/            one folder per run: datasets, models, scores (not in git)
 | **Loss** | BCEWithLogits with the positive class weighted by its rarity (capped at 8) + soft Dice. Adam 1e-3, batch 16. |
 | **Metric** | tolerant **F1@τ**: a predicted pixel counts when a true line pixel lies within τ, and vice versa. τ = 0…3 are all reported; τ = 1 is the headline. Pixel accuracy is reported only to be dismissed — predicting nothing already scores ≈ 93 %. |
 
-## What makes the numbers trustworthy
-
-* **Devices are simulated once and shared.** Changing the number of rays
-  changes how a device is measured, never which device it is — so a
-  comparison across budgets is a comparison of the measurement and nothing
-  else.
-* **The split is made on the device, not the image**, once, with a fixed
-  seed, and stored with the device pool. No device can land on both sides in
-  any budget.
-* **No diagram is filtered.** The capacitances are drawn at random and every
-  device the simulator completes enters the pool, honeycomb or not. There is
-  no acceptance test.
-* **Training constants are constants**, not settings: they live once, in
-  `src/csdrecon/ml/grid_train.py`, so every cell of a sweep trains
-  identically and the architecture is fixed across budgets.
-* **Nothing is tuned on the test devices.** The binarisation threshold is
-  chosen on a validation split carved out of the *training* devices and
-  stored inside the checkpoint.
-
 ## Tests
 
 ```bash
@@ -159,13 +134,6 @@ Nine checks on the metric the study is reported in — that a one-pixel offset
 scores zero at τ = 0 and one at τ = 1, that an empty prediction is not
 rewarded, that scores are averaged per device. They need no data, no model
 and no simulator, and run in under a second.
-
-## Limitations
-
-Simulation only and noise-free; constant-capacitance model; double dot; fixed
-100 × 100 resolution and a fixed 2 × 2 window size (only its origin varies);
-fixed ray origin; the rays are non-adaptive; strict IoU is low because
-one-pixel-wide lines are punished hard by IoU.
 
 ## License
 
