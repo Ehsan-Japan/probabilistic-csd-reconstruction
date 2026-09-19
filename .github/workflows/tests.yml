@@ -1,0 +1,20 @@
+name: tests
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      # The metric tests need numpy and scipy only; torch and qarray are not
+      # installed here, so the suite stays a few seconds rather than minutes.
+      - run: pip install numpy scipy pytest
+      - run: pip install -e . --no-deps
+      - run: pytest -q

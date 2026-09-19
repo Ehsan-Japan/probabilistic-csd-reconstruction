@@ -30,3 +30,8 @@ Repository = "https://github.com/EhsanAlizadehKashtiban/probabilistic-csd-recons
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# So the suite runs straight from a clone, without installing the package.
+pythonpath = ["src"]

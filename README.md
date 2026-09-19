@@ -68,7 +68,7 @@ src/csdrecon/       the library.  Nothing here has a command line.
     ml/             the ray cutting, the U-Net, training, metrics
     study/          the pipeline stages, the sweep, the figure gallery
     visualization/  drawing measurements and predictions over a diagram
-paper_figures/      the figure scripts for the manuscript
+tests/              metric tests — `pytest -q`, no data or model needed
 data/               simulated device pools (generated; not in git)
 results/            one folder per run: datasets, models, scores (not in git)
 ```
@@ -103,6 +103,17 @@ results/            one folder per run: datasets, models, scores (not in git)
 * **Nothing is tuned on the test devices.** The binarisation threshold is
   chosen on a validation split carved out of the *training* devices and
   stored inside the checkpoint.
+
+## Tests
+
+```bash
+pip install pytest && pytest -q
+```
+
+Nine checks on the metric the study is reported in — that a one-pixel offset
+scores zero at τ = 0 and one at τ = 1, that an empty prediction is not
+rewarded, that scores are averaged per device. They need no data, no model
+and no simulator, and run in under a second.
 
 ## Limitations
 
