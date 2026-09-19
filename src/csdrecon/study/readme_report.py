@@ -51,6 +51,13 @@ FIGURES: Sequence[Tuple[str, str, str]] = (
      "remaining error is sub-pixel placement rather than a missed line."),
 )
 
+# Kept up to date in docs/figures/ so the file in the repo is never a stale
+# picture, but not linked from the README's results section.  `None` as the
+# path means the best cell's own copy.
+COPIED_ONLY: Sequence[Tuple[str, Optional[str]]] = (
+    ("probability.png", None),
+)
+
 TAUS = (0, 1, 2, 3)
 
 
@@ -141,15 +148,19 @@ def copy_figures(run_dir: str, best: Dict,
     out_dir = os.path.join(root, DOCS_FIGURES)
     os.makedirs(out_dir, exist_ok=True)
     kept = []
-    for name, rel, caption in FIGURES:
-        if rel is None:                    # the best cell's own probability map
+    both = [(n, r, c) for n, r, c in FIGURES]
+    both += [(n, r, None) for n, r in COPIED_ONLY]
+    for name, rel, caption in both:
+        if rel is None:                    # the best cell's own copy
             rel = os.path.join(best["configuration"], "evaluation", "figures",
-                               "probability.png")
+                               name)
         src = os.path.join(run_dir, rel)
         if not os.path.isfile(src):
             log.detail(f"  [skip] {name}: {os.path.abspath(src)} is missing")
             continue
         shutil.copyfile(src, os.path.join(out_dir, name))
+        if caption is None:                # copied, but not shown in the README
+            continue
         kept.append((f"{DOCS_FIGURES.replace(os.sep, '/')}/{name}", caption))
     return kept
 
