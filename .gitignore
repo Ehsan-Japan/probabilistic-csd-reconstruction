@@ -20,3 +20,9 @@ env/
 .DS_Store
 Thumbs.db
 .vscode/
+
+# --- Working notes for the next session, not part of the public repo ---
+HANDOFF.md
+CLAUDE.md
+CLAUDE.local.md
+.claude/settings.local.json
