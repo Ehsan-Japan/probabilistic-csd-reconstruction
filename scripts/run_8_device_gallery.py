@@ -5,9 +5,14 @@ CONTACT SHEETS — every simulated device on a page, train and test.
 
 For each device: the raw charge-sensor image, the same image with the smooth
 gate background differenced away (where the honeycomb is actually visible),
-and the binary ground truth the network is scored against.  Many devices per
-page, so a whole split can be checked at a glance — what kind of diagrams the
-simulator produced, and whether train and test look like the same population.
+the binary ground truth, the U-Net's probability map and the lines it gives
+at the stored threshold.  Many devices per page, so a whole split can be
+checked at a glance — what kind of diagrams the simulator produced, whether
+train and test look like the same population, and which devices the network
+reconstructs badly.
+
+THE TRAIN PAGES ARE IN-SAMPLE and say so on the page: the network was fitted
+on those devices.  Only the test pages are evidence.
 
 Writes <configuration>/figures/gallery/<split>_page_NN.png, plus an
 index.txt saying which device is on which page.  Nothing else is touched:
@@ -30,12 +35,15 @@ SPLITS = ("train", "test")
 
 # The panels drawn for each device, in this order.  Drop one to fit more
 # devices on a page.
-PANELS = ("charge_sensor", "charge_sensor_gradient", "stability_diagram")
+# The two network panels need a trained model; without one they are skipped
+# and the device panels are drawn on their own.
+PANELS = ("charge_sensor", "charge_sensor_gradient", "stability_diagram",
+          "probability", "prediction")
 
-# Page layout.  15 devices on a 3-wide page is a sheet that still reads at
-# 150 dpi; raise PER_PAGE for fewer, denser pages.
-PER_PAGE = 15
-COLUMNS = 3
+# Page layout.  With five panels per device, 2 devices per row is what still
+# reads at 150 dpi; raise PER_PAGE for fewer, taller pages.
+PER_PAGE = 10
+COLUMNS = 2
 DPI = 150
 
 # The voltage-grid cells behind the ground truth.  Off here: at thumbnail
