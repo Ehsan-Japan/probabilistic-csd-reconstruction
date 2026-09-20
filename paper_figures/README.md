@@ -6,7 +6,7 @@ and for slides. Ported from the SSDM deck's figure suite
 repointed at this repo's run.
 
 The dense diagnostic gallery in
-`results/<run>/figures/` (14 plots, fifteen labelled series each) is *not*
+`results/<run>/figures/` (7 plots, fifteen labelled series each) is *not*
 what goes in the paper. It is for reading a sweep, not for showing one.
 `scripts/run_10_bundle_figures.py` splits it into bundles of five.
 

@@ -10,12 +10,13 @@ overwritten:
 
     results/3-5-8-12_rays_40_points_500_samples/
         comparison.csv / .txt      one row per configuration
-        figures/f1_vs_rays.png     THE figure of the study
-                f1_vs_coverage.png the same on the honest x-axis: how much
-                                   of the grid was actually measured
-                f1_heatmap.png     rays x points (needs a 2-D sweep)
-                f1_vs_tolerance.png   how much of the error is sub-pixel
-                f1_vs_train_size.png  would more devices have helped?
+        figures/                   the diagnostic gallery — see
+                                   model_figures.GALLERY for what is in it
+
+The gallery is for READING a sweep, not for showing one. Figures for the
+paper and for slides are built separately in paper_figures/, and
+scripts/run_10_bundle_figures.py re-renders the gallery a few models at a
+time when fifteen series on one axes stops being legible.
 
 Configurations that have not been evaluated are listed as missing, not
 silently dropped — a half-finished sweep must not turn into a

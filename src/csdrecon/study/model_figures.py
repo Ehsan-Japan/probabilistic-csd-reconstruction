@@ -4,17 +4,20 @@ models beside each other.
 
 run_4 (and run_3's COMPARE_AFTER) writes all of these into
 
-    results/comparison/figures/
+    results/<sweep>/figures/
+
+and run_10 re-renders them one bundle at a time, a few models per plot.
 
 They come from three sources, in increasing order of how much they tell you:
 
     comparison.csv          one row per model — the headline numbers
-    <cfg>/evaluation/       per_device.csv, 100 rows per model — the SPREAD,
-                            and, when every model was scored on the same test
-                            pool, device-by-device PAIRED comparisons
+    <cfg>/evaluation/       per_device.csv, one row per held-out device —
+                            the SPREAD behind each mean
     <cfg>/model/            history.json — how each model trained
 
-Pick the two or three that make your point; the rest are diagnostics.
+These are DIAGNOSTICS: they are for reading a sweep, not for showing one.
+The figures that go in the paper and on slides are built separately, in
+paper_figures/, one point per panel.
 
 DESIGN RULES THIS FILE FOLLOWS
 Colour identifies the MODEL and nothing else, assigned in a fixed order and
@@ -96,11 +99,6 @@ def _rc():
 
 # ── small helpers ─────────────────────────────────────────────────────────
 
-def _int_axis(ax, values):
-    """Whole-number ticks: a count of rays is never 3.25."""
-    ax.set_xticks(sorted({int(v) for v in values}))
-
-
 def _style(ax, xlabel: str = "", ylabel: str = "", title: str = "",
            grid_axis: str = "y"):
     if xlabel:
@@ -121,38 +119,6 @@ def _save(fig, out_dir: str, name: str) -> str:
     fig.savefig(path, dpi=FIG_DPI, bbox_inches="tight")
     plt.close(fig)
     return path
-
-
-def rounded_bars(ax, xs, heights, width, colors, base: float = 0.0,
-                 radius_frac: float = 0.22, zorder: int = 3):
-    """
-    Bars with rounded data-ends and a square base.
-
-    matplotlib has no rounded bar; the shape is built as a path so the end
-    that carries the value is soft and the end anchored to the baseline stays
-    flat, which is what keeps the reading unambiguous.
-    """
-    if np.isscalar(colors):
-        colors = [colors] * len(xs)
-    for x, h, c in zip(xs, heights, colors):
-        if not np.isfinite(h):
-            continue
-        r = min(width * radius_frac, abs(h - base) * 0.5)
-        x0, x1 = x - width / 2, x + width / 2
-        top = h
-        sign = 1 if h >= base else -1
-        verts = [(x0, base), (x0, top - sign * r),
-                 (x0, top), (x0 + r, top),          # curve
-                 (x1 - r, top),
-                 (x1, top), (x1, top - sign * r),   # curve
-                 (x1, base), (x0, base)]
-        codes = [MplPath.MOVETO, MplPath.LINETO,
-                 MplPath.CURVE3, MplPath.CURVE3,
-                 MplPath.LINETO,
-                 MplPath.CURVE3, MplPath.CURVE3,
-                 MplPath.LINETO, MplPath.CLOSEPOLY]
-        ax.add_patch(PathPatch(MplPath(verts, codes), facecolor=c,
-                               edgecolor="none", zorder=zorder))
 
 
 def _label_end(ax, x, y, text: str, color: str, dx: float = 6, dy: float = 0):
@@ -222,36 +188,6 @@ def _load_history(cfg) -> Optional[Dict]:
         return json.load(f)
 
 
-def _test_pool(cfg) -> Optional[str]:
-    """The pool a configuration's devices came from, or None."""
-    path = os.path.join(cfg.dir, "dataset_summary.json")
-    if not os.path.isfile(path):
-        return None
-    with open(path) as f:
-        d = json.load(f)
-    ids = tuple(d.get("split", {}).get("test_ids", []))
-    # Two models are paired-comparable when they were scored on the same pool
-    # AND the same test IDs out of it.
-    return (d.get("pool"), ids) if d.get("pool") else None
-
-
-def paired_ok(models: Sequence[Model]) -> bool:
-    """
-    True when device i means the same physical device in every model.
-
-    Only then can the models be compared device by device — the strongest
-    comparison available, because it removes device difficulty from the
-    picture entirely.  Two configurations built with different n_test, or
-    from different capacitance intervals, do not qualify.
-    """
-    if len(models) < 2:
-        return False
-    pools = {_test_pool(m.cfg) for m in models}
-    sizes = {len(m.per_device) for m in models}
-    return len(pools) == 1 and None not in pools and len(sizes) == 1 \
-        and 0 not in sizes
-
-
 def build_models(configs, rows: Sequence[Dict]) -> List[Model]:
     """
     Pair each csv row with its configuration and give it a fixed colour.
@@ -280,58 +216,6 @@ def build_models(configs, rows: Sequence[Dict]) -> List[Model]:
 #  A. Headline figures — from comparison.csv
 # ══════════════════════════════════════════════════════════════════════════
 
-def fig_f1_vs_rays(models, out_dir):
-    """F1 against number of rays, one line per ray resolution."""
-    groups: Dict[int, List[Model]] = {}
-    for m in models:
-        groups.setdefault(m.n_points, []).append(m)
-    fig, ax = plt.subplots(figsize=(6.4, 4.4))
-    for points, ms in sorted(groups.items()):
-        ms = sorted(ms, key=lambda m: m.n_rays)
-        x = [m.n_rays for m in ms]
-        y = [m.get(HEADLINE) for m in ms]
-        e = [m.get("f1@1_std", 0.0) for m in ms]
-        # The connecting line is neutral and the ray resolution is named by a
-        # direct label.  Colour has ONE meaning across this whole gallery —
-        # which model — so it cannot also be spent on "which resolution"
-        # here, or blue would mean two different things in two figures.
-        ax.errorbar(x, y, yerr=e, fmt="-", color=MUTED, lw=1.2, capsize=3,
-                    elinewidth=1.0, ecolor=MUTED, zorder=2)
-        for m, xi, yi in zip(ms, x, y):
-            ax.plot(xi, yi, "o", color=m.color, ms=MARK_S + 2,
-                    markeredgecolor=SURFACE, markeredgewidth=2, zorder=3)
-        _label_end(ax, x[-1], y[-1], f"{points} points per ray", INK_2, dx=10)
-    _style(ax, "number of rays", HEADLINE_LABEL,
-           "Transition-line recovery vs number of rays")
-    _int_axis(ax, [m.n_rays for m in models])
-    ax.set_ylim(0, 1)
-    for m in sorted(models, key=lambda m: m.n_rays):
-        ax.plot([], [], "o", color=m.color, ms=MARK_S, label=m.label)
-    if len(models) > 1:
-        ax.legend(loc="lower right", ncol=2 if len(models) > 4 else 1)
-    fig.text(0.01, -0.02, "error bars: standard deviation over held-out devices",
-             fontsize=8, color=MUTED)
-    return _save(fig, out_dir, "01_f1_vs_rays")
-
-
-def _panel_f1_vs_coverage(ax, models):
-    """The result on the honest axis: what the measurement cost."""
-    ms = sorted(models, key=lambda m: m.get("coverage"))
-    x = [100 * m.get("coverage") for m in ms]
-    y = [m.get(HEADLINE) for m in ms]
-    ax.plot(x, y, "-", color=SERIES[0], lw=LINE_W, zorder=2)
-    for m in ms:
-        ax.plot(100 * m.get("coverage"), m.get(HEADLINE), "o", color=m.color,
-                ms=MARK_S + 2, markeredgecolor=SURFACE, markeredgewidth=2,
-                zorder=3)
-        _label_end(ax, 100 * m.get("coverage"), m.get(HEADLINE), m.label,
-                   m.color, dx=8)
-    _style(ax, "fraction of the grid actually measured (%)", HEADLINE_LABEL,
-           "Accuracy against measurement cost")
-    ax.set_ylim(0, 1)
-    ax.set_xlim(left=0)
-
-
 def _panel_f1_vs_tolerance(ax, models):
     """How much of the error is sub-pixel misalignment rather than a miss."""
     for m in models:
@@ -346,13 +230,6 @@ def _panel_f1_vs_tolerance(ax, models):
         ax.legend(loc="lower right")
 
 
-def fig_f1_vs_coverage(models, out_dir):
-    """The same result on the honest axis: what the measurement cost."""
-    fig, ax = plt.subplots(figsize=(6.4, 4.4))
-    _panel_f1_vs_coverage(ax, models)
-    return _save(fig, out_dir, "02_f1_vs_coverage")
-
-
 def fig_f1_vs_tolerance(models, out_dir):
     """How much of the error is sub-pixel misalignment rather than a miss."""
     fig, ax = plt.subplots(figsize=(6.4, 4.4))
@@ -361,138 +238,6 @@ def fig_f1_vs_tolerance(models, out_dir):
              "a predicted line pixel counts as correct if a true one lies "
              "within tau pixels", fontsize=8, color=MUTED)
     return _save(fig, out_dir, "03_f1_vs_tolerance")
-
-
-def fig_metric_bars(models, out_dir):
-    """Every tolerance, every model, as grouped bars."""
-    fig, ax = plt.subplots(figsize=(7.2, 4.4))
-    n = len(models)
-    group_w = 0.8
-    bar_w = group_w / max(n, 1) * 0.86        # the gap between adjacent bars
-    for i, m in enumerate(models):
-        xs = np.arange(len(TAUS)) - group_w / 2 + group_w * (i + 0.5) / n
-        rounded_bars(ax, xs, [m.get(f"f1@{t}") for t in TAUS], bar_w, m.color)
-        ax.plot([], [], "s", color=m.color, ms=8, label=m.label)
-    _style(ax, "tolerance tau (pixels)", "F1 on held-out devices",
-           "F1 at every tolerance, per model")
-    ax.set_xticks(range(len(TAUS)), [f"tau = {t}" for t in TAUS])
-    ax.set_ylim(0, 1)
-    ax.set_xlim(-0.6, len(TAUS) - 0.4)
-    if len(models) > 1:
-        ax.legend(loc="upper left", ncol=min(len(models), 4))
-    return _save(fig, out_dir, "04_f1_bars_by_tolerance")
-
-
-def fig_precision_recall(models, out_dir):
-    """
-    Where each model sits in the precision/recall plane, with iso-F1 curves.
-
-    A single hue for the trajectory: this is a scatter, where every pair of
-    colours would have to separate at once, so identity is carried by direct
-    labels instead of by eight hues.
-    """
-    fig, ax = plt.subplots(figsize=(6.0, 5.6))
-    ms = sorted(models, key=lambda m: m.n_rays)
-    xs = [m.get(f"precision@{TAU}") for m in ms]
-    ys = [m.get(f"recall@{TAU}") for m in ms]
-
-    # Zoom FIRST, then draw: three budgets sit within a few hundredths of each
-    # other, the full unit square hides the difference entirely, and the
-    # iso-F1 labels have to be placed inside the view to be readable.
-    lo = max(0.0, min(min(xs), min(ys)) - 0.14)
-    hi = min(1.0, max(max(xs), max(ys)) + 0.14)
-    if hi - lo < 0.28:
-        mid = 0.5 * (lo + hi)
-        lo, hi = max(0.0, mid - 0.14), min(1.0, mid + 0.14)
-    ax.set_xlim(lo, hi); ax.set_ylim(lo, hi)
-
-    g = np.linspace(max(lo, 0.01), hi, 300)
-    P, R = np.meshgrid(g, g)
-    F = 2 * P * R / np.clip(P + R, 1e-9, None)
-    cs = ax.contour(P, R, F, levels=np.round(np.arange(0.1, 1.0, 0.05), 2),
-                    colors=[GRID], linewidths=0.8, zorder=1)
-    ax.clabel(cs, inline=True, fontsize=7, fmt=lambda v: f"F1 {v:g}")
-
-    ax.plot(xs, ys, "-", color=MUTED, lw=1.0, zorder=2)
-    for k, m in enumerate(ms):
-        ax.plot(xs[k], ys[k], "o", color=m.color, ms=MARK_S + 3,
-                markeredgecolor=SURFACE, markeredgewidth=2, zorder=3)
-        # The models lie on a short trajectory, so a label to the right of
-        # every dot would land on the next dot.  The ends point outwards and
-        # anything between them goes above.
-        if k == 0:
-            ax.annotate(m.label, (xs[k], ys[k]), textcoords="offset points",
-                        xytext=(-12, -4), ha="right", fontsize=8.5,
-                        color=INK_2)
-        elif k == len(ms) - 1:
-            ax.annotate(m.label, (xs[k], ys[k]), textcoords="offset points",
-                        xytext=(12, -4), ha="left", fontsize=8.5, color=INK_2)
-        else:
-            ax.annotate(m.label, (xs[k], ys[k]), textcoords="offset points",
-                        xytext=(0, 14), ha="center", fontsize=8.5,
-                        color=INK_2)
-    _style(ax, f"precision @ {TAU} px", f"recall @ {TAU} px",
-           "Precision against recall", grid_axis="both")
-    ax.set_aspect("equal")
-    fig.text(0.01, -0.02,
-             "up = finds more of the lines;  right = fewer of the lines it "
-             "draws are spurious.  Grey curves are constant F1.",
-             fontsize=8, color=MUTED)
-    return _save(fig, out_dir, "05_precision_recall_plane")
-
-
-def fig_precision_recall_vs_rays(models, out_dir):
-    """Precision and recall separately — which one the extra rays buy."""
-    fig, axes = plt.subplots(1, 2, figsize=(9.6, 4.2), sharey=True)
-    ms = sorted(models, key=lambda m: m.n_rays)
-    for ax, key, title in ((axes[0], "precision", "Precision"),
-                           (axes[1], "recall", "Recall")):
-        ax.plot([m.n_rays for m in ms], [m.get(f"{key}@{TAU}") for m in ms],
-                "-", color=MUTED, lw=1.0, zorder=2)
-        for m in ms:
-            ax.plot(m.n_rays, m.get(f"{key}@{TAU}"), "o", color=m.color,
-                    ms=MARK_S + 2, markeredgecolor=SURFACE, markeredgewidth=2,
-                    zorder=3)
-        _style(ax, "number of rays",
-               f"{title.lower()} @ {TAU} px" if ax is axes[0] else "", title)
-        _int_axis(ax, [m.n_rays for m in ms])
-        ax.set_ylim(0, 1)
-    for m in ms:
-        axes[1].plot([], [], "o", color=m.color, ms=MARK_S, label=m.label)
-    if len(ms) > 1:
-        axes[1].legend(loc="lower right")
-    fig.suptitle("What the extra rays actually buy", x=0.02, ha="left",
-                 fontsize=12, color=INK)
-    fig.tight_layout(rect=[0, 0, 1, 0.94])
-    return _save(fig, out_dir, "06_precision_recall_vs_rays")
-
-
-def fig_heatmap(models, out_dir):
-    """rays x points grid of F1 — needs a two-dimensional sweep."""
-    rays = sorted({m.n_rays for m in models})
-    points = sorted({m.n_points for m in models})
-    if len(rays) < 2 or len(points) < 2:
-        return None
-    grid = np.full((len(points), len(rays)), np.nan)
-    for m in models:
-        grid[points.index(m.n_points), rays.index(m.n_rays)] = m.get(HEADLINE)
-    fig, ax = plt.subplots(figsize=(1.15 * len(rays) + 3.2,
-                                    1.0 * len(points) + 2.6))
-    im = ax.imshow(grid, origin="lower", cmap=SEQ_CMAP, vmin=0, vmax=1,
-                   aspect="auto")
-    for i in range(len(points)):
-        for j in range(len(rays)):
-            if np.isfinite(grid[i, j]):
-                ax.text(j, i, f"{grid[i, j]:.3f}", ha="center", va="center",
-                        fontsize=9.5,
-                        color="white" if grid[i, j] > 0.55 else INK)
-    ax.set_xticks(range(len(rays)), [str(v) for v in rays])
-    ax.set_yticks(range(len(points)), [str(v) for v in points])
-    _style(ax, "number of rays", "points per ray",
-           "F1 @ 1 px across the budget grid", grid_axis="x")
-    ax.grid(False)
-    fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04, label=HEADLINE_LABEL)
-    return _save(fig, out_dir, "10_f1_heatmap")
 
 
 def fig_train_size(models, out_dir):
@@ -523,7 +268,7 @@ def fig_train_size(models, out_dir):
 
 
 # ══════════════════════════════════════════════════════════════════════════
-#  C. Tolerance — how accuracy shifts with tau, model by model
+#  B. Tolerance — how accuracy shifts with tau, model by model
 #
 #  tau is not a knob on the model.  The network outputs a probability map,
 #  the threshold turns it into a picture, and tau only decides which pixels
@@ -564,28 +309,6 @@ def fig_tau_all_metrics(models, out_dir):
     fig.tight_layout(rect=[0, 0, 1, 0.90])
     return _save(fig, out_dir, "40_tau_all_metrics")
 
-
-def fig_tau_grid(models, out_dir):
-    """Models against tolerances, as one grid of numbers."""
-    ms = sorted(models, key=lambda m: (m.n_points, m.n_rays))
-    grid = np.array([[m.get(f"f1@{t}") for t in TAUS] for m in ms])
-    fig, ax = plt.subplots(figsize=(1.5 * len(TAUS) + 3.6,
-                                    0.62 * len(ms) + 2.4))
-    im = ax.imshow(grid, cmap=SEQ_CMAP, vmin=0, vmax=1, aspect="auto")
-    for i in range(len(ms)):
-        for j in range(len(TAUS)):
-            if np.isfinite(grid[i, j]):
-                ax.text(j, i, f"{grid[i, j]:.3f}", ha="center", va="center",
-                        fontsize=9.5,
-                        color="white" if grid[i, j] > 0.55 else INK)
-    ax.set_xticks(range(len(TAUS)), [f"tau = {t}" for t in TAUS])
-    ax.set_yticks(range(len(ms)), [m.label for m in ms])
-    for tick, m in zip(ax.get_yticklabels(), ms):
-        tick.set_color(m.color)
-    _style(ax, "", "", "F1 for every model at every tolerance")
-    ax.grid(False)
-    fig.colorbar(im, ax=ax, fraction=0.04, pad=0.03, label="F1")
-    return _save(fig, out_dir, "41_tau_grid")
 
 def fig_tau_normalised(models, out_dir):
     """
@@ -654,7 +377,7 @@ def fig_tau_band(models, out_dir):
 
 
 # ══════════════════════════════════════════════════════════════════════════
-#  D. Training figures — how each model got there
+#  C. Training figures — how each model got there
 # ══════════════════════════════════════════════════════════════════════════
 
 def fig_training_loss(models, out_dir):
@@ -737,10 +460,8 @@ def fig_generalisation_gap(models, out_dir):
 # ══════════════════════════════════════════════════════════════════════════
 
 GALLERY = [
-    fig_f1_vs_rays, fig_f1_vs_coverage, fig_f1_vs_tolerance,
-    fig_metric_bars, fig_precision_recall, fig_precision_recall_vs_rays,
-    fig_heatmap, fig_train_size,
-    fig_tau_all_metrics, fig_tau_grid, fig_tau_normalised, fig_tau_band,
+    fig_f1_vs_tolerance, fig_train_size,
+    fig_tau_all_metrics, fig_tau_normalised, fig_tau_band,
     fig_training_loss, fig_validation_f1, fig_generalisation_gap,
 ]
 
@@ -749,9 +470,9 @@ def render_all(configs, rows: Sequence[Dict], out_dir: str) -> List[str]:
     """
     Draw every comparison figure that this set of models supports.
 
-    A figure that needs something the sweep does not have — a second ray
-    resolution for the heatmap, two training-set sizes for the learning
-    curve — returns None and is reported as skipped rather than drawn empty.
+    A figure that needs something the sweep does not have — two
+    training-set sizes for the learning curve — returns None and is
+    reported as skipped rather than drawn empty.
     """
     if not rows:
         return []
@@ -759,13 +480,6 @@ def render_all(configs, rows: Sequence[Dict], out_dir: str) -> List[str]:
     models = build_models(configs, rows)
     if not models:
         return []
-
-    if paired_ok(models):
-        log.detail("  every model was scored on the SAME held-out devices — "
-                   "paired per-device figures are included")
-    else:
-        log.detail("  models were scored on different held-out sets — paired "
-                   "per-device figures are skipped")
 
     written, skipped = [], []
     for fn in GALLERY:

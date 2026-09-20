@@ -255,10 +255,9 @@ def run(out_dir: Optional[str] = None,
     log.detail("\n" + full)
 
     # The figure gallery lives in model_figures.py — every way of putting the
-    # models beside each other, in one house style.  Figures the sweep cannot
-    # support (a heatmap without a second ray resolution, paired per-device
-    # plots when the models were scored on different test sets) are reported
-    # as skipped rather than drawn empty.
+    # models beside each other, in one house style.  A figure the sweep
+    # cannot support (the learning curve, without a second training-set size)
+    # is reported as skipped rather than drawn empty.
     log.detail()
     model_figures.render_all(
         [c for c in configs_in_order(configs, rows)], rows, fig_dir)

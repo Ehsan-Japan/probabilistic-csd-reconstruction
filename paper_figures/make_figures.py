@@ -798,8 +798,8 @@ def fig_probability_panels(taus=(0, 1, 3)):
 
 
 # -- figure 9: the headline results chart ---------------------------------
-# The gallery version (figures/02_f1_vs_coverage.png) labels all fifteen
-# points and the labels collide.  Here the budgets are GROUPED BY RAY COUNT
+# A single axes carrying all fifteen budgets labels every point and the
+# labels collide.  Here the budgets are GROUPED BY RAY COUNT
 # - one line each - so the reading "more rays beats more points at the same
 # coverage" is the shape of the plot rather than something the caption has
 # to assert.
@@ -958,8 +958,8 @@ def fig_data_split():
 
 
 # -- figure 11: every metric against tolerance, three budgets -------------
-# The gallery version (figures/40_tau_all_metrics.png) draws all fifteen
-# budgets and four metrics: sixteen indistinguishable lines per panel.  This
+# The gallery version (figures/40_tau_all_metrics.png) draws every budget
+# in the sweep against four metrics, which is unreadable at fifteen.  This
 # keeps the smallest budget, a middle one and the best - all three of them
 # runs that converged - and drops the pixel accuracy panel: accuracy is high
 # whatever the model does, which is a point to make out loud, not a panel to
