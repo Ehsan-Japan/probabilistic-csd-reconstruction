@@ -80,21 +80,44 @@ def threshold(name=CONFIG):
     return float(row["threshold"])
 
 
+# How close to the test mean a device must score to count as representative.
+REPRESENTATIVE = 0.02
+
+
 def picked_device(name=CONFIG):
     """
-    The held-out device the panels show: the MEDIAN performer of the test
-    set, not the best one.  Returns (sample_dir, its F1@1, the test mean).
+    The held-out device the panels show.  Returns
+    (sample_dir, its F1@1, the test mean, how many test devices).
 
-    Set CSD_DEVICE=sample_11 to override.
+    TWO conditions, in this order:
+
+      1. REPRESENTATIVE -- its F1@1 is within REPRESENTATIVE of the test
+         mean.  Never the best device: a panel has to show typical
+         behaviour, not the run's luckiest draw.
+      2. LEGIBLE -- of those, the one with the FEWEST true line pixels.
+
+    Line density varies 17-fold across this test set (102 to 1715 pixels),
+    and it is set by the device's charging energies, not by how well the
+    model did.  A dense device fills the panel with a fine honeycomb that
+    cannot be read from the back of a room, while telling the reader nothing
+    a sparse one does not.  So density is chosen for legibility and the
+    score is what is held representative.
+
+    Set CSD_DEVICE=sample_157 to override.
     """
     path = os.path.join(RUN_DIR, name, "evaluation", "per_device.csv")
     with open(path, newline="") as fh:
         rows = list(csv.DictReader(fh))
-    rows.sort(key=lambda r: float(r["f1@1"]))
-    want = os.environ.get("CSD_DEVICE")
-    row = (next(r for r in rows if r["sample"] == want) if want
-           else rows[len(rows) // 2])
     mean = sum(float(r["f1@1"]) for r in rows) / len(rows)
+    want = os.environ.get("CSD_DEVICE")
+    if want:
+        row = next(r for r in rows if r["sample"] == want)
+    else:
+        near = [r for r in rows
+                if abs(float(r["f1@1"]) - mean) <= REPRESENTATIVE]
+        if not near:                      # nothing close: fall back to rank
+            near = [sorted(rows, key=lambda r: float(r["f1@1"]))[len(rows) // 2]]
+        row = min(near, key=lambda r: int(r["true_line_pixels"]))
     return (os.path.join(POOL, row["sample"]), float(row["f1@1"]), mean,
             len(rows))
 

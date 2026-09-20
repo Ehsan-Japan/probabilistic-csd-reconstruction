@@ -28,7 +28,9 @@ variables rather than editing it:
 |---|---|---|
 | `CSD_RUN` | `4-5-6-7-8_rays_40-50-60_points_500_samples` | the sweep folder under `results/` |
 | `CSD_CONFIG` | `8_rays_50_points_500_samples` | the headline budget |
-| `CSD_DEVICE` | *median test device* | e.g. `sample_11` |
+| `CSD_DEVICE` | *sparsest representative device* | e.g. `sample_157` |
+| `CSD_LADDER_HIGH` | `0.9` | the too-strict cut shown beside the chosen one |
+| `CSD_LADDER_POINTS` | `40` | points/ray for the slide-13 ladder |
 | `P2L_TITLES=off` | titles on | writes `*_notitle` copies, for a deck that carries its own text boxes |
 | `SPLIT_LABEL=off` | label drawn | writes `fig_data_split_notext` + the label's slot |
 
@@ -61,11 +63,19 @@ circles, off the trend lines, and labelled *did not converge* in the legend.
 
 ### The device in the panels
 
-`sample_11`, the **median** performer of the 50 held-out test devices for
-this budget (F1@1 0.839 against a test mean of 0.796) — not the best one,
-and not the SSDM deck's `picked_device_33`, which does not exist in this
-repo and was in any case simulated in a 0.8 mV window the network was never
-trained on.
+`sample_157`, chosen by two conditions in `_run.picked_device()`:
+
+1. **representative** — its F1@1 (0.792) is within 0.02 of the test mean
+   (0.796). Never the best device; a panel must show typical behaviour.
+2. **legible** — of those, the fewest true line pixels (418).
+
+Line density varies 17-fold across the test set (102 to 1715 pixels) and is
+set by the device's charging energies, not by how well the model did. A
+dense device fills the panel with a fine honeycomb that cannot be read from
+the back of a room while telling the reader nothing a sparse one does not.
+
+Not the SSDM deck's `picked_device_33`, which does not exist in this repo
+and was in any case simulated in a 0.8 mV window the network never saw.
 
 Axes carry the device's real window: 2 × 2 mV, randomly offset per device.
 
@@ -80,6 +90,7 @@ Axes carry the device's real window: 2 × 2 mV, randomly offset per device.
 | `panel_channel1/2`, `panel_probability` | the same maps as standalone panels |
 | `panel_charge_sensor` | raw sensor, and with its slow background removed |
 | `p2l_1 … p2l_9` | probability map → threshold → tolerance, one file per panel |
+| `results_budget_ladder` | the bundled 7-mark chart used on slide 13 |
 | `fig_probability_to_lines` | the same story as one composite |
 | `tau_example`, `tau_neighbourhood` | what τ *is* — text-free, labels belong in the caption |
 | `threshold_validation` | the threshold chosen on the validation split |
@@ -90,12 +101,33 @@ Axes carry the device's real window: 2 × 2 mV, randomly offset per device.
 `p2l_titles.json`, `tau_layout.json`, `threshold_validation.json` carry the
 titles, panel centres and numbers, for a deck that places its own text.
 
+## The threshold ladder
+
+The p2l panels cut at the **chosen** threshold (0.70) and at one
+deliberately **too strict** (0.90) — not at a too-loose one.
+`threshold_validation` shows why: the validation curve is flat from 0.3 to
+0.8, so a 0.4 / 0.7 pair is two near-identical pictures. It only falls off
+past 0.9, which is where the difference is worth showing. On `sample_157`,
+P > 0.7 gives F1@1 0.792 and P > 0.9 gives 0.765. Override with
+`CSD_LADDER_HIGH`.
+
+## The SSDM deck
+
+`csd-materials/SSDM_deck/update_results_slides.py` repoints slides 11, 12
+and 13 of `SSDMpresentation_Ehsan_2026.pptx` at these figures and at this
+run's numbers. It swaps ten pictures in place and edits four text runs and
+the results table; it verifies each slide's title before writing, keeps a
+`_before_rerun.pptx` backup, and changes no colour, font, size or position
+(the single exception is one picture height, trimmed 0.06 in so the image
+is not stretched).
+
 ## Two things to say out loud
 
-* On this device the **looser** cut scores better at τ = 1 (P > 0.4 →
-  0.865, chosen P > 0.7 → 0.839). That is not a bug: the threshold is fitted
-  on the validation devices, not tuned per device. `threshold_validation`
-  shows why it barely matters — the validation curve is flat from 0.3 to
-  0.8 and only collapses past 0.9.
 * F1@τ rises with τ by construction. It is a unit to quote, never a knob to
   tune, which is why τ = 0…3 are all reported and τ = 1 is the headline.
+* The sweep's trend is weaker than the previous study's. The 7-ray and
+  4-ray series are flat-to-declining with coverage; only the 8-ray and
+  6-ray ones rise cleanly. "More rays beats more points at the same
+  coverage" still holds where the budgets are comparable — 6 × 40 (0.735)
+  against 4 × 60 (0.670) at 2.3 % — but it rests on fewer points than it
+  used to.
