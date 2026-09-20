@@ -40,6 +40,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 
 import _run                                                    # noqa: E402
+from csdrecon.config import capacitance_config as cc           # noqa: E402
 from csdrecon.ml import grid_model, grid_train                 # noqa: E402
 
 OUT_DIR = os.path.join(HERE, "method_docs")
@@ -63,6 +64,9 @@ TEXT_WIDTH_IN = 6.10          # 8.27 page - 1.06 left - 1.10 right margin
 # Paragraph dialogs (margin_info.png / paragraph_info.png) ───────────
 FONT = "Times New Roman"
 FONT_PT = 12
+# Headings are the one thing NOT in the body face.
+HEAD_FONT = "Arial"
+HEAD_PT = 14
 LINE_SPACING = 1.5            # "1.5 lines"
 # Word's "1.5 ch" first-line indent is 1.5 character widths, and one
 # character width is the font size, so at 12 pt it is 18 pt.
@@ -71,6 +75,19 @@ MARGIN_IN = {"top": 0.91, "bottom": 0.91, "left": 1.06, "right": 1.10}
 
 
 # ── the numbers, read from the run ────────────────────────────────────────
+def _separation():
+    """The train/test separation evidence stored by stage 1."""
+    path = os.path.join(_run.CFG_DIR, "dataset_summary.json")
+    with open(path, encoding="utf-8") as fh:
+        d = json.load(fh)
+    sep = d["separation"]
+    assert sep.get("available"), "no separation evidence in " + path
+    assert d["intervals"]["applicable"] is False, (
+        "this run DID split the parameter intervals -- Table I below "
+        "claims train and test share one distribution and would be wrong")
+    return sep
+
+
 def facts():
     cfg = _run.cfg_json()
     row = next(r for r in _run.comparison_rows()
@@ -107,12 +124,73 @@ def facts():
         "n_budgets": len(ok), "n_failed": sum(1 for v in ok.values() if not v),
         "infl_lo": min(infl), "infl_hi": max(infl),
         "line_frac": 100 * float(row["true_line_fraction"]),
+        "intervals": cc.DEFAULT_INTERVALS,
+        "separation": _separation(),
         "device": os.path.basename(_run.DEVICE),
         "device_f1": _run.DEVICE_F1, "test_mean": _run.TEST_MEAN_F1,
     }
 
 
 F = facts()
+
+
+
+# What each capacitance entry does, for Table I.  Keyed by entry name so a
+# renamed or added interval shows up as a missing key rather than silently
+# being described as something it is not.
+_CONTROLS = {
+    "d1d1": "dot 1 self capacitance (charging energy)",
+    "d2d2": "dot 2 self capacitance (charging energy)",
+    "d1d2": "interdot capacitance: the anticrossing",
+    "d1g1": "dot 1 primary gate: honeycomb period",
+    "d2g2": "dot 2 primary gate: honeycomb period",
+    "d1g2": "dot 1 cross gate: line slope",
+    "d2g1": "dot 2 cross gate: line slope",
+    "d1g3": "dot 1 residual coupling to gate 3",
+    "d2g3": "dot 2 residual coupling to gate 3",
+    "s1d1": "dot 1 to sensor coupling",
+    "s1d2": "dot 2 to sensor coupling",
+    "s1g1": "gate 1 to sensor cross-talk",
+    "s1g2": "gate 2 to sensor cross-talk",
+    "s1g3": "gate 3 to sensor cross-talk",
+}
+
+
+def _table_i_rows():
+    rows = []
+    for matrix, entries in F["intervals"].items():
+        for name, spec in entries.items():
+            bands = cc.as_bands(spec)
+            interval = " U ".join("%.2f - %.2f" % (lo, hi) for lo, hi in bands)
+            if name not in _CONTROLS:
+                raise SystemExit("no description for capacitance %r" % name)
+            rows.append([matrix, name, interval, _CONTROLS[name]])
+    return rows
+
+
+def _table_ii_rows():
+    f, sep = F, F["separation"]
+    return [
+        ["Devices generated", "%d" % f["n_total"]],
+        ["Training devices", "%d" % f["n_train"]],
+        ["  of which fit the weights", "%d" % f["n_fit"]],
+        ["  of which validation", "%d" % f["n_val"]],
+        ["Held-out (test) devices", "%d" % f["n_test"]],
+        ["Split performed on", "device identity (not image)"],
+        ["Split seed", "%s" % f["split_seed"]],
+        ["Parameter intervals", "identical for both sets"],
+        ["Parameter-space dimensions", "%d" % sep["dimensions"]],
+        ["Min. train-to-test distance", "%.3f" % sep["min_distance"]],
+        ["Mean nearest train-to-test distance",
+         "%.3f" % sep["mean_nearest_distance"]],
+        ["Min. train-to-train distance (yardstick)",
+         "%.3f" % sep["min_within_train"]],
+        ["Devices shared between sets", "0 (checked by ID and by hash)"],
+    ]
+
+
+TABLE_I_ROWS = _table_i_rows()
+TABLE_II_ROWS = _table_ii_rows()
 
 
 # ── the five parts ────────────────────────────────────────────────────────
@@ -134,15 +212,52 @@ def parts():
          "to both sets."
          % (f["n_total"], f["res"], f["res"], f["window_mv"], f["window_mv"]),
          [
-             ("1. Simulated devices", [
+             ("1. The constant-capacitance model", [
                  "Each device is a double quantum dot with a nearby charge "
-                 "sensor, simulated with the QArray constant-capacitance "
-                 "model. The capacitance matrices are drawn at random from "
-                 "fixed intervals; no draw is filtered, checked or redrawn, "
-                 "so whatever the intervals produce enters the pool. The "
-                 "intervals are chosen so that each dot is driven mainly by "
-                 "its own plunger gate, which is the condition for the two "
-                 "families of transition lines to remain distinguishable.",
+                 "sensor, simulated with QArray under the "
+                 "constant-capacitance model. In that model the dot array is "
+                 "a network of capacitors: the charge state of the dots is "
+                 "whichever integer occupation minimises the electrostatic "
+                 "energy at the applied gate voltages, and a transition line "
+                 "in the stability diagram is a locus where that minimiser "
+                 "changes. Four capacitance matrices define a device:",
+                 "Cdd, the 2 x 2 dot-to-dot matrix, with the self "
+                 "capacitances d1d1 and d2d2 on the diagonal and the "
+                 "interdot capacitance d1d2 off it. Cgd, the 2 x 3 "
+                 "gate-to-dot matrix, whose rows are (d1g1, d1g2, d1g3) and "
+                 "(d2g1, d2g2, d2g3). Cds, the 1 x 2 dot-to-sensor matrix "
+                 "(s1d1, s1d2). Cgs, the 1 x 3 gate-to-sensor matrix (s1g1, "
+                 "s1g2, s1g3).",
+                 "Three of these entries decide what the honeycomb looks "
+                 "like. The primary gate capacitances d1g1 and d2g2 set the "
+                 "honeycomb PERIOD, i.e. how many cells fall inside the "
+                 "window. The cross capacitances d1g2 and d2g1 set the SLOPE "
+                 "of the two line families, since a dot-1 line has slope "
+                 "-d1g1/d1g2 and a dot-2 line -d2g1/d2g2. The interdot "
+                 "capacitance d1d2 sets the ANTICROSSING, from barely split "
+                 "triple points to a long interdot segment.",
+                 "The two line families stay distinguishable as long as each "
+                 "dot is driven mainly by its own plunger gate, that is "
+                 "max(cross) < min(primary). Table I satisfies this in every "
+                 "entry, 0.60 < 0.80, but nothing enforces it: the "
+                 "capacitances are drawn and whatever they produce is kept.",
+                 "Every entry is drawn independently and uniformly from the "
+                 "intervals of Table I, so a device is a point in a "
+                 "13-dimensional box rather than a perturbation of a "
+                 "template. NO DRAW IS FILTERED, CHECKED OR REDRAWN. A draw "
+                 "that lands somewhere unusual - the two dots merging into "
+                 "one, lines too dense to resolve on the pixel grid, no "
+                 "transition at all inside the window - is kept like any "
+                 "other, and the acceptance rate of the pool is therefore "
+                 "1.00 by construction.",
+                 ("Table I. The capacitance parameter space. Every device is "
+                  "a single uniform draw from these intervals, in QArray's "
+                  "dimensionless capacitance units. The same intervals are "
+                  "used for the training and the held-out devices; the two "
+                  "sets are separated by device identity, not by parameter "
+                  "range (Table II).",
+                  ["Matrix", "Entry", "Interval", "What it controls"],
+                  TABLE_I_ROWS, [0.75, 0.75, 1.15, 3.45]),
                  "The sensor response is computed with the noise model set "
                  "to NoNoise and nothing is added afterwards, so the maps "
                  "are noise-free. The Coulomb peak width is %.3g and the "
@@ -192,6 +307,26 @@ def parts():
                  "held-out devices are never used for any decision."
                  % (f["val_pct"], f["n_val"], f["n_train"], f["n_fit"],
                     f["n_test"]),
+                 "Because both sets are drawn from the same intervals, the "
+                 "split is not an extrapolation test and is not claimed to "
+                 "be one. What it does claim is that no held-out device is a "
+                 "near-duplicate of a training device, and that is measured "
+                 "rather than asserted. In the %d-dimensional normalised "
+                 "parameter space, the closest any held-out device lies to "
+                 "any training device is %.3f, while the closest any two "
+                 "TRAINING devices lie to each other is %.3f. The held-out "
+                 "devices are therefore no closer to the training set than "
+                 "its own members are to one another, which is the relevant "
+                 "yardstick. Table II collects the split and this evidence."
+                 % (f["separation"]["dimensions"],
+                    f["separation"]["min_distance"],
+                    f["separation"]["min_within_train"]),
+                 ("Table II. The train/test split and its separation "
+                  "evidence. Distances are Euclidean in the normalised "
+                  "parameter space and are computed over the generated "
+                  "devices, not over the intervals.",
+                  ["Quantity", "Value"],
+                  TABLE_II_ROWS, [3.40, 2.70]),
                  "Figure 2 shows the two levels of the split.",
              ]),
          ],
@@ -555,14 +690,14 @@ def _clear_body_after(doc, keep):
             body.remove(child)
 
 
-def _font(run, size=FONT_PT, bold=None):
+def _font(run, size=FONT_PT, bold=None, name=FONT):
     """Times New Roman at `size`, including the East-Asian slot.
 
     The template was made in a Japanese Word, so every run carries an
     eastAsia font as well as an ascii one.  Setting only run.font.name
     leaves the eastAsia slot pointing at the old font, and Word then
     renders some characters in it -- so both slots are set here."""
-    run.font.name = FONT
+    run.font.name = name
     run.font.size = Pt(size)
     if bold is not None:
         run.font.bold = bold
@@ -572,11 +707,11 @@ def _font(run, size=FONT_PT, bold=None):
         rFonts = rPr.makeelement(qn("w:rFonts"), {})
         rPr.append(rFonts)
     for slot in ("w:ascii", "w:hAnsi", "w:eastAsia", "w:cs"):
-        rFonts.set(qn(slot), FONT)
+        rFonts.set(qn(slot), name)
 
 
 def _para(doc, text, style, size=FONT_PT, bold=None, indent=True,
-          align=WD_ALIGN_PARAGRAPH.JUSTIFY):
+          align=WD_ALIGN_PARAGRAPH.JUSTIFY, name=FONT):
     """One paragraph in the JJAP body format."""
     p = doc.add_paragraph(text, style=style)
     p.alignment = align
@@ -589,8 +724,86 @@ def _para(doc, text, style, size=FONT_PT, bold=None, indent=True,
     pf.right_indent = Pt(0)
     pf.first_line_indent = Pt(INDENT_PT) if indent else Pt(0)
     for run in p.runs:
-        _font(run, size, bold)
+        _font(run, size, bold, name)
     return p
+
+
+def _border(pr, tag, edge, size=8):
+    """A single horizontal rule on one edge, given a tblPr or a tcPr."""
+    borders = pr.find(qn(tag))
+    if borders is None:
+        borders = pr.makeelement(qn(tag), {})
+        pr.append(borders)
+    line = borders.find(qn("w:" + edge))
+    if line is None:
+        line = borders.makeelement(qn("w:" + edge), {})
+        borders.append(line)
+    line.set(qn("w:val"), "single")
+    line.set(qn("w:sz"), str(size))
+    line.set(qn("w:color"), "000000")
+
+
+def _rule(table, edge):
+    # CT_Tbl exposes tblPr as a property, not a get_or_add_* method
+    _border(table._tbl.tblPr, "w:tblBorders", edge)
+
+
+def _row_rule(row):
+    for cell in row.cells:
+        _border(cell._tc.get_or_add_tcPr(), "w:tcBorders", "bottom")
+
+
+def _cell(cell, text, bold=None):
+    """Table cells are LEFT aligned and single spaced.
+
+    They inherit the body format otherwise, and justified text in a narrow
+    column stretches two words across the whole cell."""
+    cell.text = text
+    p = cell.paragraphs[0]
+    p.alignment = WD_ALIGN_PARAGRAPH.LEFT
+    pf = p.paragraph_format
+    pf.first_line_indent = Pt(0)
+    pf.space_before = Pt(0)
+    pf.space_after = Pt(0)
+    pf.line_spacing = 1.0
+    for run in p.runs:
+        _font(run, FONT_PT, bold)
+
+
+def _table(doc, caption, headers, rows, widths=None):
+    """A JJAP table: caption above it, Times New Roman 12 throughout.
+
+    The template defines no table style beyond Normal Table, so the rule
+    lines are drawn here rather than inherited."""
+    _para(doc, caption, S_BODY, indent=False)
+    t = doc.add_table(rows=1 + len(rows), cols=len(headers))
+    # The template defines no table style but Normal Table, and a full grid
+    # is not the journal's look anyway: rule above the header, below it, and
+    # below the last row, with no vertical lines.
+    _rule(t, "top")
+    _rule(t, "bottom")
+    _row_rule(t.rows[0])
+    for j, head in enumerate(headers):
+        _cell(t.cell(0, j), head, bold=True)
+    for i, row in enumerate(rows, 1):
+        for j, value in enumerate(row):
+            _cell(t.cell(i, j), str(value))
+    if widths:
+        # Word ignores cell widths unless autofit is off, and it wants the
+        # width set on EVERY cell of a column, not just the first.
+        t.autofit = False
+        for j, w in enumerate(widths):
+            for row in t.rows:
+                row.cells[j].width = Inches(w)
+    doc.add_paragraph()
+    return t
+
+
+def _heading(doc, text):
+    """A section heading: Arial, bold, 14 pt, flush left, no indent."""
+    return _para(doc, text, S_SECTION, size=HEAD_PT, bold=True,
+                 indent=False, align=WD_ALIGN_PARAGRAPH.LEFT,
+                 name=HEAD_FONT)
 
 
 def build(number, slug, title, abstract, sections, figures):
@@ -617,24 +830,28 @@ def build(number, slug, title, abstract, sections, figures):
     for run in paras[0].runs[1:]:
         run._r.getparent().remove(run._r)
     paras[0].runs[0].text = "Part %d. %s" % (number, title)
-    # keep the title, the authors, the two affiliations AND the e-mail line:
-    # _clear_body_after keeps the paragraph it stops at, so the template's own
-    # e-mail survives and must not be added again
+    # ONLY the title is kept.  These are five parts of one manuscript, not
+    # five manuscripts: repeating the authors, both affiliations and the
+    # e-mail on every one of them is noise, and they belong on the
+    # assembled paper instead.  _clear_body_after keeps the paragraph it
+    # stops at, so keep=0 leaves the title and drops the rest.
     assert "Email" in paras[4].style.name, paras[4].style.name
-    _clear_body_after(doc, keep=4)
+    _clear_body_after(doc, keep=0)
 
     _para(doc, abstract, S_ABSTRACT, indent=False)
 
     for heading, paragraphs in sections:
-        _para(doc, heading, S_SECTION, bold=True, indent=False,
-              align=WD_ALIGN_PARAGRAPH.LEFT)
+        _heading(doc, heading)
         for text in paragraphs:
-            _para(doc, text, S_BODY)
+            # a 4-tuple is a table, anything else is a paragraph
+            if isinstance(text, tuple):
+                _table(doc, *text)
+            else:
+                _para(doc, text, S_BODY)
 
     # ── figures last, as JJAP asks ───────────────────────────────────────
     doc.add_page_break()
-    _para(doc, "Figures", S_SECTION, bold=True, indent=False,
-          align=WD_ALIGN_PARAGRAPH.LEFT)
+    _heading(doc, "Figures")
     for i, (fname, caption) in enumerate(figures, 1):
         src = os.path.join(HERE, fname)
         if not os.path.exists(src):
