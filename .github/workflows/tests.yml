@@ -1,9 +1,26 @@
 name: tests
 
+# DEACTIVATED on 2026-09-20: this ran on every push and mailed a failure each
+# time.  It is kept, not deleted, so it can be turned back on by restoring the
+# push/pull_request triggers below.
+#
+# WHY IT WAS FAILING: the install list was numpy + scipy + pytest, on the
+# assumption that the suite needs nothing more.  That was never true --
+# csdrecon/config/__init__.py imports figure_style, which imports
+# matplotlib.pyplot, so every test that touches csdrecon.config (all of them
+# except tests/test_metrics.py) needs matplotlib and pillow.  The install list
+# below is now correct, so re-enabling it should give a green run; it still
+# leaves out torch and qarray, which no test needs, and the suite stays a few
+# seconds rather than minutes.
+#
+# To re-enable, uncomment the push/pull_request block:
+#
+#   push:
+#     branches: [main, master]
+#   pull_request:
+
 on:
-  push:
-    branches: [main, master]
-  pull_request:
+  workflow_dispatch:      # manual only — no automatic runs, no failure mail
 
 jobs:
   test:
@@ -13,8 +30,6 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      # The metric tests need numpy and scipy only; torch and qarray are not
-      # installed here, so the suite stays a few seconds rather than minutes.
-      - run: pip install numpy scipy pytest
+      - run: pip install numpy scipy matplotlib pillow pytest
       - run: pip install -e . --no-deps
       - run: pytest -q

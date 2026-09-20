@@ -178,12 +178,16 @@ def bundle(sweep_dir: Optional[str] = None,
     there is nothing to separate, and a folder called 40_points_per_ray that
     held the entire sweep would claim a distinction the sweep does not make.
     """
-    # Both imported here rather than at module scope.  comparison imports
-    # this module, so a top-level import of it would close the cycle; and
-    # model_figures pulls in matplotlib, which the pure functions above
-    # (group, configs_in, best_val_f1) do not need -- keeping it out of the
-    # module header is what lets the tests run on numpy and scipy alone, as
-    # the CI workflow installs.
+    # Both imported here rather than at module scope: comparison imports
+    # this module, so a top-level import of it would close the cycle, and
+    # model_figures is only needed to DRAW -- group(), configs_in() and
+    # best_val_f1() above are pure bookkeeping and should stay importable
+    # without it.
+    #
+    # This does NOT make the module matplotlib-free: csdrecon.config.__init__
+    # imports figure_style, which imports pyplot, so `from ..config import
+    # log` at the top pulls it in regardless.  Worth knowing before trimming
+    # the CI install list.
     from . import comparison, model_figures
     targets = [sweep_dir] if sweep_dir else sweep_dirs()
     if not targets:
