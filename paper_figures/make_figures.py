@@ -273,12 +273,19 @@ def fig_unet():
 
 
 # -- figure 3: the probability map, cut and scored ------------------------
-# The ladder is the chosen threshold and one deliberately too permissive,
-# so the pair shows WHAT the cut decides.  Both come from the checkpoint,
-# never from a number typed here.
+# The ladder is the chosen threshold and one deliberately too STRICT, so the
+# pair shows what the cut costs when it is set too high.  The chosen value
+# comes from the checkpoint, never from a number typed here.
+#
+# Not a too-LOOSE partner: threshold_validation.png shows the validation
+# curve is flat from 0.3 to 0.8, so a 0.4 / 0.7 pair is two near-identical
+# pictures.  It only falls off past 0.9, which is where the difference is.
+LADDER_HIGH = float(os.environ.get("CSD_LADDER_HIGH", 0.9))
+
+
 def ladder():
-    loose = 0.4 if THRESHOLD > 0.45 else 0.9
-    return tuple(sorted((loose, THRESHOLD)))
+    other = LADDER_HIGH if THRESHOLD < LADDER_HIGH else 0.4
+    return tuple(sorted((other, THRESHOLD)))
 
 
 def fig_probability_to_lines():
@@ -1040,3 +1047,113 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+# -- figure 12: the budget ladder, for the Results slide ------------------
+# The gallery draws all fifteen budgets; the deck's old chart drew them as
+# three series of five.  Both are too busy to read from the back of a room,
+# and in THIS run the 60-points/ray series cannot carry a line at all --
+# three of its five trainings failed.
+#
+# So: ONE ladder (40 points per ray, all five converged, no gaps), the best
+# budget overall marked, and ONE same-coverage pair that demonstrates "more
+# rays beat more points per ray" instead of asserting it.  Seven marks.
+LADDER_POINTS = int(os.environ.get("CSD_LADDER_POINTS", 40))
+
+
+def fig_budget_ladder():
+    ok = _run.converged()
+    rows = {(int(r["n_rays"]), int(r["n_points"])): r
+            for r in _run.comparison_rows()}
+
+    def pt(n_rays, n_points):
+        r = rows[(n_rays, n_points)]
+        return 100.0 * float(r["coverage"]), float(r["f1@1"])
+
+    line = sorted(((n, LADDER_POINTS) for n in (4, 5, 6, 7, 8)
+                   if ok["%d_rays_%d_points_500_samples"
+                         % (n, LADDER_POINTS)]),
+                  key=lambda b: pt(*b)[0])
+    xs = [pt(*b)[0] for b in line]
+    ys = [pt(*b)[1] for b in line]
+
+    fig, ax = plt.subplots(figsize=(5.0, 3.0))
+    ax.plot(xs, ys, "-o", color="#08519C", markersize=6.0, linewidth=2.0,
+            markeredgecolor="white", markeredgewidth=0.8, zorder=3,
+            label="%d points per ray" % LADDER_POINTS)
+    for (n, _p), x, y in zip(line, xs, ys):
+        ax.annotate("%d" % n, (x, y), textcoords="offset points",
+                    xytext=(0, 8), ha="center", va="bottom", fontsize=8,
+                    color="#08519C", zorder=5)
+
+    # the best budget that converged, wherever it sits
+    best_cfg = max((r for r in _run.comparison_rows()
+                    if ok[r["configuration"]]),
+                   key=lambda r: float(r["f1@1"]))
+    bn, bp = int(best_cfg["n_rays"]), int(best_cfg["n_points"])
+    bx, by = pt(bn, bp)
+    ax.plot([bx], [by], "o", color=J_PRED, markersize=7.0,
+            markeredgecolor="white", markeredgewidth=0.8, zorder=5)
+    ax.plot([bx], [by], "o", markersize=14, markerfacecolor="none",
+            markeredgecolor=J_PRED, markeredgewidth=1.4, zorder=5)
+    ax.annotate("best:  %d × %d\nF1@1 %.3f at %.1f %%"
+                % (bn, bp, by, bx), xy=(bx, by),
+                xytext=(bx - 0.18, by + 0.030), fontsize=8.5,
+                color=J_PRED, fontweight="bold", ha="right", va="bottom")
+
+    # one same-coverage pair: the "more rays" claim, drawn rather than said
+    pair = None
+    for n_rays, n_points in ((4, 60), (4, 50)):
+        if not ok["%d_rays_%d_points_500_samples" % (n_rays, n_points)]:
+            continue
+        px, py = pt(n_rays, n_points)
+        near = min(line, key=lambda b: abs(pt(*b)[0] - px))
+        nx, ny = pt(*near)
+        if abs(nx - px) < 0.10 and ny > py:
+            pair = (n_rays, n_points, px, py, near[0], nx, ny)
+            break
+    if pair:
+        n_rays, n_points, px, py, m_rays, nx, ny = pair
+        ax.plot([px], [py], "o", markerfacecolor="white",
+                markeredgecolor="#777777", markersize=6.0,
+                markeredgewidth=1.3, zorder=4)
+        ax.annotate("", xy=(nx, ny - 0.008), xytext=(px, py + 0.008),
+                    arrowprops=dict(arrowstyle="-|>", color="#444444",
+                                    linewidth=1.1, shrinkA=3, shrinkB=3))
+        ax.annotate("%d × %d" % (n_rays, n_points), (px, py),
+                    textcoords="offset points", xytext=(0, -13),
+                    ha="center", va="top", fontsize=8, color="#555555")
+        ax.text(px + 0.08, (py + ny) / 2,
+                "same coverage,\n%d more rays:  +%.3f"
+                % (m_rays - n_rays, ny - py),
+                fontsize=8, color="#444444", va="center", ha="left")
+
+    ax.set_xlabel("fraction of the grid actually measured  (%)",
+                  fontsize=9.5, color=INK)
+    ax.set_ylabel("F1@1 on %d held-out devices" % N_TEST, fontsize=9.5,
+                  color=INK)
+    ax.set_xlim(1.3, 4.5)
+    ax.set_ylim(0.62, 0.86)
+    ax.grid(True, linestyle=":", linewidth=0.7, color="#d0d0d0", zorder=0)
+    ax.set_axisbelow(True)
+    ax.tick_params(labelsize=8.5, colors=INK, length=3)
+    for sp in ("top", "right"):
+        ax.spines[sp].set_visible(False)
+    for sp in ("left", "bottom"):
+        ax.spines[sp].set_color("#444444")
+    leg = ax.legend(fontsize=8.5, frameon=True, loc="lower right",
+                    handlelength=2.0)
+    leg.get_frame().set_edgecolor("#bbbbbb")
+    leg.get_frame().set_linewidth(0.6)
+    fig.tight_layout(pad=0.4)
+    fig.subplots_adjust(bottom=0.30)
+    n_bad = sum(1 for v in ok.values() if not v)
+    ax.text(0.0, -0.26,
+            "the number beside each point is the ray count.\n"
+            "%d of the %d budgets did not converge and are not shown."
+            % (n_bad, len(ok)),
+            transform=ax.transAxes, fontsize=7.5, color="#555555",
+            ha="left", va="top")
+    save(fig, "results_budget_ladder")
+    print("  ladder: %s" % ", ".join("%d x %d" % b for b in line))
+    print("  best:   %d x %d  F1@1 %.3f at %.1f %%" % (bn, bp, by, bx))

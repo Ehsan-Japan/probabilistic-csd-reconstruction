@@ -5,29 +5,29 @@
     "size": 10.5,
     "bold": false
   },
-  "p2l_2_threshold_0p4": {
-    "text": "P > 0.4\nF1@1 = 0.865",
-    "colour": "#111111",
-    "size": 10.5,
-    "bold": false
-  },
-  "p2l_2_threshold_0p4_tau0": {
-    "text": "P > 0.4\nF1 = 0.503  (exact match)",
-    "colour": "#111111",
-    "size": 10.5,
-    "bold": false
-  },
-  "p2l_3_threshold_0p7": {
+  "p2l_2_threshold_0p7": {
     "text": "P > 0.7  (chosen)\nF1@1 = 0.839",
     "colour": "#C00000",
     "size": 10.5,
     "bold": true
   },
-  "p2l_3_threshold_0p7_tau0": {
+  "p2l_2_threshold_0p7_tau0": {
     "text": "P > 0.7  (chosen)\nF1 = 0.478  (exact match)",
     "colour": "#C00000",
     "size": 10.5,
     "bold": true
+  },
+  "p2l_3_threshold_0p9": {
+    "text": "P > 0.9\nF1@1 = 0.737",
+    "colour": "#111111",
+    "size": 10.5,
+    "bold": false
+  },
+  "p2l_3_threshold_0p9_tau0": {
+    "text": "P > 0.9\nF1 = 0.397  (exact match)",
+    "colour": "#111111",
+    "size": 10.5,
+    "bold": false
   },
   "p2l_4_tau0": {
     "text": "τ = 0  (no band)\nF1@0 = 0.478",
