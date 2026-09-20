@@ -5,9 +5,9 @@ _run.py — which run, which budget, which device every paper figure uses.
 One place, so the figure scripts never disagree about what they are drawing.
 
 THE HEADLINE BUDGET IS 8 rays x 50 points, NOT 8 x 60.
-Four of the fifteen trainings in this sweep did not converge -- they sit at
-final train loss ~1.68 against ~0.37 for a healthy run, and their F1@1 lands
-near 0.43 instead of ~0.8:
+Four of the fifteen trainings in this sweep did not converge.  Their best
+validation F1@1 lands at 0.416-0.438 where every healthy run reaches at
+least 0.660, and their test F1@1 follows it down to ~0.43:
 
     5_rays_60_points   6_rays_50_points   7_rays_60_points   8_rays_60_points
 
@@ -32,9 +32,16 @@ CFG_DIR = os.path.join(RUN_DIR, CONFIG)
 POOL = os.path.join(ROOT, "data", "_device_pools",
                     "devices_n550_res100_c1df7b6bf")
 
-# A run that never left its initial plateau ends an order of magnitude above
-# a healthy one; anything over this is not a weak result, it is a failure.
-COLLAPSE_LOSS = 1.0
+# A run that never left its initial plateau tops out near 0.42 on the
+# validation devices; the worst healthy run reaches 0.660.  Nothing in this
+# sweep lies between, so the cut is unambiguous.
+#
+# This is deliberately a VALIDATION number, carved out of the training
+# devices by grid_train before training: deciding which runs are usable must
+# not look at the test set.  final_train_loss will NOT do -- it is the last
+# epoch's loss, while the checkpoint is the best-validation epoch, so 4 x 50
+# and 7 x 50 end high (1.755, 1.630) on perfectly good models.
+COLLAPSE_VAL_F1 = 0.55
 
 N_RAYS = int(CONFIG.split("_")[0])
 N_POINTS = int(CONFIG.split("_rays_")[1].split("_")[0])
@@ -50,18 +57,22 @@ def comparison_rows():
         return list(csv.DictReader(fh))
 
 
-def train_loss(name):
+def training_summary(name):
     p = os.path.join(RUN_DIR, name, "model", "training_summary.json")
     with open(p) as fh:
-        return float(json.load(fh)["final_train_loss"])
+        return json.load(fh)
+
+
+def best_val_f1(name):
+    return float(training_summary(name)["best_val_f1"])
 
 
 def converged(name=None):
     """True when that config's training actually fitted the data."""
     if name is None:
-        return {r["configuration"]: train_loss(r["configuration"])
-                < COLLAPSE_LOSS for r in comparison_rows()}
-    return train_loss(name) < COLLAPSE_LOSS
+        return {r["configuration"]: best_val_f1(r["configuration"])
+                >= COLLAPSE_VAL_F1 for r in comparison_rows()}
+    return best_val_f1(name) >= COLLAPSE_VAL_F1
 
 
 def threshold(name=CONFIG):
