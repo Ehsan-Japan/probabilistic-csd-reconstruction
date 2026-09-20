@@ -41,7 +41,6 @@ import os
 from typing import Dict, List, Optional, Sequence, Tuple
 
 from ..config import log, paths
-from . import model_figures
 from .config import StudyConfig, existing_configs
 
 # A run that never left its initial plateau tops out near 0.42 on the
@@ -179,9 +178,13 @@ def bundle(sweep_dir: Optional[str] = None,
     there is nothing to separate, and a folder called 40_points_per_ray that
     held the entire sweep would claim a distinction the sweep does not make.
     """
-    # Imported here, not at module scope: comparison imports this module, so
-    # a top-level import would close the cycle.
-    from . import comparison
+    # Both imported here rather than at module scope.  comparison imports
+    # this module, so a top-level import of it would close the cycle; and
+    # model_figures pulls in matplotlib, which the pure functions above
+    # (group, configs_in, best_val_f1) do not need -- keeping it out of the
+    # module header is what lets the tests run on numpy and scipy alone, as
+    # the CI workflow installs.
+    from . import comparison, model_figures
     targets = [sweep_dir] if sweep_dir else sweep_dirs()
     if not targets:
         log.warn("no sweep folder under results/ has a comparison.csv — "
