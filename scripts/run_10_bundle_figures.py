@@ -41,6 +41,11 @@ RUN = None
 #             -> 40_points_per_ray/ holds 4x40 … 8x40
 #   "rays"    one folder per ray count; the POINTS PER RAY vary inside it
 #             -> 4_rays/ holds 4x40, 4x50, 4x60
+#   "budget"  one folder per configuration, a single model on every plot
+#             -> 4_rays_40_points/, 5_rays_40_points/, … (15 of them)
+#
+# The three are independent slices of the same sweep and can coexist: each
+# writes its own folders and leaves the others alone.
 BY = "points"
 
 # ══════════════════════════════════════════════════════════════════════════

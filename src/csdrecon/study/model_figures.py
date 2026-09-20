@@ -316,66 +316,49 @@ def fig_tolerance_price(models, out_dir):
     pixel of that disc.  Once the discs swallow half the diagram, a high
     F1@tau says very little.
 
-    Computed PER DEVICE and averaged over the held-out set, with the spread
-    shown: line density varies several-fold across the test devices, so the
-    area a prediction covers does too, and a single pooled number would hide
-    it.
+    Computed PER DEVICE and averaged over the held-out set; the horizontal
+    bars are +/-1 sd.  Line density varies several-fold across the test
+    devices, so the area a prediction covers does too, and a single pooled
+    number would hide it.
 
-    (a) the price against tau, mean with a +/-1 sd band.
-    (b) the trade-off: score against price.  A curve climbing steeply at the
-        left is buying accuracy cheaply; one that flattens is only widening
-        the band.
+    One panel, not two: plotting the price against tau as well only restates
+    on a second axes what the x positions here already say.
     """
     if not all(np.isfinite([m.get(f"claim@{t}") for t in TAUS]).all()
                for m in models):
         return None              # scored before claim@tau existed — re-run run_3
 
-    fig, axes = plt.subplots(1, 2, figsize=(11.4, 4.3))
-
-    # Error BARS, not shaded bands: at five models the bands overlap into an
-    # unreadable smear.  Each series is nudged a little along x so its bars
-    # are legible -- the x positions are the integers either way.
-    n = len(models)
-    for i, m in enumerate(models):
+    fig, ax = plt.subplots(figsize=(6.8, 4.6))
+    for m in models:
         claim = np.array([100 * m.get(f"claim@{t}") for t in TAUS])
         sd = np.array([100 * m.get(f"claim@{t}_std", 0.0) for t in TAUS])
         f1 = [m.get(f"f1@{t}") for t in TAUS]
-        dodge = 0.0 if n < 2 else 0.30 * (i / (n - 1) - 0.5)
-        x = np.array(TAUS, dtype=float) + dodge
         if np.all(np.isfinite(sd)) and sd.any():
-            axes[0].errorbar(x, claim, yerr=sd, fmt="none", ecolor=m.color,
-                             elinewidth=1.0, capsize=2.5, capthick=1.0,
-                             alpha=0.75, zorder=2)
-        axes[0].plot(x, claim, "o-", color=m.color, lw=LINE_W, ms=MARK_S,
-                     label=m.label, zorder=3)
-        axes[1].plot(claim, f1, "o-", color=m.color, lw=LINE_W, ms=MARK_S,
-                     label=m.label, zorder=3)
+            ax.errorbar(claim, f1, xerr=sd, fmt="none", ecolor=m.color,
+                        elinewidth=1.0, capsize=2.5, capthick=1.0,
+                        alpha=0.55, zorder=2)
+        ax.plot(claim, f1, "o-", color=m.color, lw=LINE_W, ms=MARK_S,
+                label=m.label, zorder=3)
 
-    # tau is what moves along the right-hand curve, so it is labelled there
+    # tau is what moves along the curve, so it is labelled on the widest one
     lead = max(models, key=lambda m: m.get("claim@3"))
     for t in TAUS:
-        axes[1].annotate(f"tau {t}",
-                         (100 * lead.get(f"claim@{t}"), lead.get(f"f1@{t}")),
-                         textcoords="offset points", xytext=(4, -11),
-                         fontsize=8, color=MUTED, zorder=4)
+        ax.annotate(f"tau {t}",
+                    (100 * lead.get(f"claim@{t}"), lead.get(f"f1@{t}")),
+                    textcoords="offset points", xytext=(5, -12),
+                    fontsize=8.5, color=MUTED, zorder=4)
 
-    _style(axes[0], "tolerance tau (pixels)",
-           "fraction of the plane the prediction claims (%)",
-           "(a) what the tolerance costs")
-    axes[0].set_xticks(list(TAUS))
-    axes[0].set_ylim(0, None)
+    _style(ax, "fraction of the plane the prediction claims (%)",
+           "F1 @ tau", "What the tolerance buys, and what it costs")
+    ax.set_ylim(0, 1)
     if len(models) > 1:
-        axes[0].legend(loc="upper left", fontsize=8)
-
-    _style(axes[1], "fraction of the plane the prediction claims (%)",
-           "F1 @ tau", "(b) score against price")
-    axes[1].set_ylim(0, 1)
-
-    fig.text(0.02, -0.03,
+        ax.legend(loc="lower right", fontsize=8)
+    fig.text(0.02, -0.04,
              "price = the model's own prediction dilated by tau, per device "
-             "then averaged over the held-out set; band is +/-1 sd. F1@tau "
-             "rises with tau by construction, so a score is only evidence of "
-             "recovery while the area it claims stays small.",
+             "then averaged over the held-out set; bars are +/-1 sd.
+"
+             "F1@tau rises with tau by construction, so a score is only "
+             "evidence of recovery while the area it claims stays small.",
              fontsize=8, color=MUTED)
     fig.tight_layout()
     return _save(fig, out_dir, "45_tolerance_price")

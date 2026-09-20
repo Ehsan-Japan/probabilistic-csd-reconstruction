@@ -50,10 +50,25 @@ from .config import StudyConfig, existing_configs
 # names them, so nobody reads a collapsed curve as a result.
 COLLAPSE_VAL_F1 = 0.55
 
-# by -> (what stays constant inside a bundle, folder suffix, what varies)
+# by -> how the sweep is sliced.  Each entry is
+#   (sort key for a config, folder name, what stays constant, what varies)
+# "budget" is the finest slice: one folder per configuration, a single model
+# on every plot.  Nothing varies inside it, so the comparison figures become
+# a portrait of that one budget -- which is the point when you want to look
+# at a budget rather than compare it.
 GROUPINGS = {
-    "points": ("n_points", "%d_points_per_ray", "ray count"),
-    "rays": ("n_rays", "%d_rays", "points per ray"),
+    "points": (lambda c: c.n_points,
+               lambda c: "%d_points_per_ray" % c.n_points,
+               lambda c: "%d points per ray" % c.n_points,
+               "ray count"),
+    "rays": (lambda c: c.n_rays,
+             lambda c: "%d_rays" % c.n_rays,
+             lambda c: "%d rays" % c.n_rays,
+             "points per ray"),
+    "budget": (lambda c: (c.n_points, c.n_rays),
+               lambda c: "%d_rays_%d_points" % (c.n_rays, c.n_points),
+               lambda c: "%d rays x %d points" % (c.n_rays, c.n_points),
+               "nothing - one budget per folder"),
 }
 
 
@@ -104,13 +119,15 @@ def group(configs: Sequence[StudyConfig], by: str = "points"
     if by not in GROUPINGS:
         raise ValueError("by must be one of %s, not %r"
                          % (sorted(GROUPINGS), by))
-    attr, template, _varies = GROUPINGS[by]
-    buckets: Dict[int, List[StudyConfig]] = {}
+    keyfn, labelfn, _constant, _varies = GROUPINGS[by]
+    buckets: Dict[object, List[StudyConfig]] = {}
     for cfg in configs:
-        buckets.setdefault(getattr(cfg, attr), []).append(cfg)
-    other = "n_rays" if attr == "n_points" else "n_points"
-    return [(template % key, sorted(buckets[key],
-                                    key=lambda c: getattr(c, other)))
+        buckets.setdefault(keyfn(cfg), []).append(cfg)
+    # inside a folder, order by the thing that varies, so the legend reads
+    # in the same direction as the trend
+    inner = ((lambda c: c.n_rays) if by == "points"
+             else (lambda c: c.n_points))
+    return [(labelfn(buckets[key][0]), sorted(buckets[key], key=inner))
             for key in sorted(buckets)]
 
 
@@ -118,18 +135,30 @@ def _readme(path: str, label: str, varies: str, constant: str,
             cfgs: Sequence[StudyConfig], rows: Sequence[Dict],
             failed: Sequence[str]) -> None:
     by_name = {r["configuration"]: r for r in rows}
+    if len(cfgs) == 1:
+        head = [
+            "The gallery for ONE budget: %s." % constant,
+            "Every plot carries a single model, so these are a portrait of",
+            "this budget rather than a comparison. To compare budgets, use",
+            "the folders grouped by points per ray or by ray count.",
+        ]
+    else:
+        head = [
+            "The comparison gallery, restricted to the %d budgets that share "
+            "%s." % (len(cfgs), constant),
+            "Inside this folder the only thing that varies is the %s, so every"
+            % varies,
+            "figure answers one question.",
+            "",
+            "The other bundles of this sweep sit beside this folder.  There "
+            "is",
+            "no combined gallery: fifteen series on one axes is not readable.",
+        ]
     lines = [
         "%s" % label,
         "=" * len(label),
         "",
-        "The comparison gallery, restricted to the %d budgets that share "
-        "%s." % (len(cfgs), constant),
-        "Inside this folder the only thing that varies is the %s, so every"
-        % varies,
-        "figure answers one question.",
-        "",
-        "The other bundles of this sweep sit beside this folder.  There is",
-        "no combined gallery: fifteen series on one axes is not readable.",
+    ] + head + [
         "",
         "budgets",
         "-------",
@@ -195,7 +224,7 @@ def bundle(sweep_dir: Optional[str] = None,
                  "run scripts/run_4_compare_configs.py first")
         return []
 
-    _attr, _template, varies = GROUPINGS[by]
+    varies = GROUPINGS[by][3]
     written: List[str] = []
     for sweep in targets:
         sweep = os.path.abspath(sweep)
@@ -225,7 +254,7 @@ def bundle(sweep_dir: Optional[str] = None,
 
         log.say(os.path.basename(sweep))
         groups = group([c for c in mine if c.name in by_name], by)
-        if len(groups) < 2:
+        if len(groups) < 2 and by != "budget":
             flat = os.path.join(sweep, "figures")
             os.makedirs(flat, exist_ok=True)
             log.say("  one %s only — rendered flat into figures/" % varies)
@@ -238,13 +267,13 @@ def bundle(sweep_dir: Optional[str] = None,
             out = os.path.join(sweep, "figures", label)
             os.makedirs(out, exist_ok=True)
             group_rows = [by_name[c.name] for c in cfgs]
-            constant = ("%d points per ray" % cfgs[0].n_points
-                        if by == "points" else "%d rays" % cfgs[0].n_rays)
+            constant = GROUPINGS[by][2](cfgs[0])
             failed = [c.name for c in cfgs
                       if (best_val_f1(c) or 1.0) < COLLAPSE_VAL_F1]
 
-            log.say("  %-22s %d budgets, %s varying"
-                    % (label, len(cfgs), varies)
+            note = ("one budget, on its own" if by == "budget" else
+                    "%d budgets, %s varying" % (len(cfgs), varies))
+            log.say("  %-22s %s" % (label, note)
                     + ("   [%d did not converge]" % len(failed)
                        if failed else ""))
 
