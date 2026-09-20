@@ -73,3 +73,49 @@ def test_configs_in_does_not_match_a_sibling_with_the_same_prefix(tmp_path):
     mine = sweep(tmp_path)
     cfgs = budgets(mine + "_v2", [(4, 40)])
     assert figure_bundles.configs_in(mine, cfgs) == []
+
+
+def test_collapse_threshold_does_not_drift_between_modules():
+    """
+    readme_report duplicates this constant rather than importing it (that
+    module writes markdown and must not pull in matplotlib).  If the two ever
+    disagree, the README would mark a different set of runs as failed than
+    the bundle READMEs do.
+    """
+    from csdrecon.study import readme_report
+
+    assert (readme_report.COLLAPSE_VAL_F1
+            == figure_bundles.COLLAPSE_VAL_F1)
+
+
+def test_a_missing_training_summary_counts_as_converged(tmp_path):
+    """An older run wrote no summary; that must not disqualify its budget."""
+    from csdrecon.study import readme_report
+
+    assert readme_report.converged(str(tmp_path),
+                                   {"configuration": "nope"}) is True
+
+
+def test_a_collapsed_run_is_marked_and_never_chosen_as_best(tmp_path):
+    from csdrecon.study import readme_report
+
+    run = tmp_path / "run"
+    for name, val, f1 in (("good", 0.79, "0.780"), ("bad", 0.42, "0.900")):
+        d = run / name / "model"
+        d.mkdir(parents=True)
+        (d / "training_summary.json").write_text(
+            '{"best_val_f1": %s}' % val, encoding="utf-8")
+    rows = [{"configuration": "good", "n_rays": 8, "n_points": 50,
+             "coverage": "0.039", "f1@1": "0.780", "precision@1": "0.79",
+             "recall@1": "0.81", "iou": "0.29", "threshold": "0.7"},
+            {"configuration": "bad", "n_rays": 8, "n_points": 60,
+             "coverage": "0.047", "f1@1": "0.900", "precision@1": "0.33",
+             "recall@1": "0.74", "iou": "0.11", "threshold": "0.4"}]
+
+    # the collapsed row scores higher, and must still not be the headline
+    assert readme_report._best(rows, str(run))["configuration"] == "good"
+
+    table = "\n".join(readme_report._budget_table(rows, str(run)))
+    assert "8 × 60 †" in table
+    assert "**8 × 50**" in table
+    assert "did not converge" in table

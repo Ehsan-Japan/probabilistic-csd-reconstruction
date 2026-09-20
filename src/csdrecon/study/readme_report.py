@@ -25,6 +25,7 @@ that was never committed.  Only the few small cross-configuration figures
 are copied, not the per-device galleries.
 """
 import csv
+import json
 import os
 import shutil
 from typing import Dict, List, Optional, Sequence, Tuple
@@ -41,14 +42,12 @@ DOCS_FIGURES = os.path.join("docs", "figures")
 
 # (name in docs/figures, path inside the run folder, caption).  A figure
 # that the run did not produce is skipped rather than linked broken.
-FIGURES: Sequence[Tuple[str, str, str]] = (
-    ("f1_cost_and_tolerance.png",
-     os.path.join("figures", "08_cost_and_tolerance.png"),
-     "(a) F1@1 against the fraction of the plane measured, for every "
-     "budget in the run. (b) how the score depends on the tolerance "
-     "&tau; — how much of the remaining error is sub-pixel placement "
-     "rather than a missed line."),
-)
+# EMPTY ON PURPOSE.  This held 08_cost_and_tolerance.png until that figure
+# was removed from the gallery (see model_figures.GALLERY).  The results
+# section is tables-only until a figure is chosen to replace it; an entry
+# here whose file no longer exists would be skipped silently, which reads
+# like the figure is merely missing rather than gone.
+FIGURES: Sequence[Tuple[str, str, str]] = ()
 
 # Kept up to date in docs/figures/ so the file in the repo is never a stale
 # picture, but not linked from the README's results section.  `None` as the
@@ -58,6 +57,12 @@ COPIED_ONLY: Sequence[Tuple[str, Optional[str]]] = (
 )
 
 TAUS = (0, 1, 2, 3)
+
+# The same cut figure_bundles uses to mark a failed training.
+# Deliberately duplicated rather than imported: that module
+# pulls in matplotlib, and this one only writes markdown.
+# tests/test_figure_bundles.py asserts the two agree.
+COLLAPSE_VAL_F1 = 0.55
 
 
 def _f(value, digits=3, default="—"):
@@ -103,22 +108,65 @@ def latest_run(results_root: Optional[str] = None) -> Optional[str]:
     return max(runs)[1] if runs else None
 
 
-def _best(rows: Sequence[Dict]) -> Dict:
-    return max(rows, key=lambda r: float(r["f1@1"] or 0))
+def converged(run_dir: str, row: Dict) -> bool:
+    """
+    Did this budget's training actually fit the data?
+
+    A run that never left its initial plateau still produces a full set of
+    metrics, and in a table of F1 scores it is indistinguishable from a
+    budget that is simply too small.  It is not: it is a failed fit, and
+    publishing it unmarked beside real results invites the reader to
+    conclude that more rays made things worse.
+
+    Decided on the VALIDATION devices, carved out of the training set before
+    training, so nothing here looks at the test set.  A missing or unreadable
+    summary counts as converged: this must never quietly disqualify a budget
+    because an older run wrote no summary.
+    """
+    path = os.path.join(run_dir, str(row.get("configuration", "")),
+                        "model", "training_summary.json")
+    try:
+        with open(path, encoding="utf-8") as fh:
+            return float(json.load(fh)["best_val_f1"]) >= COLLAPSE_VAL_F1
+    except (OSError, KeyError, ValueError, TypeError):
+        return True
 
 
-def _budget_table(rows: Sequence[Dict]) -> List[str]:
+def _best(rows: Sequence[Dict], run_dir: Optional[str] = None) -> Dict:
+    """The headline budget: the best F1@1 among the runs that converged."""
+    usable = ([r for r in rows if converged(run_dir, r)] if run_dir
+              else list(rows))
+    return max(usable or list(rows), key=lambda r: float(r["f1@1"] or 0))
+
+
+def _budget_table(rows: Sequence[Dict], run_dir: Optional[str] = None
+                  ) -> List[str]:
     out = ["| budget | coverage | F1@1 | precision | recall | IoU | threshold |",
            "|---|---|---|---|---|---|---|"]
-    best = _best(rows)
+    best = _best(rows, run_dir)
+    failed = 0
     for r in rows:
         budget = f"{r['n_rays']} × {r['n_points']}"
         if r is best and len(rows) > 1:
             budget = f"**{budget}**"
+        if run_dir and not converged(run_dir, r):
+            budget += " †"
+            failed += 1
         out.append(
             f"| {budget} | {_pct(r['coverage'])} | {_f(r['f1@1'])} | "
             f"{_f(r['precision@1'])} | {_f(r['recall@1'])} | {_f(r['iou'])} | "
             f"{_f(r['threshold'], 2)} |")
+    if failed:
+        out += [
+            "",
+            f"† {failed} of these {len(rows)} trainings did not converge "
+            f"— they never left their initial plateau, reaching a best "
+            f"validation F1@1 near 0.42 where every other run here reaches at "
+            f"least 0.66. Those rows are the score of a failed fit, not of "
+            f"the measurement budget. They are listed rather than dropped so "
+            f"the gap in the sweep is visible; re-running those budgets is "
+            f"enough to fill them in.",
+        ]
     return out
 
 
@@ -182,7 +230,7 @@ def render(run_dir: str, figures: Sequence[Tuple[str, str]] = ()) -> str:
             "scripts/run_9_update_readme.py` fills this section in.",
             "", END])
 
-    best = _best(rows)
+    best = _best(rows, run_dir)
     n_train, n_test = best.get("n_train"), best.get("n_test")
     res = best.get("resolution")
     plural = "s" if len(rows) != 1 else ""
@@ -196,7 +244,7 @@ def render(run_dir: str, figures: Sequence[Tuple[str, str]] = ()) -> str:
         "### Every budget",
         "",
     ]
-    body += _budget_table(rows)
+    body += _budget_table(rows, run_dir)
     body += [
         "",
         f"The threshold is not 0.5 and is not tuned on the test devices: it is "
@@ -264,7 +312,7 @@ def run(run_dir: Optional[str] = None, readme: Optional[str] = None,
             f"scripts/run_0_full_sweep.py first")
     readme = readme or os.path.join(paths.PROJECT_ROOT, "README.md")
     rows = read_rows(run_dir)
-    figures = (copy_figures(run_dir, _best(rows))
+    figures = (copy_figures(run_dir, _best(rows, run_dir))
                if (with_figures and rows) else [])
     changed = update(readme, render(run_dir, figures))
     log.say(f"  run     : {os.path.abspath(run_dir)}")

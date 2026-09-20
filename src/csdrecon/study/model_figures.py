@@ -155,46 +155,6 @@ def rounded_bars(ax, xs, heights, width, colors, base: float = 0.0,
                                edgecolor="none", zorder=zorder))
 
 
-def _cat_ticks(ax, labels, rotation: int = 90):
-    """
-    Categorical x labels printed vertically.
-
-    A full sweep puts fifteen budgets on one axis; horizontal labels overlap
-    into an unreadable smear long before that, so they are always turned on
-    their side and the figure is widened to match (see ``_cat_figsize``).
-    """
-    ax.set_xticks(range(len(labels)))
-    ax.set_xticklabels(labels, rotation=rotation, ha="right", va="center",
-                       rotation_mode="anchor")
-    ax.tick_params(axis="x", pad=6, length=0)
-    # A vertical label is as tall as it is long, so the room it needs is
-    # measured in inches and ADDED to the figure — reserving it as a fraction
-    # of a fixed height would just squash the plot instead.
-    fig = ax.figure
-    w, h = fig.get_size_inches()
-    longest = max((len(t) for t in labels), default=0)
-    band = 0.072 * longest + 0.55          # label text + the footnote line
-    fig.set_size_inches(w, h + band, forward=True)
-    fig.subplots_adjust(left=min(0.18, 1.05 / w), right=0.985,
-                        top=1 - 0.45 / (h + band), bottom=band / (h + band))
-
-
-def _cat_note(fig, text: str):
-    """Footnote under a vertical-label axis, inside the canvas."""
-    fig.text(0.01, 0.012, text, fontsize=8, color=MUTED, va="bottom")
-
-
-def _cat_figsize(n: int, height: float = 4.2, per: float = 0.52,
-                 base: float = 2.6, min_w: float = 6.4):
-    """
-    Width grows with the number of bars, so the spacing never shrinks.
-
-    ``height`` is the height of the PLOT; ``_cat_ticks`` adds whatever the
-    vertical labels underneath need on top of it.
-    """
-    return (max(min_w, base + per * max(n, 1)), height)
-
-
 def _label_end(ax, x, y, text: str, color: str, dx: float = 6, dy: float = 0):
     """Direct label at a series endpoint — identity without reading a legend."""
     ax.annotate(text, (x, y), textcoords="offset points", xytext=(dx, dy),
@@ -403,27 +363,6 @@ def fig_f1_vs_tolerance(models, out_dir):
     return _save(fig, out_dir, "03_f1_vs_tolerance")
 
 
-def fig_cost_and_tolerance(models, out_dir):
-    """
-    The two axes the study is read on, side by side: what the measurement
-    cost, and how much of what is left is sub-pixel placement.  One figure,
-    because the two questions are asked of the same numbers — the README
-    shows this instead of the same pair stacked one after the other.
-    """
-    fig, axes = plt.subplots(1, 2, figsize=(11.6, 4.4))
-    _panel_f1_vs_coverage(axes[0], models)
-    _panel_f1_vs_tolerance(axes[1], models)
-    for ax, letter in zip(axes, "ab"):
-        # loc="left" on both ends: _style() puts the title there, and
-        # get_title() reads the centre one, which is empty.
-        ax.set_title(f"({letter}) {ax.get_title(loc='left')}", loc="left")
-    fig.text(0.01, -0.02,
-             "a predicted line pixel counts as correct if a true one lies "
-             "within tau pixels", fontsize=8, color=MUTED)
-    fig.tight_layout()
-    return _save(fig, out_dir, "08_cost_and_tolerance")
-
-
 def fig_metric_bars(models, out_dir):
     """Every tolerance, every model, as grouped bars."""
     fig, ax = plt.subplots(figsize=(7.2, 4.4))
@@ -528,47 +467,6 @@ def fig_precision_recall_vs_rays(models, out_dir):
     return _save(fig, out_dir, "06_precision_recall_vs_rays")
 
 
-def fig_iou(models, out_dir):
-    """Strict IoU — the conservative companion to a tolerant F1."""
-    ms = sorted(models, key=lambda m: m.n_rays)
-    fig, ax = plt.subplots(figsize=_cat_figsize(len(ms)))
-    rounded_bars(ax, np.arange(len(ms)), [m.get("iou") for m in ms], 0.52,
-                 [m.color for m in ms])
-    for i, m in enumerate(ms):
-        ax.annotate(f"{m.get('iou'):.3f}", (i, m.get("iou")),
-                    textcoords="offset points", xytext=(0, 5), ha="center",
-                    fontsize=9, color=INK_2)
-    _style(ax, "", "strict IoU (tolerance 0)",
-           "Strict overlap, no tolerance allowed")
-    _cat_ticks(ax, [m.label for m in ms])
-    ax.set_ylim(0, max(0.35, max(m.get("iou") for m in ms) * 1.25))
-    ax.set_xlim(-0.6, len(ms) - 0.4)
-    return _save(fig, out_dir, "07_iou_per_model")
-
-def fig_gain_over_baseline(models, out_dir):
-    """How much each model gains over the cheapest one in the sweep."""
-    if len(models) < 2:
-        return None
-    ms = sorted(models, key=lambda m: m.get("coverage"))
-    base = ms[0]
-    fig, ax = plt.subplots(figsize=_cat_figsize(len(ms) - 1))
-    gains = [100 * (m.get(HEADLINE) - base.get(HEADLINE)) for m in ms[1:]]
-    rounded_bars(ax, np.arange(len(gains)), gains, 0.52,
-                 [m.color for m in ms[1:]])
-    for i, (m, g) in enumerate(zip(ms[1:], gains)):
-        extra = 100 * (m.get("coverage") - base.get("coverage"))
-        ax.annotate(f"+{g:.1f} pts for +{extra:.2f}% grid", (i, g),
-                    textcoords="offset points", xytext=(0, 6), ha="center",
-                    va="bottom", rotation=90, fontsize=8.5, color=INK_2)
-    ax.axhline(0, color=GRID, lw=0.8)
-    _style(ax, "", "F1 @ 1 px gained (percentage points)",
-           f"Gain over the cheapest budget ({base.label})")
-    _cat_ticks(ax, [m.label for m in ms[1:]])
-    ax.set_xlim(-0.6, max(len(gains) - 0.4, 0.6))
-    ax.set_ylim(0, max(gains) * 1.75 if max(gains) > 0 else 1)
-    return _save(fig, out_dir, "09_gain_over_baseline")
-
-
 def fig_heatmap(models, out_dir):
     """rays x points grid of F1 — needs a two-dimensional sweep."""
     rays = sorted({m.n_rays for m in models})
@@ -623,158 +521,6 @@ def fig_train_size(models, out_dir):
              "is data-limited", fontsize=8, color=MUTED)
     return _save(fig, out_dir, "11_f1_vs_training_size")
 
-
-def fig_line_budget(models, out_dir):
-    """
-    How many pixels each model calls a line, against how many really are.
-
-    A model far above the dashed line is over-drawing — the commonest failure
-    at a small measurement budget, and invisible in F1 alone.
-    """
-    ms = sorted(models, key=lambda m: m.n_rays)
-    fig, ax = plt.subplots(figsize=_cat_figsize(len(ms)))
-    truth = 100 * ms[0].get("true_line_fraction")
-    n = len(ms)
-    xs = np.arange(n)
-    pred = []
-    for m in ms:
-        pd = m.device("predicted_line_pixels")
-        pred.append(100 * pd.mean() / 10000.0 if len(pd) else np.nan)
-    rounded_bars(ax, xs, pred, 0.52, [m.color for m in ms])
-    ax.axhline(truth, color=INK_2, lw=1.2, ls=(0, (4, 3)), zorder=4)
-    ax.annotate(f"true: {truth:.2f}% of pixels", (n - 0.5, truth),
-                textcoords="offset points", xytext=(0, 6), ha="right",
-                fontsize=9, color=INK_2)
-    for i, (m, p) in enumerate(zip(ms, pred)):
-        if np.isfinite(p):
-            ax.annotate(f"{p:.1f}%  ({p/truth:.1f}x)", (i, p),
-                        textcoords="offset points", xytext=(0, 5),
-                        ha="center", va="bottom", rotation=90,
-                        fontsize=8.5, color=INK_2)
-    _style(ax, "", "pixels predicted as transition line (%)",
-           "Is the model over-drawing?")
-    top = max([v for v in pred if np.isfinite(v)] + [truth])
-    ax.set_ylim(0, top * 1.45)
-    _cat_ticks(ax, [m.label for m in ms])
-    ax.set_xlim(-0.6, n - 0.4)
-    return _save(fig, out_dir, "12_line_budget")
-
-
-def fig_threshold(models, out_dir):
-    """The binarisation threshold each model settled on, per budget."""
-    ms = sorted(models, key=lambda m: m.n_rays)
-    fig, ax = plt.subplots(figsize=_cat_figsize(len(ms), height=4.0))
-    rounded_bars(ax, np.arange(len(ms)), [m.get("threshold") for m in ms],
-                 0.6, [m.color for m in ms])
-    for i, m in enumerate(ms):
-        ax.annotate(f"{m.get('threshold'):g}", (i, m.get("threshold")),
-                    textcoords="offset points", xytext=(0, 5), ha="center",
-                    fontsize=9, color=INK_2)
-    _style(ax, "", "probability threshold",
-           "Threshold chosen on the validation split")
-    _cat_ticks(ax, [m.label for m in ms])
-    ax.set_ylim(0, 1)
-    ax.set_xlim(-0.6, len(ms) - 0.4)
-    _cat_note(fig, "picked during training, never on the test devices — a "
-                   "wandering threshold across budgets is normal")
-    return _save(fig, out_dir, "13_threshold_per_model")
-
-
-def fig_summary_table(models, out_dir):
-    """The comparison table as an image, for slides."""
-    cols = ["model", "coverage", "F1@0", "F1@1", "F1@2", "F1@3", "IoU",
-            "F1@1 sd", "F1@1 min", "F1@1 max"]
-    ms = sorted(models, key=lambda m: (m.n_points, m.n_rays, m.n_train))
-    cells = [[m.long_label, f"{100*m.get('coverage'):.2f}%",
-              f"{m.get('f1@0'):.3f}", f"{m.get('f1@1'):.3f}",
-              f"{m.get('f1@2'):.3f}", f"{m.get('f1@3'):.3f}",
-              f"{m.get('iou'):.3f}", f"{m.get('f1@1_std'):.3f}",
-              f"{m.get('f1@1_min'):.3f}", f"{m.get('f1@1_max'):.3f}"]
-             for m in ms]
-    fig, ax = plt.subplots(figsize=(11, 1.1 + 0.42 * len(ms)))
-    ax.axis("off")
-    widths = [0.26] + [(1 - 0.26) / (len(cols) - 1)] * (len(cols) - 1)
-    table = ax.table(cellText=cells, colLabels=cols, loc="center",
-                     cellLoc="right", colWidths=widths)
-    table.auto_set_font_size(False)
-    table.set_fontsize(9)
-    table.scale(1, 1.5)
-    best = max(range(len(ms)), key=lambda i: ms[i].get(HEADLINE))
-    for (r, c), cell in table.get_celld().items():
-        cell.set_edgecolor(GRID)
-        cell.set_linewidth(0.6)
-        if r == 0:
-            cell.set_text_props(color=INK_2, weight="bold")
-            cell.set_facecolor(SURFACE)
-        else:
-            cell.set_facecolor("#f4f7fb" if r - 1 == best else SURFACE)
-            if c == 0:
-                cell.set_text_props(color=ms[r - 1].color, ha="left")
-    ax.set_title("Held-out results, every model  (best row highlighted)",
-                 loc="left", pad=16)
-    return _save(fig, out_dir, "14_summary_table")
-
-
-# ══════════════════════════════════════════════════════════════════════════
-#  B. Per-device figures — the spread, not just the mean
-# ══════════════════════════════════════════════════════════════════════════
-
-def fig_device_box(models, out_dir):
-    """
-    Per-device F1 as a box plot with every device drawn behind it.
-
-    The mean in the table could equally come from "every device scores 0.65"
-    or from "half score 0.9 and half score 0.4".  This is the figure that
-    tells those apart.
-    """
-    ms = [m for m in models if len(m.per_device)]
-    if not ms:
-        return None
-    fig, ax = plt.subplots(figsize=(1.6 * len(ms) + 3.2, 4.8))
-    rng = np.random.default_rng(0)
-    for i, m in enumerate(ms):
-        v = m.device(HEADLINE)
-        ax.scatter(i + rng.uniform(-0.16, 0.16, len(v)), v, s=12,
-                   color=m.color, alpha=0.35, edgecolor="none", zorder=2)
-        bp = ax.boxplot([v], positions=[i], widths=0.42, showfliers=False,
-                        patch_artist=True, zorder=3,
-                        medianprops=dict(color=INK, lw=1.6),
-                        boxprops=dict(facecolor=SURFACE, edgecolor=m.color,
-                                      lw=1.4),
-                        whiskerprops=dict(color=m.color, lw=1.2),
-                        capprops=dict(color=m.color, lw=1.2))
-    _style(ax, "", HEADLINE_LABEL,
-           "Every held-out device, not just the average")
-    _cat_ticks(ax, [m.label for m in ms])
-    ax.set_ylim(0, 1)
-    ax.set_xlim(-0.6, len(ms) - 0.4)
-    _cat_note(fig, "box: quartiles and median.  dots: one per held-out "
-                   "device")
-    return _save(fig, out_dir, "20_per_device_box")
-
-def fig_device_hist(models, out_dir):
-    """The per-device distribution, one panel per model, on a shared axis."""
-    ms = [m for m in models if len(m.per_device)]
-    if not ms:
-        return None
-    fig, axes = plt.subplots(len(ms), 1, figsize=(6.6, 1.9 * len(ms)),
-                             sharex=True, squeeze=False)
-    bins = np.linspace(0, 1, 31)
-    for ax, m in zip(axes[:, 0], ms):
-        v = m.device(HEADLINE)
-        ax.hist(v, bins=bins, color=m.color, alpha=0.85, zorder=3)
-        ax.axvline(v.mean(), color=INK, lw=1.2, zorder=4)
-        ax.annotate(f"mean {v.mean():.3f}   sd {v.std():.3f}", (0.015, 0.86),
-                    xycoords="axes fraction", fontsize=8.5, color=INK_2)
-        _style(ax, "", "devices")
-        ax.set_ylabel(f"{m.label}\ndevices", rotation=0, ha="right",
-                      va="center", fontsize=9, color=m.color, labelpad=12)
-        ax.set_title("")
-    axes[-1, 0].set_xlabel(HEADLINE_LABEL)
-    fig.suptitle("Per-device accuracy, model by model", x=0.02, ha="left",
-                 fontsize=12, color=INK)
-    fig.tight_layout(rect=[0, 0, 1, 0.96])
-    return _save(fig, out_dir, "22_per_device_histograms")
 
 # ══════════════════════════════════════════════════════════════════════════
 #  C. Tolerance — how accuracy shifts with tau, model by model
@@ -907,48 +653,6 @@ def fig_tau_band(models, out_dir):
     return _save(fig, out_dir, "44_tau_device_band")
 
 
-def fig_tau_to_target(models, out_dir):
-    """
-    How much tolerance each model needs to reach a given accuracy.
-
-    Read across a row: "to call 80% of the lines right, this budget needs the
-    answer to be accepted within N pixels".  A model that reaches a target at
-    a smaller tau is placing its lines more precisely, which is a different
-    claim from simply scoring higher.
-    """
-    targets = (0.5, 0.6, 0.7, 0.8, 0.9)
-    ms = sorted(models, key=lambda m: (m.n_points, m.n_rays))
-    fig, ax = plt.subplots(figsize=(7.2, 0.55 * len(ms) + 3.0))
-    for i, m in enumerate(ms):
-        curve = [m.get(f"f1@{t}") for t in TAUS]
-        for j, target in enumerate(targets):
-            reached = next((t for t, v in zip(TAUS, curve) if v >= target),
-                           None)
-            x = j
-            if reached is None:
-                ax.text(x, i, "—", ha="center", va="center", fontsize=11,
-                        color=MUTED)
-            else:
-                ax.scatter([x], [i], s=460, color=m.color,
-                           alpha=0.20 + 0.20 * (len(TAUS) - reached),
-                           edgecolor="none", zorder=2)
-                ax.text(x, i, str(reached), ha="center", va="center",
-                        fontsize=11, color=INK, zorder=3)
-    ax.set_xticks(range(len(targets)), [f"F1 >= {t:g}" for t in targets])
-    ax.set_yticks(range(len(ms)), [m.label for m in ms])
-    for tick, m in zip(ax.get_yticklabels(), ms):
-        tick.set_color(m.color)
-    ax.set_xlim(-0.6, len(targets) - 0.4)
-    ax.set_ylim(-0.6, len(ms) - 0.4)
-    _style(ax, "", "", "Tolerance needed to reach a target accuracy",
-           grid_axis="both")
-    fig.text(0.01, -0.04,
-             "the number in each cell is the smallest tau that reaches the "
-             "target;  '—' = not reached even at tau = 3",
-             fontsize=8, color=MUTED)
-    return _save(fig, out_dir, "45_tau_to_reach_target")
-
-
 # ══════════════════════════════════════════════════════════════════════════
 #  D. Training figures — how each model got there
 # ══════════════════════════════════════════════════════════════════════════
@@ -1034,13 +738,9 @@ def fig_generalisation_gap(models, out_dir):
 
 GALLERY = [
     fig_f1_vs_rays, fig_f1_vs_coverage, fig_f1_vs_tolerance,
-    fig_cost_and_tolerance,
     fig_metric_bars, fig_precision_recall, fig_precision_recall_vs_rays,
-    fig_iou, fig_gain_over_baseline, fig_heatmap,
-    fig_train_size, fig_line_budget, fig_threshold, fig_summary_table,
-    fig_device_box, fig_device_hist,
-    fig_tau_all_metrics, fig_tau_grid, fig_tau_normalised,
-    fig_tau_band, fig_tau_to_target,
+    fig_heatmap, fig_train_size,
+    fig_tau_all_metrics, fig_tau_grid, fig_tau_normalised, fig_tau_band,
     fig_training_loss, fig_validation_f1, fig_generalisation_gap,
 ]
 

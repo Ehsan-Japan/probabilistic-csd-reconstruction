@@ -71,32 +71,44 @@ python scripts/run_9_update_readme.py      # rewrite the Results section below
 
 ## Results
 
-From `results/4_rays_40_points_300_samples/`. 1 measurement budget, 300 training and 50 held-out devices (disjoint by device ID, seed 12345), 100 × 100 px diagrams.
+From `results/4-5-6-7-8_rays_40-50-60_points_500_samples/`. 15 measurement budgets, 500 training and 50 held-out devices (disjoint by device ID, seed 12345), 100 × 100 px diagrams.
 
 ### Every budget
 
 | budget | coverage | F1@1 | precision | recall | IoU | threshold |
 |---|---|---|---|---|---|---|
-| 4 × 40 | 1.57 % | 0.631 | 0.538 | 0.789 | 0.187 | 0.40 |
+| 4 × 40 | 1.57 % | 0.660 | 0.617 | 0.719 | 0.204 | 0.60 |
+| 5 × 40 | 1.94 % | 0.701 | 0.625 | 0.813 | 0.225 | 0.60 |
+| 6 × 40 | 2.33 % | 0.735 | 0.683 | 0.804 | 0.238 | 0.40 |
+| 7 × 40 | 2.72 % | 0.747 | 0.700 | 0.818 | 0.253 | 0.30 |
+| 8 × 40 | 3.11 % | 0.784 | 0.748 | 0.831 | 0.275 | 0.60 |
+| 4 × 50 | 1.95 % | 0.683 | 0.628 | 0.758 | 0.215 | 0.50 |
+| 5 × 50 | 2.44 % | 0.736 | 0.709 | 0.773 | 0.250 | 0.70 |
+| 6 × 50 † | 2.94 % | 0.427 | 0.320 | 0.739 | 0.107 | 0.40 |
+| 7 × 50 | 3.42 % | 0.738 | 0.696 | 0.796 | 0.252 | 0.70 |
+| **8 × 50** | 3.88 % | 0.796 | 0.786 | 0.815 | 0.295 | 0.70 |
+| 4 × 60 | 2.35 % | 0.670 | 0.623 | 0.736 | 0.214 | 0.60 |
+| 5 × 60 † | 2.96 % | 0.431 | 0.326 | 0.727 | 0.108 | 0.40 |
+| 6 × 60 | 3.52 % | 0.772 | 0.732 | 0.822 | 0.272 | 0.60 |
+| 7 × 60 † | 4.10 % | 0.432 | 0.324 | 0.737 | 0.108 | 0.40 |
+| 8 × 60 † | 4.66 % | 0.445 | 0.331 | 0.735 | 0.112 | 0.40 |
+
+† 4 of these 15 trainings did not converge — they never left their initial plateau, reaching a best validation F1@1 near 0.42 where every other run here reaches at least 0.66. Those rows are the score of a failed fit, not of the measurement budget. They are listed rather than dropped so the gap in the sweep is visible; re-running those budgets is enough to fill them in.
 
 The threshold is not 0.5 and is not tuned on the test devices: it is chosen on a validation split carved out of the training devices and stored in the checkpoint.
 
-### Tolerance sweep — 4 rays × 40 points
+### Tolerance sweep — 8 rays × 50 points
 
 | τ | precision | recall | F1@τ | coverage@τ |
 |---|---|---|---|---|
-| 0 | 0.213 | 0.613 | 0.312 | 1.57 % |
-| **1** | 0.538 | 0.789 | **0.631** | 7.61 % |
-| 2 | 0.729 | 0.877 | 0.787 | 16.13 % |
-| 3 | 0.835 | 0.934 | 0.874 | 25.03 % |
+| 0 | 0.372 | 0.575 | 0.449 | 3.88 % |
+| **1** | 0.786 | 0.815 | **0.796** | 17.85 % |
+| 2 | 0.910 | 0.884 | 0.892 | 32.33 % |
+| 3 | 0.952 | 0.921 | 0.931 | 45.91 % |
 
-`coverage@τ` is how far the measurement itself reaches at that tolerance: the fraction of the plane within τ pixels of a measured pixel. At τ = 0 it is the plain coverage, 1.57 %. Read the two columns together — a tolerant score is only evidence of recovery while the tolerance stays small against the plane.
+`coverage@τ` is how far the measurement itself reaches at that tolerance: the fraction of the plane within τ pixels of a measured pixel. At τ = 0 it is the plain coverage, 3.88 %. Read the two columns together — a tolerant score is only evidence of recovery while the tolerance stays small against the plane.
 
-Per-device spread at this budget: F1@1 mean 0.631, sd 0.132, min 0.187, max 0.803 over 50 held-out devices. Strict IoU is 0.187: one-pixel-wide lines are punished hard by IoU, and it is reported rather than hidden. Pixel accuracy is not reported as a result — predicting no line anywhere already scores 92.9 %.
-
-![(a) F1@1 against the fraction of the plane measured, for every budget in the run. (b) how the score depends on the tolerance &tau; — how much of the remaining error is sub-pixel placement rather than a missed line.](docs/figures/f1_cost_and_tolerance.png)
-
-*(a) F1@1 against the fraction of the plane measured, for every budget in the run. (b) how the score depends on the tolerance &tau; — how much of the remaining error is sub-pixel placement rather than a missed line.*
+Per-device spread at this budget: F1@1 mean 0.796, sd 0.154, min 0.142, max 0.932 over 50 held-out devices. Strict IoU is 0.295: one-pixel-wide lines are punished hard by IoU, and it is reported rather than hidden. Pixel accuracy is not reported as a result — predicting no line anywhere already scores 92.9 %.
 
 <!-- RESULTS:END -->
 
