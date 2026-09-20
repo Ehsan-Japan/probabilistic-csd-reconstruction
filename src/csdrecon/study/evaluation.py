@@ -46,7 +46,8 @@ import matplotlib.pyplot as plt
 
 from ..ml import grid_train
 from ..config import log
-from ..ml.grid_metrics import coverage_at_tau, evaluate, iou, tolerant_f1
+from ..ml.grid_metrics import (claimed_at_tau, coverage_at_tau,
+                               evaluate, iou, tolerant_f1)
 from .config import StudyConfig
 from .dataset import load_split
 
@@ -82,6 +83,10 @@ def per_device_rows(pred: np.ndarray, true: np.ndarray,
             row[f"precision@{tau}"] = m["precision"]
             row[f"recall@{tau}"] = m["recall"]
             row[f"f1@{tau}"] = m["f1"]
+            # what this device's own prediction claims at that tolerance,
+            # so the price can be averaged over devices with a spread rather
+            # than quoted as a single pooled number
+            row[f"claim@{tau}"] = claimed_at_tau(p, tau)
             if tau == 0:
                 row["pixel_accuracy"] = m["accuracy"]
         rows.append(row)
@@ -150,6 +155,14 @@ def score(cfg: StudyConfig) -> Tuple[Dict, List[Dict], np.ndarray, np.ndarray,
         metrics[f"{key}@1_std"] = float(vals.std())
         metrics[f"{key}@1_min"] = float(vals.min())
         metrics[f"{key}@1_max"] = float(vals.max())
+    # The PRICE of the tolerance, per device then averaged: the fraction of
+    # the plane the prediction claims once dilated by tau.  The spread is
+    # kept because it is large -- line density varies several-fold across the
+    # test set, and so does the area the model's answer covers.
+    for tau in TAUS:
+        vals = np.array([r[f"claim@{tau}"] for r in rows])
+        metrics[f"claim@{tau}"] = float(vals.mean())
+        metrics[f"claim@{tau}_std"] = float(vals.std())
     return metrics, rows, X, Y, prob, pred, sample_dirs
 
 

@@ -82,8 +82,11 @@ def collect(configs: Optional[Sequence[StudyConfig]] = None
             # Every tolerance-dependent metric, so the tau figures can be
             # drawn from the table alone.
             **{f"{k}@{t}": m.get(f"{k}@{t}")
-               for k in ("f1", "precision", "recall", "accuracy", "coverage")
+               for k in ("f1", "precision", "recall", "accuracy", "coverage",
+                         "claim")
                for t in TAUS},
+            # the spread of the price across the held-out devices
+            **{f"claim@{t}_std": m.get(f"claim@{t}_std") for t in TAUS},
             "f1@1_std": m.get("f1@1_std"),
             "f1@1_min": m.get("f1@1_min"),
             "f1@1_max": m.get("f1@1_max"),

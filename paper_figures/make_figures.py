@@ -14,6 +14,7 @@ from the real arrays in the device pool rather than mocked up.
     fig_probability_to_lines    the same story as one composite
     fig_data_split              where the validation devices come from
     fig_tau_metrics             F1 / precision / recall against tolerance
+    fig_tolerance_price         what raising tau buys, and what it costs
     results_f1_vs_coverage      the headline chart
 
 These are the NEAT figures: one point per panel.  The dense diagnostic
@@ -1042,6 +1043,8 @@ def main():
     fig_probability_panels()
     fig_results_f1_vs_coverage()
     fig_tau_metrics()
+    fig_tolerance_price()
+    fig_budget_ladder()
     fig_data_split()
 
 
@@ -1157,3 +1160,83 @@ def fig_budget_ladder():
     save(fig, "results_budget_ladder")
     print("  ladder: %s" % ", ".join("%d x %d" % b for b in line))
     print("  best:   %d x %d  F1@1 %.3f at %.1f %%" % (bn, bp, by, bx))
+
+
+# -- figure 13: what the tolerance buys, and what it costs ----------------
+# F1@tau can only rise with tau, so a high one proves nothing by itself.
+# coverage@tau is the price: the fraction of the plane lying within tau
+# pixels of a measured pixel -- how much of the diagram the tolerance band
+# has swallowed.  At tau = 3 that is nearly half the plane, and a score read
+# off such a band is barely evidence of anything.
+#
+# Panel (b) is the one to read: score against price, tau marked. The curves
+# very nearly coincide, which says that at EQUAL price a small budget with a
+# loose ruler scores about what a large budget with a tight one does.
+def fig_tolerance_price(budgets=None):
+    budgets = budgets or _three_budgets()
+    rows = {(int(r["n_rays"]), int(r["n_points"])): r
+            for r in _run.comparison_rows()}
+    best = max(budgets, key=lambda b: float(rows[b]["coverage"]))
+
+    fig, axes = plt.subplots(1, 2, figsize=(9.2, 3.5))
+    for budget in budgets:
+        r = rows[budget]
+        cov = [100 * float(r["coverage@%d" % t]) for t in TAUS]
+        f1 = [float(r["f1@%d" % t]) for t in TAUS]
+        colour, marker = STYLE[budget[0]]
+        is_best = budget == best
+        kw = dict(marker=marker, linestyle="-", color=colour,
+                  linewidth=2.0 if is_best else 1.4,
+                  markersize=5.5 if is_best else 4.5,
+                  markeredgecolor="white" if is_best else colour,
+                  markeredgewidth=0.8 if is_best else 0.6,
+                  zorder=4 if is_best else 2)
+        axes[0].plot(TAUS, cov, label="%d \u00d7 %d" % budget, **kw)
+        axes[1].plot(cov, f1, **kw)
+        if is_best:
+            for t, x, y in zip(TAUS, cov, f1):
+                axes[1].annotate("\u03c4 %d" % t, (x, y),
+                                 textcoords="offset points", xytext=(5, -10),
+                                 fontsize=8, color=MUT)
+
+    axes[0].set_xlabel("tolerance \u03c4  (pixels)", fontsize=9.5, color=INK)
+    axes[0].set_ylabel("fraction of the plane\nwithin \u03c4 px  (%)",
+                       fontsize=9.5, color=INK, linespacing=1.3)
+    axes[0].set_xticks(list(TAUS))
+    axes[0].set_ylim(0, None)
+    axes[0].set_title("(a) what \u03c4 costs", fontsize=10.5, color=INK,
+                      pad=5, loc="left")
+    axes[0].legend(fontsize=8, frameon=True, framealpha=0.92,
+                   edgecolor="#cccccc", loc="upper left", handlelength=1.8,
+                   labelspacing=0.3, borderpad=0.3,
+                   title="rays \u00d7 points", title_fontsize=8)
+
+    axes[1].set_xlabel("fraction of the plane within \u03c4 px  (%)",
+                       fontsize=9.5, color=INK)
+    axes[1].set_ylabel("F1 @ \u03c4", fontsize=9.5, color=INK)
+    axes[1].set_ylim(0.25, 1.02)
+    # room on the right for the tau label on the last point, which sits at
+    # the largest coverage and was otherwise clipped by the axes
+    axes[1].set_xlim(0, 1.12 * max(
+        100 * float(rows[b]["coverage@3"]) for b in budgets))
+    axes[1].set_title("(b) score against price", fontsize=10.5, color=INK,
+                      pad=5, loc="left")
+
+    for ax in axes:
+        ax.tick_params(labelsize=8.5, colors=INK)
+        ax.grid(True, color=J_GRID, linewidth=0.5, linestyle=(0, (1, 3)),
+                alpha=0.85)
+        ax.set_axisbelow(True)
+        for sp in ("top", "right"):
+            ax.spines[sp].set_visible(False)
+        for sp in ("left", "bottom"):
+            ax.spines[sp].set_color("#444444")
+            ax.spines[sp].set_linewidth(0.8)
+    fig.tight_layout(pad=0.6, w_pad=1.6)
+    save(fig, "fig_tolerance_price")
+
+    r = rows[best]
+    print("  %d \u00d7 %d:  " % best + "   ".join(
+        "\u03c4%d F1 %.3f at %.1f %%"
+        % (t, float(r["f1@%d" % t]), 100 * float(r["coverage@%d" % t]))
+        for t in TAUS))

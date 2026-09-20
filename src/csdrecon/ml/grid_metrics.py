@@ -82,6 +82,34 @@ def coverage_at_tau(visited: np.ndarray, tau: float) -> float:
     return float((distance_transform_edt(~visited) <= tau).mean())
 
 
+def claimed_at_tau(pred: np.ndarray, tau: float) -> float:
+    """
+    The fraction of the diagram the PREDICTION claims once tau slack is
+    allowed: pixels within tau of a predicted line pixel.
+
+    This is the price of the tolerance, and it is the companion every F1@tau
+    has to be read against.  Scoring at tau credits a predicted pixel for a
+    whole disc of radius tau around it, so the model is in effect asserting
+    "a line passes somewhere in here" for every pixel of that disc.  When the
+    discs swallow half the plane, a high F1@tau says very little: almost
+    anywhere a true line could run, some prediction is already within tau of
+    it.
+
+    Distinct from coverage_at_tau, which dilates the VISITED MASK and so
+    describes the measurement geometry alone -- the same number whatever the
+    model predicts.  This one depends on the model, which is what makes it
+    the price of the score rather than of the experiment.
+
+    Euclidean distance, the same convention tolerant_f1 uses.
+    """
+    pred = pred > 0.5
+    if not pred.any():
+        return 0.0
+    if tau <= 0:
+        return float(pred.mean())
+    return float((distance_transform_edt(~pred) <= tau).mean())
+
+
 def iou(pred: np.ndarray, true: np.ndarray) -> float:
     """Strict intersection-over-union of the two line sets."""
     pred, true = pred > 0.5, true > 0.5
