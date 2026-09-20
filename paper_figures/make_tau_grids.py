@@ -5,6 +5,10 @@ make_tau_grids.py -- two text-free pictures that DEFINE the tolerance.
     tau_example.png        why tolerance exists
     tau_neighbourhood.png  what tau admits, cell by cell
 
+Panel 3 superimposes the two lines rather than drawing their (empty)
+intersection: the point is that they are one cell apart everywhere, and
+an empty box cannot show that.
+
 THE EXAMPLE is the one that matters: the model draws the line perfectly --
 same shape, same length, same slope -- but one pixel to the left.  Not one
 pixel coincides, so strict pixel F1 = 0.00, for a result any physicist would
@@ -36,6 +40,10 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy.ndimage import distance_transform_edt
+
+# Write a vector .pdf beside every .png.  Off: the PNGs are 600 dpi
+# and the PDFs doubled the folder for nothing.
+WITH_PDF = False
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
@@ -79,7 +87,10 @@ def _cells(ax, mask, colour, inset=0.0, zorder=2):
 
 
 def _save(fig, stem):
-    for ext, kw in ((".png", {"dpi": 600}), (".pdf", {})):
+    # PNG only.  The vector twin was written for a journal that wants
+    # one; set WITH_PDF = True to get it back.
+    for ext, kw in ((".png", {"dpi": 600}),) + (
+            ((".pdf", {}),) if WITH_PDF else ()):
         p = os.path.join(HERE, stem + ext)
         fig.savefig(p, facecolor="white", **kw)
         print("  ->", os.path.relpath(p, ROOT))
@@ -98,7 +109,7 @@ def example():
     overlap = truth & pred                      # empty, and that is the point
 
     fig = plt.figure(figsize=(9.0, 2.35))
-    # truth | prediction | strict overlap (nothing) | tau = 1 (everything)
+    # truth | prediction | the two superimposed | tau = 1
     for k, left in enumerate(LEFTS):
         ax = fig.add_axes([left, 0.03, 0.235, 0.94])
         _grid(ax, N)
@@ -107,7 +118,14 @@ def example():
         elif k == 1:
             _cells(ax, pred, PRED_C)
         elif k == 2:
-            _cells(ax, overlap, TRUTH_C)        # draws nothing
+            # BOTH lines, on the same grid.  Drawing `truth & pred` here
+            # is literally correct -- the strict overlap is empty -- but
+            # an empty box states the result without showing it.  Side by
+            # side the two staircases are visibly adjacent and visibly
+            # never in the same cell, which is the whole argument for a
+            # tolerance.  No band: tau has not been introduced yet.
+            _cells(ax, truth, TRUTH_C, zorder=2)
+            _cells(ax, pred, PRED_C, zorder=2)
         else:
             _cells(ax, dist <= 1, BAND_C, zorder=1)
             _cells(ax, truth, TRUTH_C, zorder=2)

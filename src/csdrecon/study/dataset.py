@@ -381,8 +381,8 @@ def build(cfg: StudyConfig, rebuild: bool = False) -> Dict:
     log.detail("\n" + text)
 
     # The per-device pictures draw the RAY geometry over the diagram, so
-    # they are meaningful only for the ray measurement.  Other sampling
-    # scenarios are compared by scripts/benchmark.py, which draws its own.
+    # they are meaningful only for the ray measurement, and are skipped
+    # for a 'grid' or 'random' arm rather than drawn wrong.
     if cfg.sampling == "rays":
         log.detail("── per-device figures " + "─" * 38)
         device_figures.render_config(cfg)

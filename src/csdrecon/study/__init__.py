@@ -14,11 +14,11 @@ The programs in scripts/ are settings blocks; everything they do lives here:
     comparison.py stage 4 — put every configuration side by side
     sweep.py     stages 1-4 for a grid of budgets, behind run_0
 
-One separate question, asked by scripts/benchmark.py and with no place in
-the four-stage sequence:
+One separate question, with no place in the four-stage sequence:
 
     sampling.py        WHERE the measured points go — a fan of rays, line
                        cuts, parallel oblique lines, a lattice, a random
-                       draw — at one fixed budget.  benchmark.py does the
-                       rest itself, in one readable file.
+                       draw — at one fixed budget.  StudyConfig validates
+                       its `sampling` field against these; the ablation that
+                       compared them was deleted on 2026-09-20.
 """

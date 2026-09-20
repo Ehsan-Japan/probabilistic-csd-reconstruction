@@ -11,7 +11,7 @@ devices with default_rng(SEED) BEFORE training, and _validation_curve()
 replays exactly that, so the curve is the one the choice was really made on
 -- 75 devices held out of the 500, the test 50 never touched.
 
-Writes threshold_validation.png/.pdf and the numbers it plotted to
+Writes threshold_validation.png and the numbers it plotted to
 threshold_validation.json, so a caption can quote them.
 
     python paper_figures/make_threshold_figure.py
@@ -24,6 +24,10 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
+
+# Write a vector .pdf beside every .png.  Off: the PNGs are 600 dpi
+# and the PDFs doubled the folder for nothing.
+WITH_PDF = False
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
@@ -83,7 +87,10 @@ def main():
     for sp in ("left", "bottom"):
         ax.spines[sp].set_color("#444444")
         ax.spines[sp].set_linewidth(0.8)
-    for ext, kw in ((".png", {"dpi": 600}), (".pdf", {})):
+    # PNG only.  The vector twin was written for a journal that wants
+    # one; set WITH_PDF = True to get it back.
+    for ext, kw in ((".png", {"dpi": 600}),) + (
+            ((".pdf", {}),) if WITH_PDF else ()):
         p = os.path.join(HERE, "threshold_validation" + ext)
         fig.savefig(p, facecolor="white", **kw)
         print("  ->", os.path.relpath(p, ROOT))

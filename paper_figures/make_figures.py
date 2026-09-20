@@ -21,8 +21,8 @@ gallery lives in results/<run>/figures/ and is not what goes in the paper.
 
 Run from the project root:   python paper_figures/make_figures.py
 
-Every figure is written as .png (600 dpi, for slides) and .pdf (vector, for
-the manuscript).
+Every figure is written as .png at 600 dpi.  Set WITH_PDF = True below to
+get a vector .pdf beside each one.
 """
 import json
 import os
@@ -33,6 +33,10 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from matplotlib.patches import FancyBboxPatch, FancyArrowPatch
+
+# Write a vector .pdf beside every .png.  Off: the PNGs are 600 dpi
+# and the PDFs doubled the folder for nothing.
+WITH_PDF = False
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
@@ -99,7 +103,10 @@ def net():
 
 
 def save(fig, name):
-    for ext, kw in ((".png", {"dpi": 600}), (".pdf", {})):
+    # PNG only.  The vector twin was written for a journal that wants
+    # one; set WITH_PDF = True to get it back.
+    for ext, kw in ((".png", {"dpi": 600}),) + (
+            ((".pdf", {}),) if WITH_PDF else ()):
         p = os.path.join(HERE, name + ext)
         fig.savefig(p, bbox_inches="tight", facecolor="white", **kw)
         print("  ->", os.path.relpath(p, ROOT))
@@ -961,9 +968,8 @@ def fig_data_split():
 # The gallery version (figures/40_tau_all_metrics.png) draws every budget
 # in the sweep against four metrics, which is unreadable at fifteen.  This
 # keeps the smallest budget, a middle one and the best - all three of them
-# runs that converged - and drops the pixel accuracy panel: accuracy is high
-# whatever the model does, which is a point to make out loud, not a panel to
-# squint at.
+# runs that converged.  Pixel accuracy IS drawn, first, so that its
+# flatness is visible next to the metrics that move.
 def _three_budgets():
     """Smallest, middle and best coverage among the CONVERGED runs."""
     ok = _run.converged()
@@ -978,10 +984,22 @@ def fig_tau_metrics(budgets=None):
     budgets = budgets or _three_budgets()
     rows = {(int(r["n_rays"]), int(r["n_points"])): r
             for r in _run.comparison_rows()}
-    metrics = (("f1", "F1"), ("precision", "precision"), ("recall", "recall"))
+    # Accuracy FIRST, and only so it can be dismissed: transition lines
+    # are ~7 % of the diagram, so predicting no line anywhere already
+    # scores ~0.93.  Putting it beside the three metrics that do mean
+    # something shows, rather than asserts, why it is not the headline.
+    #
+    # coverage@tau LAST, right of F1: it is not a score at all but the
+    # PRICE of the tolerance the scores are read at -- the fraction of
+    # the plane within tau px of a measured pixel.  It shares the y axis
+    # because it is a fraction of the same diagram, so the reader can see
+    # directly that F1 climbs while the area it is judged over climbs too.
+    metrics = (("accuracy", "pixel accuracy"), ("precision", "precision"),
+               ("recall", "recall"), ("f1", "F1"),
+               ("coverage", "grid coverage"))
     best = max(budgets, key=lambda b: float(rows[b]["coverage"]))
 
-    fig, axes = plt.subplots(1, 3, figsize=(9.2, 2.15), sharey=True)
+    fig, axes = plt.subplots(1, 5, figsize=(14.2, 2.15), sharey=True)
     lo = 1.0
     for ax, (key, label) in zip(axes, metrics):
         for budget in budgets:
@@ -996,16 +1014,24 @@ def fig_tau_metrics(budgets=None):
                     markeredgecolor="white" if is_best else colour,
                     markeredgewidth=0.8 if is_best else 0.6,
                     zorder=4 if is_best else 2,
-                    label="%d × %d   (%.1f %%)"
-                          % (budget[0], budget[1],
-                             100 * float(r["coverage"])))
+                    label="%d × %d" % budget)
         ax.set_xlabel("tolerance τ  (pixels)", fontsize=9.5, color=INK)
         ax.set_xticks(list(TAUS))
         ax.tick_params(labelsize=8.5, colors=INK, labelleft=True)
-        # the metric moves onto the y axis: without it the three panels
-        # are indistinguishable, and a y label is not a title
-        ax.set_ylabel("%s on %d\nheld-out devices" % (label, N_TEST),
+        # the metric moves onto the y axis: without it the panels are
+        # indistinguishable, and a y label is not a title
+        ax.set_ylabel("%s\nof the plane" % label if key == "coverage"
+                      else "%s on %d\nheld-out devices" % (label, N_TEST),
                       fontsize=8.5, color=INK, linespacing=1.3)
+        # A key on EVERY panel: these are read one at a time, cropped
+        # into a slide or a caption, and a panel that has been separated
+        # from the first one must still say which line is which.
+        ax.legend(fontsize=7, frameon=True, framealpha=0.92,
+                  edgecolor="#cccccc", handlelength=1.6,
+                  labelspacing=0.25, borderpad=0.28,
+                  title="rays × points", title_fontsize=7,
+                  loc=("upper left" if key == "coverage"
+                       else "lower right"))
         ax.grid(True, color=J_GRID, linewidth=0.5, linestyle=(0, (1, 3)),
                 alpha=0.85)
         ax.set_axisbelow(True)
@@ -1014,12 +1040,17 @@ def fig_tau_metrics(budgets=None):
         for sp in ("left", "bottom"):
             ax.spines[sp].set_color("#444444")
             ax.spines[sp].set_linewidth(0.8)
-    axes[0].set_ylim(lo - 0.06, 1.02)
+    # the floor drops to 0 so coverage@0 (~1.6 %) is not clipped off the
+    # bottom of the shared axis
+    axes[0].set_ylim(min(0.0, lo - 0.06), 1.02)
 
-    axes[0].legend(fontsize=8, frameon=True, framealpha=0.92,
-                   edgecolor="#cccccc", loc="lower right", handlelength=1.8,
-                   labelspacing=0.3, borderpad=0.3,
-                   title="rays × points  (coverage)", title_fontsize=8)
+    fig.text(0.005, -0.02,
+             "pixel accuracy is shown only to be dismissed: transition "
+             "lines are a few percent of the diagram, so it is high no "
+             "matter what the model does.   grid coverage is not a score: "
+             "it is the fraction of the plane within τ px of a measured "
+             "pixel, i.e. the area the scores to its left are read over.",
+             fontsize=8, color=MUT)
     fig.tight_layout(pad=0.6, w_pad=1.4)
     save(fig, "fig_tau_metrics")
     print("  budgets: " + ", ".join("%d x %d" % b for b in budgets))

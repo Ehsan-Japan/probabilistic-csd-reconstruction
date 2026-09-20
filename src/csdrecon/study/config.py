@@ -74,8 +74,10 @@ class StudyConfig:
     # WHERE those n_rays x n_points measured points are put.  "rays" is the
     # real experiment and the default, so every existing configuration and
     # every folder name is unchanged.  "grid" and "random" spend the SAME
-    # budget on scattered points instead, which is what
-    # scripts/run_7_compare_sampling.py compares (study/sampling.py).
+    # budget on scattered points instead (study/sampling.py).  The geometry
+    # ablation that compared them was deleted on 2026-09-20; the strategies
+    # remain because StudyConfig validates against them and a folder may
+    # still carry one.
     sampling: str = sampling.DEFAULT
 
     # ── how much data ────────────────────────────────────────────────────
@@ -346,7 +348,7 @@ class StudyConfig:
         fields = {f for f in cls.__dataclass_fields__}
         cfg = cls(**{k: v for k, v in d.items() if k in fields})
         # A configuration keeps the folder it was found in — run_0 puts its
-        # cells under results/<sweep>/, and run_3..run_7 must write back
+        # cells under results/<sweep>/, and the later stages must write back
         # into that same folder, not into a fresh one beside it.
         cfg._dir = os.path.abspath(folder)
         return cfg
@@ -383,7 +385,7 @@ def _candidate_folders() -> List[str]:
     and one level down inside each — because run_0 gives every run its own
     folder (results/4-7-8_rays_40_points_150_samples/) with the configuration
     folders inside it, while the hand-run programs write straight into
-    data/.  Both are found, so run_3..run_7 work on a sweep's cells
+    data/.  Both are found, so the later stages work on a sweep's cells
     without being told where the sweep put them.
     """
     roots, found = [paths.CONFIG_ROOT, paths.DATA_ROOT, paths.RESULTS], []
@@ -421,11 +423,12 @@ def existing_configs(every_sampling: bool = False) -> list:
     A folder counts only if it has a config.json, so the shared device pool
     and anything else living in data/ is never mistaken for one.
 
-    DISCOVERY IGNORES THE SAMPLING ARMS.  run_7 writes ordinary configuration
-    folders for its 'grid' and 'random' arms, and they are the same budget as
-    the ray arm beside them — so "compare everything" would put two different
-    measurements on the same point of the budget figure and quietly average
-    them.  They are found only when asked for by name, or with
+    DISCOVERY IGNORES THE SAMPLING ARMS.  A 'grid' or 'random' arm is an
+    ordinary configuration folder at the SAME budget as the ray arm beside
+    it — so "compare everything" would put two different measurements on
+    the same point of the budget figure and quietly average them.  Nothing
+    writes such folders now that the geometry ablation is gone, but one may
+    still be on disk.  They are found only when asked for by name, or with
     every_sampling=True.
     """
     out, seen = [], set()
@@ -475,8 +478,8 @@ def resolve_configs(names) -> List[StudyConfig]:
     comparison that says something untrue.
     """
     if names is None or (isinstance(names, str) and names.strip().upper() == ALL):
-        # "ALL" means every budget of the study — not run_7's sampling arms,
-        # which are a different measurement at the same budget.
+        # "ALL" means every budget of the study — not any sampling arm,
+        # which is a different measurement at the same budget.
         return existing_configs()
     if isinstance(names, str):
         names = [names]

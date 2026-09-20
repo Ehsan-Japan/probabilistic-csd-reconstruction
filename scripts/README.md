@@ -47,11 +47,8 @@ costs one training run.
 |---|---|
 | `run_5_render_device_figures.py` | redraw the per-device pictures — more devices, 300 dpi — without regenerating data or retraining |
 | `run_6_threshold_report.py` | the probability maps, and where the binarisation threshold falls |
-| `run_7_benchmarking.py` | the geometry ablation: the same budget spent as a corner fan, parallel oblique lines, horizontal cuts and vertical cuts |
-| `run_8_device_gallery.py` | contact sheets: every device of a split on one page — raw sensor, background-differenced sensor and ground truth — for checking what the simulator produced |
 | `run_9_update_readme.py` | rewrite the results section of README.md from the run's comparison.csv, and copy its figures into docs/figures/ — run it after every study run |
 | `run_10_bundle_figures.py` | re-render the comparison gallery, or group it the other way (`BY = "rays"`). `run_4` already writes it one bundle per folder — `figures/40_points_per_ray/` holds 4×40…8×40 — so a plot carries five series instead of fifteen |
-| `benchmark.py` | one budget, four scenarios — our fan of rays vs Hernandes-style line cuts vs parallel oblique lines vs a lattice.  Self-contained: measure, train, score, table, figure, all in one file |
 
 `_common.py` is shared boilerplate (import path, headless plotting, the
 "resolve names → do a thing to each → report" loop). It holds no settings.

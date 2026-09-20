@@ -18,7 +18,8 @@ python paper_figures/make_tau_grids.py        # the tolerance definition
 python paper_figures/make_threshold_figure.py # the validation curve
 ```
 
-Every figure is written twice: `.png` at 600 dpi and `.pdf` (vector).
+Every figure is written as `.png` at 600 dpi. Set `WITH_PDF = True` in the
+script for a vector `.pdf` beside each one.
 
 ## What it draws on
 

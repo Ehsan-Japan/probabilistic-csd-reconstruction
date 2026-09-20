@@ -60,8 +60,6 @@ python scripts/run_3_evaluate_model.py     # score it on held-out devices
 python scripts/run_4_compare_configs.py    # every budget side by side
 python scripts/run_5_render_device_figures.py
 python scripts/run_6_threshold_report.py   # probability maps + threshold
-python scripts/run_7_benchmarking.py       # geometry ablation
-python scripts/run_8_device_gallery.py     # contact sheets of every device
 python scripts/run_9_update_readme.py      # rewrite the Results section below
 ```
 
