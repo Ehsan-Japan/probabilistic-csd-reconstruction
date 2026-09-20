@@ -141,8 +141,14 @@ def _best(rows: Sequence[Dict], run_dir: Optional[str] = None) -> Dict:
 
 def _budget_table(rows: Sequence[Dict], run_dir: Optional[str] = None
                   ) -> List[str]:
-    out = ["| budget | coverage | F1@1 | precision | recall | IoU | threshold |",
-           "|---|---|---|---|---|---|---|"]
+    # TWO coverage columns.  The first is what the rays actually touched;
+    # the second is the same plane seen through the tolerance the score is
+    # read at -- every pixel within 1 px of a measured one.  Quoting F1@1
+    # beside coverage alone flatters the result, because the area the
+    # score is judged over is several times larger than the area measured.
+    out = ["| budget | coverage | coverage@1 | F1@1 | precision@1 "
+           "| recall@1 | IoU (strict) | threshold |",
+           "|---|---|---|---|---|---|---|---|"]
     best = _best(rows, run_dir)
     failed = 0
     for r in rows:
@@ -153,7 +159,8 @@ def _budget_table(rows: Sequence[Dict], run_dir: Optional[str] = None
             budget += " †"
             failed += 1
         out.append(
-            f"| {budget} | {_pct(r['coverage'])} | {_f(r['f1@1'])} | "
+            f"| {budget} | {_pct(r['coverage'])} | "
+            f"{_pct(r.get('coverage@1'))} | {_f(r['f1@1'])} | "
             f"{_f(r['precision@1'])} | {_f(r['recall@1'])} | {_f(r['iou'])} | "
             f"{_f(r['threshold'], 2)} |")
     if failed:
@@ -170,8 +177,34 @@ def _budget_table(rows: Sequence[Dict], run_dir: Optional[str] = None
     return out
 
 
+def _coverage_note(rows: Sequence[Dict]) -> str:
+    """One sentence on how far the tolerance inflates the measured area."""
+    factors = []
+    for r in rows:
+        try:
+            base, wide = float(r["coverage"]), float(r["coverage@1"])
+        except (TypeError, ValueError, KeyError):
+            continue
+        if base > 0:
+            factors.append(wide / base)
+    if not factors:
+        return ("`coverage` is the fraction of the plane the rays actually "
+                "touched.")
+    lo, hi = min(factors), max(factors)
+    span = (f"{lo:.1f}x" if hi - lo < 0.05
+            else f"{lo:.1f} to {hi:.1f} times")
+    return (
+        "The two coverage columns are the same plane at two tolerances. "
+        "`coverage` is what the rays actually touched; `coverage@1` is "
+        "every pixel within 1 px of a measured one, which is "
+        "the area F1@1 is effectively judged over. Allowing a single "
+        "pixel of slack inflates it by {span}, so a tolerant score "
+        "must always be read against it."
+    ).replace("{span}", span)
+
+
 def _tau_table(row: Dict) -> List[str]:
-    out = ["| τ | precision | recall | F1@τ | coverage@τ |",
+    out = ["| τ | precision@τ | recall@τ | F1@τ | coverage@τ |",
            "|---|---|---|---|---|"]
     for tau in TAUS:
         mark = "**" if tau == 1 else ""
@@ -246,6 +279,8 @@ def render(run_dir: str, figures: Sequence[Tuple[str, str]] = ()) -> str:
     ]
     body += _budget_table(rows, run_dir)
     body += [
+        "",
+        _coverage_note(rows),
         "",
         f"The threshold is not 0.5 and is not tuned on the test devices: it is "
         f"chosen on a validation split carved out of the training devices and "

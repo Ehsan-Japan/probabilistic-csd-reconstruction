@@ -49,8 +49,31 @@ def test_points_grouping_puts_every_ray_count_in_one_folder():
 def test_rays_grouping_is_the_other_axis():
     cfgs = budgets("/s", [(4, 40), (4, 60), (4, 50), (8, 40)])
     got = figure_bundles.group(cfgs, by="rays")
-    assert [label for label, _ in got] == ["4_rays", "8_rays"]
+    # the comparison figures are filed under the ray folder, not loose in it,
+    # because the per-budget folders live there too
+    assert [label.replace(os.sep, "/") for label, _ in got] == [
+        "4_rays/4_rays_summary", "8_rays/8_rays_summary"]
     assert [c.n_points for c in got[0][1]] == [40, 50, 60]
+
+
+def test_budget_grouping_nests_under_its_ray_count():
+    cfgs = budgets("/s", [(8, 60), (4, 40), (8, 40)])
+    got = figure_bundles.group(cfgs, by="budget")
+    assert [label.replace(os.sep, "/") for label, _ in got] == [
+        "4_rays/4_rays_40_points",
+        "8_rays/8_rays_40_points",
+        "8_rays/8_rays_60_points"]
+    assert all(len(g) == 1 for _, g in got)
+
+
+def test_a_ray_folder_holds_its_summary_and_its_budgets_side_by_side():
+    """The two groupings must land in the same parent, never overwrite it."""
+    cfgs = budgets("/s", [(8, 40), (8, 50)])
+    summary = figure_bundles.group(cfgs, by="rays")[0][0]
+    per_budget = [lbl for lbl, _ in figure_bundles.group(cfgs, by="budget")]
+    assert os.path.dirname(summary) == "8_rays"
+    assert all(os.path.dirname(p) == "8_rays" for p in per_budget)
+    assert summary not in per_budget
 
 
 def test_grouping_key_must_be_known():

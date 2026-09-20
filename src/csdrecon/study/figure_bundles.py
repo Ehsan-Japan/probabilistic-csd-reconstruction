@@ -62,11 +62,14 @@ GROUPINGS = {
                lambda c: "%d points per ray" % c.n_points,
                "ray count"),
     "rays": (lambda c: c.n_rays,
-             lambda c: "%d_rays" % c.n_rays,
+             lambda c: os.path.join("%d_rays" % c.n_rays,
+                                    "%d_rays_summary" % c.n_rays),
              lambda c: "%d rays" % c.n_rays,
              "points per ray"),
-    "budget": (lambda c: (c.n_points, c.n_rays),
-               lambda c: "%d_rays_%d_points" % (c.n_rays, c.n_points),
+    "budget": (lambda c: (c.n_rays, c.n_points),
+               lambda c: os.path.join("%d_rays" % c.n_rays,
+                                      "%d_rays_%d_points"
+                                      % (c.n_rays, c.n_points)),
                lambda c: "%d rays x %d points" % (c.n_rays, c.n_points),
                "nothing - one budget per folder"),
 }
@@ -150,13 +153,28 @@ def _readme(path: str, label: str, varies: str, constant: str,
             % varies,
             "figure answers one question.",
             "",
-            "The other bundles of this sweep sit beside this folder.  There "
-            "is",
-            "no combined gallery: fifteen series on one axes is not readable.",
         ]
+        parent = os.path.dirname(label)
+        if parent:
+            # a summary folder sits INSIDE the folder it summarises, next to
+            # the single-budget folders for the same models
+            head += [
+                "This is the summary of %s/.  The same budgets, each on its"
+                % parent,
+                "own, are in the folders beside it.",
+            ]
+        else:
+            head += [
+                "The other bundles of this sweep sit beside this folder.",
+            ]
+        head += [
+            "There is no combined gallery: fifteen series on one axes is not",
+            "readable.",
+        ]
+    name = os.path.basename(label)
     lines = [
-        "%s" % label,
-        "=" * len(label),
+        "%s" % name,
+        "=" * len(name),
         "",
     ] + head + [
         "",
@@ -273,7 +291,7 @@ def bundle(sweep_dir: Optional[str] = None,
 
             note = ("one budget, on its own" if by == "budget" else
                     "%d budgets, %s varying" % (len(cfgs), varies))
-            log.say("  %-22s %s" % (label, note)
+            log.say("  %-26s %s" % (label.replace(os.sep, "/"), note)
                     + ("   [%d did not converge]" % len(failed)
                        if failed else ""))
 

@@ -41,12 +41,17 @@ RUN = None
 #             -> 40_points_per_ray/ holds 4x40 … 8x40
 #   "rays"    one folder per ray count; the POINTS PER RAY vary inside it
 #             -> 4_rays/ holds 4x40, 4x50, 4x60
-#   "budget"  one folder per configuration, a single model on every plot
-#             -> 4_rays_40_points/, 5_rays_40_points/, … (15 of them)
+#   "budget"  one folder per configuration, a single model on every plot.
+#             These NEST under their ray count, so the fifteen of them are
+#             filed rather than spread flat:
+#                 4_rays/4_rays_40_points/, 4_rays/4_rays_50_points/, …
 #
-# The three are independent slices of the same sweep and can coexist: each
-# writes its own folders and leaves the others alone.
-BY = "points"
+# The three are independent slices of the same sweep and coexist happily:
+# each writes its own folders and leaves the others alone.  List as many as
+# you want; they are written in order, so put "rays" before "budget" if you
+# want the ray folders to carry their own comparison figures as well as the
+# per-budget folders nested inside them.
+BY = ["points", "rays", "budget"]
 
 # ══════════════════════════════════════════════════════════════════════════
 
@@ -58,7 +63,13 @@ def main():
     from csdrecon.config import paths
 
     sweep = os.path.join(paths.RESULTS, RUN) if RUN else None
-    written = figure_bundles.bundle(sweep_dir=sweep, by=BY)
+    groupings = [BY] if isinstance(BY, str) else list(BY)
+    written = []
+    for by in groupings:
+        if len(groupings) > 1:
+            print()
+            print("grouped by %s" % by)
+        written += figure_bundles.bundle(sweep_dir=sweep, by=by)
     if written:
         print()
         print("%d bundle folder(s) written." % len(written))

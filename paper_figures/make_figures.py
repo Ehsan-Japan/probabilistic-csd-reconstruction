@@ -14,7 +14,6 @@ from the real arrays in the device pool rather than mocked up.
     fig_probability_to_lines    the same story as one composite
     fig_data_split              where the validation devices come from
     fig_tau_metrics             F1 / precision / recall against tolerance
-    fig_tolerance_price         what raising tau buys, and what it costs
     results_f1_vs_coverage      the headline chart
 
 These are the NEAT figures: one point per panel.  The dense diagnostic
@@ -160,11 +159,9 @@ def fig_network_input(compact=False):
         blank(ax)
 
     if not compact:
-        # the manuscript version carries its own title and caption; the
-        # slide version does not, because the slide already says both
-        fig.suptitle("What the network is given — %d rays × %d "
-                     "points, one held-out device" % (N_RAYS, N_POINTS),
-                     fontsize=12.5, color=INK, y=1.0)
+        # No title: the file name says what the figure is.  The caption
+        # stays, because it makes a POINT about channel 2 that the
+        # picture cannot make on its own.
         fig.text(0.5, -0.045,
                  "Channel 2 is what separates “measured here, and the "
                  "signal was low” from “never looked here”.  "
@@ -389,7 +386,7 @@ def fig_model_flow():
     fig = plt.figure(figsize=(13.0, 3.5))
     gs = fig.add_gridspec(2, 3, width_ratios=[1.0, 3.45, 1.25],
                           wspace=0.30, hspace=0.42,
-                          left=0.02, right=0.985, top=0.86, bottom=0.06)
+                          left=0.02, right=0.985, top=0.94, bottom=0.06)
 
     cm = plt.get_cmap("hot").copy()
     cm.set_bad("#f2f2f2")
@@ -432,8 +429,6 @@ def fig_model_flow():
     farrow(bn.x1 - 0.010, bn.y0 + bn.height * 0.62,
            bo.x0 - 0.006, bo.y0 + bo.height * 0.5)
 
-    fig.text(0.5, 0.955, "Two measured maps in, one probability map out",
-             ha="center", fontsize=12.5, color=INK)
     save(fig, "fig_model_flow")
 
 
@@ -444,11 +439,15 @@ def fig_panels():
     ch, _Yt, prob = pick_case()
     sig, vis = ch[ray_peaks.CH_SIGNAL], ch[ray_peaks.CH_VISITED]
 
-    def panel(draw, title, name, colour=INK, cbar=False):
+    def panel(draw, note, name, colour=INK, cbar=False):
+        """One standalone map.  `note` goes UNDER it: these are separate
+        files whose names already say which map they are, and the deck
+        places its own title box above each one."""
         fig, ax = plt.subplots(figsize=(2.7, 2.95))
         im = draw(ax)
-        ax.set_title(title, fontsize=11, color=colour, pad=7)
         blank(ax)
+        if note:
+            ax.set_xlabel(note, fontsize=8.5, color=MUT)
         if cbar:
             cb = fig.colorbar(im, ax=ax, fraction=0.046, pad=0.03)
             cb.ax.tick_params(labelsize=7.5)
@@ -460,15 +459,13 @@ def fig_panels():
     panel(lambda ax: ax.imshow(np.where(vis > 0.5, sig, np.nan),
                                origin="lower", cmap=cm, vmin=0, vmax=1,
                                interpolation="nearest"),
-          "channel 1\nmeasured sensor signal", "panel_channel1")
+          "", "panel_channel1")
     panel(lambda ax: ax.imshow(1.0 - vis, origin="lower", cmap="gray",
                                vmin=0, vmax=1, interpolation="nearest"),
-          "channel 2\nvisited mask (%.1f %% of the grid)"
-          % (100 * vis.mean()), "panel_channel2")
+          "%.1f %% of the grid" % (100 * vis.mean()), "panel_channel2")
     panel(lambda ax: ax.imshow(prob, origin="lower", cmap=J_CMAP, vmin=0,
                                vmax=1, interpolation="nearest"),
-          "output\nP(transition line) per pixel", "panel_probability",
-          colour=J_PTITLE, cbar=True)
+          "", "panel_probability", colour=J_PTITLE, cbar=True)
 
 
 # -- figure 6: the charge sensor, raw and with its background removed -----
@@ -770,11 +767,13 @@ def fig_probability_panels(taus=(0, 1, 3)):
         for sp in ax.spines.values():
             sp.set_color(J_PRED if tau == 1 else "#777777")
             sp.set_linewidth(1.8 if tau == 1 else 0.8)
-    fig.suptitle(_p2l_title("p2l_9_tau_zoom",
-                            "Same truth, same output — only the "
-                            "tolerance band grows", INK, 14),
-                 fontsize=14, color=INK, y=0.985)
-    # the colour key rides inside this figure, so a slide does not need a
+    # NO TITLE TEXT, but the band it used to occupy is still reserved:
+    # slide 12 of the SSDM deck places its own caption text box there,
+    # and without the gap that box lands on the panel headings.  A blank
+    # suptitle is what holds the space open -- an empty string has no
+    # height at all and matplotlib reclaims the gap.
+    fig.suptitle(" ", fontsize=14, y=0.985)
+    # the colour key rides inside this figure, so a slide needs no
     # separate legend strip and the panels can be larger
     fig.tight_layout(rect=(0, 0.105, 1, 0.945))
     for x, txt, swatch, tcol in key:
@@ -1000,12 +999,13 @@ def fig_tau_metrics(budgets=None):
                     label="%d × %d   (%.1f %%)"
                           % (budget[0], budget[1],
                              100 * float(r["coverage"])))
-        ax.set_title(label, fontsize=10.5, color=INK, pad=5, loc="left")
         ax.set_xlabel("tolerance τ  (pixels)", fontsize=9.5, color=INK)
         ax.set_xticks(list(TAUS))
         ax.tick_params(labelsize=8.5, colors=INK, labelleft=True)
-        ax.set_ylabel("score on %d\nheld-out devices" % N_TEST, fontsize=8.5,
-                      color=INK, linespacing=1.3)
+        # the metric moves onto the y axis: without it the three panels
+        # are indistinguishable, and a y label is not a title
+        ax.set_ylabel("%s on %d\nheld-out devices" % (label, N_TEST),
+                      fontsize=8.5, color=INK, linespacing=1.3)
         ax.grid(True, color=J_GRID, linewidth=0.5, linestyle=(0, (1, 3)),
                 alpha=0.85)
         ax.set_axisbelow(True)
@@ -1043,13 +1043,9 @@ def main():
     fig_probability_panels()
     fig_results_f1_vs_coverage()
     fig_tau_metrics()
-    fig_tolerance_price()
     fig_budget_ladder()
     fig_data_split()
 
-
-if __name__ == "__main__":
-    main()
 
 
 # -- figure 12: the budget ladder, for the Results slide ------------------
@@ -1177,65 +1173,5 @@ def fig_budget_ladder():
 # NOT coverage@tau, which dilates the VISITED MASK: that is the measurement
 # geometry alone, identical whatever the model predicts, so it cannot price
 # the score.
-def fig_tolerance_price(budgets=None):
-    budgets = budgets or _three_budgets()
-    rows = {(int(r["n_rays"]), int(r["n_points"])): r
-            for r in _run.comparison_rows()}
-    best = max(budgets, key=lambda b: float(rows[b]["coverage"]))
-
-    fig, ax = plt.subplots(figsize=(5.4, 3.6))
-    for budget in budgets:
-        r = rows[budget]
-        claim = np.array([100 * float(r["claim@%d" % t]) for t in TAUS])
-        sd = np.array([100 * float(r.get("claim@%d_std" % t) or 0.0)
-                       for t in TAUS])
-        f1 = [float(r["f1@%d" % t]) for t in TAUS]
-        colour, marker = STYLE[budget[0]]
-        is_best = budget == best
-        if sd.any():
-            ax.errorbar(claim, f1, xerr=sd, fmt="none", ecolor=colour,
-                        elinewidth=0.9, capsize=2.2, capthick=0.9,
-                        alpha=0.55, zorder=2)
-        ax.plot(claim, f1, marker=marker, linestyle="-", color=colour,
-                linewidth=2.0 if is_best else 1.4,
-                markersize=5.5 if is_best else 4.5,
-                markeredgecolor="white" if is_best else colour,
-                markeredgewidth=0.8 if is_best else 0.6,
-                zorder=4 if is_best else 3,
-                label="%d × %d   (%.1f %%)"
-                      % (budget[0], budget[1], 100 * float(r["coverage"])))
-        if is_best:
-            for t, x, y in zip(TAUS, claim, f1):
-                ax.annotate("τ %d" % t, (x, y),
-                            textcoords="offset points", xytext=(5, -11),
-                            fontsize=8.5, color=MUT)
-
-    ax.set_xlabel("fraction of the plane the prediction claims  (%)",
-                  fontsize=10, color=INK)
-    ax.set_ylabel("F1 @ τ", fontsize=10, color=INK)
-    ax.set_ylim(0.25, 1.02)
-    ax.set_xlim(0, 1.15 * max(
-        100 * float(rows[b]["claim@3"]) for b in budgets))
-    ax.tick_params(labelsize=9, colors=INK)
-    ax.grid(True, color=J_GRID, linewidth=0.5, linestyle=(0, (1, 3)),
-            alpha=0.85)
-    ax.set_axisbelow(True)
-    ax.legend(fontsize=8.5, frameon=True, framealpha=0.92,
-              edgecolor="#cccccc", loc="lower right", handlelength=1.8,
-              labelspacing=0.3, borderpad=0.3,
-              title="rays × points  (coverage)", title_fontsize=8)
-    for sp in ("top", "right"):
-        ax.spines[sp].set_visible(False)
-    for sp in ("left", "bottom"):
-        ax.spines[sp].set_color("#444444")
-        ax.spines[sp].set_linewidth(0.8)
-    fig.tight_layout()
-    save(fig, "fig_tolerance_price")
-
-    r = rows[best]
-    print("  %d × %d:  " % best + "   ".join(
-        "τ%d F1 %.3f claiming %.1f%%±%.1f"
-        % (t, float(r["f1@%d" % t]), 100 * float(r["claim@%d" % t]),
-           100 * float(r.get("claim@%d_std" % t) or 0.0))
-        for t in TAUS))
-
+if __name__ == "__main__":
+    main()

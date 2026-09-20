@@ -52,11 +52,5 @@
     "colour": "#111111",
     "size": 10,
     "bold": false
-  },
-  "p2l_9_tau_zoom": {
-    "text": "Same truth, same output — only the tolerance band grows",
-    "colour": "#111111",
-    "size": 14,
-    "bold": false
   }
 }

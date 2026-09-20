@@ -75,33 +75,35 @@ From `results/4-5-6-7-8_rays_40-50-60_points_500_samples/`. 15 measurement budge
 
 ### Every budget
 
-| budget | coverage | F1@1 | precision | recall | IoU | threshold |
-|---|---|---|---|---|---|---|
-| 4 × 40 | 1.57 % | 0.660 | 0.617 | 0.719 | 0.204 | 0.60 |
-| 5 × 40 | 1.94 % | 0.701 | 0.625 | 0.813 | 0.225 | 0.60 |
-| 6 × 40 | 2.33 % | 0.735 | 0.683 | 0.804 | 0.238 | 0.40 |
-| 7 × 40 | 2.72 % | 0.747 | 0.700 | 0.818 | 0.253 | 0.30 |
-| 8 × 40 | 3.11 % | 0.784 | 0.748 | 0.831 | 0.275 | 0.60 |
-| 4 × 50 | 1.95 % | 0.683 | 0.628 | 0.758 | 0.215 | 0.50 |
-| 5 × 50 | 2.44 % | 0.736 | 0.709 | 0.773 | 0.250 | 0.70 |
-| 6 × 50 † | 2.94 % | 0.427 | 0.320 | 0.739 | 0.107 | 0.40 |
-| 7 × 50 | 3.42 % | 0.738 | 0.696 | 0.796 | 0.252 | 0.70 |
-| **8 × 50** | 3.88 % | 0.796 | 0.786 | 0.815 | 0.295 | 0.70 |
-| 4 × 60 | 2.35 % | 0.670 | 0.623 | 0.736 | 0.214 | 0.60 |
-| 5 × 60 † | 2.96 % | 0.431 | 0.326 | 0.727 | 0.108 | 0.40 |
-| 6 × 60 | 3.52 % | 0.772 | 0.732 | 0.822 | 0.272 | 0.60 |
-| 7 × 60 † | 4.10 % | 0.432 | 0.324 | 0.737 | 0.108 | 0.40 |
-| 8 × 60 † | 4.66 % | 0.445 | 0.331 | 0.735 | 0.112 | 0.40 |
+| budget | coverage | coverage@1 | F1@1 | precision@1 | recall@1 | IoU (strict) | threshold |
+|---|---|---|---|---|---|---|---|
+| 4 × 40 | 1.57 % | 7.61 % | 0.660 | 0.617 | 0.719 | 0.204 | 0.60 |
+| 4 × 50 | 1.95 % | 9.29 % | 0.683 | 0.628 | 0.758 | 0.215 | 0.50 |
+| 4 × 60 | 2.35 % | 9.84 % | 0.670 | 0.623 | 0.736 | 0.214 | 0.60 |
+| 5 × 40 | 1.94 % | 9.40 % | 0.701 | 0.625 | 0.813 | 0.225 | 0.60 |
+| 5 × 50 | 2.44 % | 11.49 % | 0.736 | 0.709 | 0.773 | 0.250 | 0.70 |
+| 5 × 60 † | 2.96 % | 12.09 % | 0.431 | 0.327 | 0.727 | 0.108 | 0.40 |
+| 6 × 40 | 2.33 % | 11.21 % | 0.735 | 0.683 | 0.804 | 0.237 | 0.40 |
+| 6 × 50 † | 2.94 % | 13.71 % | 0.427 | 0.320 | 0.739 | 0.107 | 0.40 |
+| 6 × 60 | 3.52 % | 14.68 % | 0.772 | 0.732 | 0.822 | 0.271 | 0.60 |
+| 7 × 40 | 2.72 % | 12.93 % | 0.747 | 0.700 | 0.819 | 0.253 | 0.30 |
+| 7 × 50 | 3.42 % | 15.80 % | 0.738 | 0.696 | 0.796 | 0.252 | 0.70 |
+| 7 × 60 † | 4.10 % | 16.59 % | 0.432 | 0.325 | 0.737 | 0.108 | 0.40 |
+| 8 × 40 | 3.11 % | 14.75 % | 0.783 | 0.748 | 0.830 | 0.276 | 0.60 |
+| **8 × 50** | 3.88 % | 17.85 % | 0.796 | 0.786 | 0.815 | 0.295 | 0.70 |
+| 8 × 60 † | 4.66 % | 18.91 % | 0.445 | 0.331 | 0.734 | 0.112 | 0.40 |
 
 † 4 of these 15 trainings did not converge — they never left their initial plateau, reaching a best validation F1@1 near 0.42 where every other run here reaches at least 0.66. Those rows are the score of a failed fit, not of the measurement budget. They are listed rather than dropped so the gap in the sweep is visible; re-running those budgets is enough to fill them in.
+
+The two coverage columns are the same plane at two tolerances. `coverage` is what the rays actually touched; `coverage@1` is every pixel within 1 px of a measured one, which is the area F1@1 is effectively judged over. Allowing a single pixel of slack inflates it by 4.0 to 4.8 times, so a tolerant score must always be read against it.
 
 The threshold is not 0.5 and is not tuned on the test devices: it is chosen on a validation split carved out of the training devices and stored in the checkpoint.
 
 ### Tolerance sweep — 8 rays × 50 points
 
-| τ | precision | recall | F1@τ | coverage@τ |
+| τ | precision@τ | recall@τ | F1@τ | coverage@τ |
 |---|---|---|---|---|
-| 0 | 0.372 | 0.575 | 0.449 | 3.88 % |
+| 0 | 0.371 | 0.575 | 0.449 | 3.88 % |
 | **1** | 0.786 | 0.815 | **0.796** | 17.85 % |
 | 2 | 0.910 | 0.884 | 0.892 | 32.33 % |
 | 3 | 0.952 | 0.921 | 0.931 | 45.91 % |

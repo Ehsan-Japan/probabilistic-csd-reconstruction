@@ -42,6 +42,7 @@ import numpy as np
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+from matplotlib.lines import Line2D
 from ..config import log
 from matplotlib.colors import LinearSegmentedColormap
 from matplotlib.patches import PathPatch
@@ -99,14 +100,14 @@ def _rc():
 
 # ── small helpers ─────────────────────────────────────────────────────────
 
-def _style(ax, xlabel: str = "", ylabel: str = "", title: str = "",
-           grid_axis: str = "y"):
+def _style(ax, xlabel: str = "", ylabel: str = "", grid_axis: str = "y"):
+    """Axis labels and the house grid.  NO TITLE, deliberately: the file name
+    already says what the figure is, and a title repeating it only steals
+    height and has to be cropped out again for a paper or a slide."""
     if xlabel:
         ax.set_xlabel(xlabel)
     if ylabel:
         ax.set_ylabel(ylabel)
-    if title:
-        ax.set_title(title, loc="left", pad=10)
     ax.grid(True, axis=grid_axis, alpha=1.0, zorder=0)
     ax.set_axisbelow(True)
     for s in ("top", "right"):
@@ -216,8 +217,7 @@ def _panel_f1_vs_tolerance(ax, models):
         y = [m.get(f"f1@{t}") for t in TAUS]
         ax.plot(TAUS, y, "o-", color=m.color, lw=LINE_W, ms=MARK_S,
                 label=m.label, zorder=3)
-    _style(ax, "tolerance tau (pixels)", "F1 on held-out devices",
-           "How much of the error is sub-pixel")
+    _style(ax, "tolerance tau (pixels)", "F1 on held-out devices")
     ax.set_xticks(list(TAUS))
     ax.set_ylim(0, 1)
     if len(models) > 1:
@@ -249,8 +249,7 @@ def fig_train_size(models, out_dir):
         ax.plot([m.n_train for m in ms], [m.get(HEADLINE) for m in ms], "o-",
                 color=color, lw=LINE_W, ms=MARK_S,
                 label=f"{rays} rays x {points} pts", zorder=3)
-    _style(ax, "training devices", HEADLINE_LABEL,
-           "Would more training devices have helped?")
+    _style(ax, "training devices", HEADLINE_LABEL)
     ax.set_xscale("log")
     ax.set_ylim(0, 1)
     if len(groups) > 1:
@@ -279,89 +278,152 @@ TAU_METRICS = (("f1", "F1"), ("precision", "precision"),
 
 
 def fig_tau_all_metrics(models, out_dir):
-    """Every tolerance-dependent metric against tau, one panel each."""
-    fig, axes = plt.subplots(1, 4, figsize=(15.0, 3.9), sharey=True)
-    for ax, (key, label) in zip(axes, TAU_METRICS):
+    """
+    Every tolerance-dependent metric against tau -- ONE FILE EACH.
+
+    Four panels side by side forced every axes into a quarter of the width,
+    and a slide or a paper never wants all four at once anyway.  Separate
+    files can be placed, cropped and captioned independently.
+    """
+    out = []
+    for suffix, (key, label) in zip("abcd", TAU_METRICS):
+        fig, ax = plt.subplots(figsize=(6.4, 4.4))
+        drew = False
         for m in models:
             y = [m.get(f"{key}@{t}") for t in TAUS]
             if not np.all(np.isfinite(y)):
                 continue
             ax.plot(TAUS, y, "o-", color=m.color, lw=LINE_W, ms=MARK_S,
                     label=m.label, zorder=3)
-        _style(ax, "tolerance tau (pixels)", "", label)
+            drew = True
+        if not drew:
+            plt.close(fig)
+            continue
+        _style(ax, "tolerance tau (pixels)",
+               "%s on the held-out devices" % label)
         ax.set_xticks(list(TAUS))
         ax.set_ylim(0, 1)
-    axes[0].set_ylabel("score on the held-out devices")
-    if len(models) > 1:
-        axes[-1].legend(loc="lower right", fontsize=8)
-    fig.suptitle("Every metric against tolerance, every model", x=0.02,
-                 ha="left", fontsize=13, color=INK)
-    fig.text(0.02, -0.03,
-             "pixel accuracy is shown only to be dismissed: transition lines "
-             "are a few percent of the diagram, so it is high no matter what "
-             "the model does", fontsize=8, color=MUTED)
-    fig.tight_layout(rect=[0, 0, 1, 0.90])
-    return _save(fig, out_dir, "40_tau_all_metrics")
+        if len(models) > 1:
+            ax.legend(loc="lower right", fontsize=8)
+        if key == "accuracy":
+            fig.text(0.02, -0.03,
+                     "pixel accuracy is high whatever the model does",
+                     fontsize=8, color=MUTED)
+        fig.tight_layout()
+        out.append(_save(fig, out_dir, f"40{suffix}_tau_{key}"))
+    return out
 
 
-def fig_tolerance_price(models, out_dir):
+def fig_f1_and_coverage(models, out_dir):
     """
-    What raising tau BUYS, against what it COSTS.
+    The score on the left axis, the area it is read over on the right.
 
-    F1@tau can only rise with tau, so quoting a high one proves nothing on
-    its own.  claim@tau is the price: dilate the model's own prediction by
-    tau and measure what fraction of the plane it then covers.  Scoring at
-    tau credits a predicted pixel for a whole disc of radius tau, so the
-    model is in effect asserting "a line passes somewhere in here" for every
-    pixel of that disc.  Once the discs swallow half the diagram, a high
-    F1@tau says very little.
+    40a_tau_f1 shows F1 climbing with tau and stops there, which flatters
+    the result: F1 climbs partly because the tolerance keeps widening the
+    strip of plane a predicted pixel is allowed to stand for.  coverage@tau
+    is that strip -- the fraction of the diagram within tau pixels of
+    something the rays actually touched -- and it belongs in the same
+    picture.
 
-    Computed PER DEVICE and averaged over the held-out set; the horizontal
-    bars are +/-1 sd.  Line density varies several-fold across the test
-    devices, so the area a prediction covers does too, and a single pooled
-    number would hide it.
+    TWO SCALES, so each curve fills its own axis and the shapes can be
+    compared.  The cost is that the VERTICAL GAP between a solid line and
+    its dashed partner no longer means anything: the right axis can be
+    stretched or squashed independently, so only the SHAPES are comparable
+    here, not the distance between them.  41b draws the same two quantities
+    on one shared 0-1 axis, where the gap is a real distance; read that one
+    when the question is "how much of the score is just a wider ruler".
 
-    One panel, not two: plotting the price against tau as well only restates
-    on a second axes what the x positions here already say.
+    Left axis, solid:  F1@tau.
+    Right axis, dashed: coverage@tau, as a percentage of the plane.
     """
-    if not all(np.isfinite([m.get(f"claim@{t}") for t in TAUS]).all()
+    if not all(np.isfinite([m.get(f"coverage@{t}") for t in TAUS]).all()
                for m in models):
-        return None              # scored before claim@tau existed — re-run run_3
+        return None              # an older run recorded no coverage@tau
 
-    fig, ax = plt.subplots(figsize=(6.8, 4.6))
+    fig, ax = plt.subplots(figsize=(7.4, 4.8))
+    right = ax.twinx()
     for m in models:
-        claim = np.array([100 * m.get(f"claim@{t}") for t in TAUS])
-        sd = np.array([100 * m.get(f"claim@{t}_std", 0.0) for t in TAUS])
-        f1 = [m.get(f"f1@{t}") for t in TAUS]
-        if np.all(np.isfinite(sd)) and sd.any():
-            ax.errorbar(claim, f1, xerr=sd, fmt="none", ecolor=m.color,
-                        elinewidth=1.0, capsize=2.5, capthick=1.0,
-                        alpha=0.55, zorder=2)
-        ax.plot(claim, f1, "o-", color=m.color, lw=LINE_W, ms=MARK_S,
-                label=m.label, zorder=3)
+        ax.plot(TAUS, [m.get(f"f1@{t}") for t in TAUS], "o-", color=m.color,
+                lw=LINE_W, ms=MARK_S, label=m.label, zorder=3)
+        right.plot(TAUS, [100 * m.get(f"coverage@{t}") for t in TAUS],
+                   "o--", color=m.color, lw=LINE_W * 0.8, ms=MARK_S * 0.6,
+                   alpha=0.75, zorder=2)
 
-    # tau is what moves along the curve, so it is labelled on the widest one
-    lead = max(models, key=lambda m: m.get("claim@3"))
-    for t in TAUS:
-        ax.annotate(f"tau {t}",
-                    (100 * lead.get(f"claim@{t}"), lead.get(f"f1@{t}")),
-                    textcoords="offset points", xytext=(5, -12),
-                    fontsize=8.5, color=MUTED, zorder=4)
-
-    _style(ax, "fraction of the plane the prediction claims (%)",
-           "F1 @ tau", "What the tolerance buys, and what it costs")
+    _style(ax, "tolerance tau (pixels)", "F1 @ tau   (left axis, solid)")
+    ax.set_xticks(list(TAUS))
     ax.set_ylim(0, 1)
+
+    top = max(100 * m.get("coverage@%d" % TAUS[-1]) for m in models)
+    right.set_ylim(0, top * 1.12)
+    right.set_ylabel("coverage @ tau  (% of the plane;  right axis, dashed)")
+    # the twin brings its own frame: keep the right spine, drop the rest, and
+    # do NOT draw a second grid over the first
+    right.grid(False)
+    right.spines["top"].set_visible(False)
+    right.spines["right"].set_visible(True)
+    right.tick_params(axis="y")
+
+    style_key = [Line2D([], [], color=INK_2, lw=LINE_W, marker="o",
+                        ms=MARK_S, label="F1@tau  (left)"),
+                 Line2D([], [], color=INK_2, lw=LINE_W * 0.8, ls="--",
+                        marker="o", ms=MARK_S * 0.6,
+                        label="coverage@tau  (right)")]
+    first = ax.legend(handles=style_key, loc="upper left", fontsize=8,
+                      frameon=True)
+    ax.add_artist(first)
     if len(models) > 1:
         ax.legend(loc="lower right", fontsize=8)
-    fig.text(0.02, -0.04,
-             "price = the model's own prediction dilated by tau, per device "
-             "then averaged over the held-out set; bars are +/-1 sd.
-"
-             "F1@tau rises with tau by construction, so a score is only "
-             "evidence of recovery while the area it claims stays small.",
+    fig.text(0.02, -0.03,
+             "two scales: compare the SHAPES, not the gap between a solid "
+             "line and its dashed partner.",
              fontsize=8, color=MUTED)
     fig.tight_layout()
-    return _save(fig, out_dir, "45_tolerance_price")
+    return _save(fig, out_dir, "41a_f1_and_coverage_twin_axis")
+
+
+def fig_f1_and_coverage_shared(models, out_dir):
+    """
+    The same two quantities on ONE 0-1 axis.
+
+    Both are fractions of the same plane, so they can share an axis, and
+    then the vertical gap between a solid line and its dashed partner is a
+    real distance: the part of the score that is not simply a wider ruler.
+    Kept alongside the twin-axis version because that one, by construction,
+    cannot show this.
+    """
+    if not all(np.isfinite([m.get(f"coverage@{t}") for t in TAUS]).all()
+               for m in models):
+        return None
+
+    fig, ax = plt.subplots(figsize=(7.0, 4.8))
+    for m in models:
+        ax.plot(TAUS, [m.get(f"f1@{t}") for t in TAUS], "o-", color=m.color,
+                lw=LINE_W, ms=MARK_S, label=m.label, zorder=3)
+        ax.plot(TAUS, [m.get(f"coverage@{t}") for t in TAUS], "o--",
+                color=m.color, lw=LINE_W * 0.8, ms=MARK_S * 0.6,
+                alpha=0.75, zorder=2)
+
+    _style(ax, "tolerance tau (pixels)",
+           "fraction of 1  (F1, or of the plane)")
+    ax.set_xticks(list(TAUS))
+    ax.set_ylim(0, 1)
+
+    style_key = [Line2D([], [], color=INK_2, lw=LINE_W, marker="o",
+                        ms=MARK_S, label="F1@tau"),
+                 Line2D([], [], color=INK_2, lw=LINE_W * 0.8, ls="--",
+                        marker="o", ms=MARK_S * 0.6,
+                        label="coverage@tau  (the price)")]
+    first = ax.legend(handles=style_key, loc="upper left", fontsize=8,
+                      frameon=True)
+    ax.add_artist(first)
+    if len(models) > 1:
+        ax.legend(loc="lower right", fontsize=8)
+    fig.text(0.02, -0.03,
+             "one shared scale, so the gap between a solid line and its "
+             "dashed partner is a real distance.",
+             fontsize=8, color=MUTED)
+    fig.tight_layout()
+    return _save(fig, out_dir, "41b_f1_and_coverage_shared_axis")
 
 
 def fig_tau_normalised(models, out_dir):
@@ -384,8 +446,7 @@ def fig_tau_normalised(models, out_dir):
                 label=m.label, zorder=3)
     ax.axhline(1.0, color=GRID, lw=1.0, zorder=1)
     _style(ax, "tolerance tau (pixels)",
-           f"F1 as a fraction of its own F1 at tau = {TAUS[-1]}",
-           "The shape of the tolerance curve, level removed")
+           f"F1 as a fraction of its own F1 at tau = {TAUS[-1]}")
     ax.set_xticks(list(TAUS))
     ax.set_ylim(0, 1.08)
     if len(models) > 1:
@@ -418,8 +479,7 @@ def fig_tau_band(models, out_dir):
                         zorder=2)
         ax.plot(TAUS, med, "o-", color=m.color, lw=LINE_W, ms=MARK_S,
                 label=m.label, zorder=3)
-    _style(ax, "tolerance tau (pixels)", "F1 on held-out devices",
-           "Tolerance curve, device spread included")
+    _style(ax, "tolerance tau (pixels)", "F1 on held-out devices")
     ax.set_xticks(list(TAUS))
     ax.set_ylim(0, 1)
     if len(ms) > 1:
@@ -443,8 +503,7 @@ def fig_training_loss(models, out_dir):
         y = m.history["train_loss"]
         ax.plot(np.arange(1, len(y) + 1), y, color=m.color, lw=LINE_W,
                 label=m.label, zorder=3)
-    _style(ax, "epoch", "training loss (weighted BCE + soft Dice)",
-           "Training loss")
+    _style(ax, "epoch", "training loss (weighted BCE + soft Dice)")
     ax.set_yscale("log")
     if len(ms) > 1:
         ax.legend(loc="upper right")
@@ -463,7 +522,7 @@ def fig_validation_f1(models, out_dir):
         b = int(np.argmax(y))
         ax.plot([b + 1], [y[b]], "o", color=m.color, ms=MARK_S,
                 markeredgecolor=SURFACE, markeredgewidth=1.5, zorder=4)
-    _style(ax, "epoch", "validation F1 @ 1 px", "Validation accuracy while training")
+    _style(ax, "epoch", "validation F1 @ 1 px")
     ax.set_ylim(0, 1)
     if len(ms) > 1:
         ax.legend(loc="lower right")
@@ -478,7 +537,8 @@ def fig_validation_f1(models, out_dir):
 
 GALLERY = [
     fig_f1_vs_tolerance, fig_train_size,
-    fig_tau_all_metrics, fig_tolerance_price, fig_tau_normalised,
+    fig_tau_all_metrics, fig_f1_and_coverage, fig_f1_and_coverage_shared,
+    fig_tau_normalised,
     fig_tau_band,
     fig_training_loss, fig_validation_f1,
 ]
@@ -503,8 +563,12 @@ def render_all(configs, rows: Sequence[Dict], out_dir: str) -> List[str]:
     for fn in GALLERY:
         name = fn.__name__.replace("fig_", "")
         try:
+            # a figure function returns one path, or SEVERAL when the thing
+            # it draws belongs in separate files rather than as panels
             path = fn(models, out_dir)
-            if path:
+            if isinstance(path, (list, tuple)):
+                written.extend(p for p in path if p)
+            elif path:
                 written.append(path)
             else:
                 skipped.append((name, "not enough variation in the sweep"))

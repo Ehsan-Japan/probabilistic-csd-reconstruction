@@ -6,7 +6,7 @@ and for slides. Ported from the SSDM deck's figure suite
 repointed at this repo's run.
 
 The dense diagnostic gallery in
-`results/<run>/figures/` (7 plots, five series each) is *not*
+`results/<run>/figures/` (9 plots, five series each) is *not*
 what goes in the paper. It is for reading a sweep, not for showing one.
 `scripts/run_10_bundle_figures.py` splits it into bundles of five.
 
@@ -97,7 +97,6 @@ Axes carry the device's real window: 2 × 2 mV, randomly offset per device.
 | `threshold_validation` | the threshold chosen on the validation split |
 | `fig_data_split` | 550 → 500 + 50, then 425 + 75 |
 | `fig_tau_metrics` | F1 / precision / recall against τ, three budgets |
-| `fig_tolerance_price` | what raising τ buys, against what it costs |
 | `results_f1_vs_coverage` | the headline chart |
 
 `p2l_titles.json`, `tau_layout.json`, `threshold_validation.json` carry the
@@ -127,15 +126,14 @@ is not stretched).
 
 * F1@τ rises with τ by construction. It is a unit to quote, never a knob to
   tune, which is why τ = 0…3 are all reported and τ = 1 is the headline.
-* **The tolerance is not free.** `coverage@τ` is the fraction of the plane
-  within τ pixels of a measured pixel — how much of the diagram the band has
-  swallowed. For 8 × 50: τ = 0 → 3.9 %, τ = 1 → 17.8 %, τ = 2 → 32.3 %,
-  τ = 3 → **45.9 %**. An F1@3 of 0.931 is read off a band covering nearly
-  half the plane, so it is close to no evidence at all. `fig_tolerance_price`
-  panel (b) plots score against price, and the budgets very nearly coincide:
-  at equal coverage a small budget with a loose ruler scores about what a
-  large budget with a tight one does. That is an argument for reporting
-  τ = 1, not for reporting the biggest number available.
+* **The tolerance is not free**, even though no figure draws it any more.
+  `claim@τ` in `comparison.csv` is the model's own prediction dilated by τ:
+  the fraction of the plane it then covers. For 8 × 50 it runs
+  10.8 % → 22.6 % → 33.6 % → **43.9 %** (± 19.1 % across devices) as τ goes
+  0 → 3. An F1@3 of 0.931 is read off a claim covering nearly half the
+  plane, so it is close to no evidence at all. Worth a sentence in the
+  paper; it is the reason τ = 1 is the headline rather than the largest
+  number available.
 * The sweep's trend is weaker than the previous study's. The 7-ray and
   4-ray series are flat-to-declining with coverage; only the 8-ray and
   6-ray ones rise cleanly. "More rays beats more points at the same
