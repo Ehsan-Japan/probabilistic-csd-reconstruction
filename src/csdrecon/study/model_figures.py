@@ -121,12 +121,6 @@ def _save(fig, out_dir: str, name: str) -> str:
     return path
 
 
-def _label_end(ax, x, y, text: str, color: str, dx: float = 6, dy: float = 0):
-    """Direct label at a series endpoint — identity without reading a legend."""
-    ax.annotate(text, (x, y), textcoords="offset points", xytext=(dx, dy),
-                fontsize=8.5, color=INK_2, va="center")
-
-
 # ── the models ────────────────────────────────────────────────────────────
 
 class Model:
@@ -310,6 +304,66 @@ def fig_tau_all_metrics(models, out_dir):
     return _save(fig, out_dir, "40_tau_all_metrics")
 
 
+def fig_tolerance_price(models, out_dir):
+    """
+    What raising tau BUYS, against what it COSTS.
+
+    F1@tau can only rise with tau, so quoting a high one proves nothing on
+    its own.  coverage@tau is the price: the fraction of the plane lying
+    within tau pixels of a measured pixel, i.e. how much of the diagram the
+    tolerance band has swallowed.  Read together they say whether a score is
+    evidence of recovery or just of a generous ruler.
+
+    (a) the price alone, against tau.
+    (b) the trade-off: score against price, tau marked at each point.  A
+        curve that climbs steeply at the left is buying real accuracy
+        cheaply; one that flattens is only widening the band.
+    """
+    if not all(np.isfinite([m.get(f"coverage@{t}") for t in TAUS]).all()
+               for m in models):
+        return None                      # an older run recorded no coverage@tau
+
+    fig, axes = plt.subplots(1, 2, figsize=(11.4, 4.3))
+
+    for m in models:
+        cov = [100 * m.get(f"coverage@{t}") for t in TAUS]
+        f1 = [m.get(f"f1@{t}") for t in TAUS]
+        axes[0].plot(TAUS, cov, "o-", color=m.color, lw=LINE_W, ms=MARK_S,
+                     label=m.label, zorder=3)
+        axes[1].plot(cov, f1, "o-", color=m.color, lw=LINE_W, ms=MARK_S,
+                     label=m.label, zorder=3)
+
+    # tau is the thing moving along the right-hand curve, so it is labelled
+    # there rather than left to the reader to infer from the ordering
+    lead = max(models, key=lambda m: m.get("coverage@3"))
+    for t in TAUS:
+        axes[1].annotate(f"tau {t}",
+                         (100 * lead.get(f"coverage@{t}"), lead.get(f"f1@{t}")),
+                         textcoords="offset points", xytext=(4, -11),
+                         fontsize=8, color=MUTED, zorder=4)
+
+    _style(axes[0], "tolerance tau (pixels)",
+           "fraction of the plane within tau px (%)",
+           "(a) what the tolerance costs")
+    axes[0].set_xticks(list(TAUS))
+    axes[0].set_ylim(0, None)
+
+    _style(axes[1], "fraction of the plane within tau px (%)",
+           HEADLINE_LABEL.replace("@ 1 px tolerance", "@ tau"),
+           "(b) score against price")
+    axes[1].set_ylim(0, 1)
+
+    if len(models) > 1:
+        axes[1].legend(loc="lower right", fontsize=8)
+    fig.text(0.02, -0.03,
+             "F1@tau rises with tau by construction. The honest reading is "
+             "panel (b): a score is only evidence of recovery while the band "
+             "it was scored with stays small against the plane.",
+             fontsize=8, color=MUTED)
+    fig.tight_layout()
+    return _save(fig, out_dir, "45_tolerance_price")
+
+
 def fig_tau_normalised(models, out_dir):
     """
     The SHAPE of each model's tolerance curve, with its overall level divided
@@ -420,49 +474,13 @@ def fig_validation_f1(models, out_dir):
     return _save(fig, out_dir, "31_validation_f1")
 
 
-def fig_generalisation_gap(models, out_dir):
-    """
-    Best validation F1 against held-out F1 — the price of unseen geometry.
-
-    The validation devices are drawn from the TRAINING bands; the held-out
-    devices from the disjoint ones.  The distance below the diagonal is what
-    the generalisation to unseen device geometry actually costs.
-    """
-    ms = [m for m in models if m.history]
-    if not ms:
-        return None
-    fig, ax = plt.subplots(figsize=(6.0, 5.4))
-    vxs = [max(m.history["val_f1"]) for m in ms]
-    vys = [m.get(HEADLINE) for m in ms]
-    # Zoomed to the models: the gap is a few hundredths, and on the full unit
-    # square every point lands on the diagonal and the figure says nothing.
-    lo = max(0.0, min(min(vxs), min(vys)) - 0.08)
-    hi = min(1.0, max(max(vxs), max(vys)) + 0.08)
-    if hi - lo < 0.2:
-        mid = 0.5 * (lo + hi)
-        lo, hi = max(0.0, mid - 0.1), min(1.0, mid + 0.1)
-    ax.set_xlim(lo, hi); ax.set_ylim(lo, hi)
-    ax.plot([lo, hi], [lo, hi], color=GRID, lw=1.0, zorder=1)
-    ax.annotate("equal on both", (hi, hi), textcoords="offset points",
-                xytext=(-6, -14), ha="right", fontsize=8, color=MUTED)
-    for m, vx, vy in zip(ms, vxs, vys):
-        # A dropline to the diagonal: its length IS the cost of unseen geometry.
-        ax.plot([vx, vx], [vy, vx], color=m.color, lw=1.4, alpha=0.6, zorder=2)
-        ax.plot(vx, vy, "o", color=m.color, ms=MARK_S + 3,
-                markeredgecolor=SURFACE, markeredgewidth=2, zorder=3)
-        _label_end(ax, vx, vy, f"{m.label}   -{vx - vy:.3f}", m.color, dx=10)
-    _style(ax, "best validation F1 @ 1 px (training bands)",
-           "held-out F1 @ 1 px (disjoint bands)",
-           "What unseen device geometry costs", grid_axis="both")
-    ax.set_aspect("equal")
-    return _save(fig, out_dir, "32_generalisation_gap")
-
 # ══════════════════════════════════════════════════════════════════════════
 
 GALLERY = [
     fig_f1_vs_tolerance, fig_train_size,
-    fig_tau_all_metrics, fig_tau_normalised, fig_tau_band,
-    fig_training_loss, fig_validation_f1, fig_generalisation_gap,
+    fig_tau_all_metrics, fig_tolerance_price, fig_tau_normalised,
+    fig_tau_band,
+    fig_training_loss, fig_validation_f1,
 ]
 
 

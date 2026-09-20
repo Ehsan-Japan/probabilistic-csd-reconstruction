@@ -3,14 +3,14 @@ THE GALLERY, SPLIT INTO READABLE BUNDLES.
 
     python scripts/run_10_bundle_figures.py
 
-results/<sweep>/figures/ puts every budget on every plot.  For the 5 x 3
-sweep that is fifteen labelled series per axes: the lines overlap, the point
-labels collide, and a trend that IS in the data cannot be seen.
+run_4 already writes the gallery this way, one folder per bundle.  This
+re-renders it — after editing a figure, or to group the sweep the other way.
 
-This re-renders the same gallery once per bundle — a slice in which only one
-thing varies — into its own folder beside the full one:
+A bundle is a slice in which only one thing varies, and there is no combined
+copy: fifteen labelled series on one axes exhausts the palette, the lines
+overlap and the point labels collide.
 
-    results/<sweep>/figures/                 all 15 budgets (left untouched)
+    results/<sweep>/figures/
                     40_points_per_ray/       4x40  5x40  6x40  7x40  8x40
                     50_points_per_ray/       4x50  5x50  6x50  7x50  8x50
                     60_points_per_ray/       4x60  5x60  6x60  7x60  8x60
@@ -20,9 +20,8 @@ that changes is the ray count — so every figure answers one question.  Each
 folder also carries the comparison.csv for just those budgets and a
 README.txt naming them, including any whose training did not converge.
 
-Retrains nothing and overwrites nothing: it reads the metrics.json each
-configuration already has and adds folders.  Safe to re-run at any time.
-Run it after run_4.
+Retrains nothing: it reads the metrics.json each configuration already has.
+Safe to re-run at any time.
 """
 import _common
 from csdrecon.study import figure_bundles

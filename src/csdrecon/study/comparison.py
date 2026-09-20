@@ -15,7 +15,8 @@ overwrite each other:
     results/3_rays_50_points_100-500_samples/       a data-size sweep
         comparison.csv        one row per configuration
         comparison.txt        the same as a readable table
-        figures/              the gallery — see model_figures.py
+        figures/<bundle>/     the gallery, a few models per
+                              plot — see figure_bundles.py
 
 The name is a pure function of the sweep, so re-running the same one updates
 its folder rather than piling up copies, and two different sweeps can never
@@ -38,7 +39,7 @@ from typing import Dict, List, Optional, Sequence, Tuple
 
 from ..config import paths
 from ..config import log
-from . import model_figures
+from . import figure_bundles
 from .config import StudyConfig, existing_configs
 
 TAUS = (0, 1, 2, 3)
@@ -230,8 +231,7 @@ def run(out_dir: Optional[str] = None,
         return rows
 
     out = out_dir or os.path.join(paths.RESULTS, name or sweep_name(rows))
-    fig_dir = os.path.join(out, "figures")
-    os.makedirs(fig_dir, exist_ok=True)
+    os.makedirs(os.path.join(out, "figures"), exist_ok=True)
     log.detail(f"comparison folder: {os.path.abspath(out)}")
 
     for warning in comparability_warnings(rows):
@@ -258,9 +258,16 @@ def run(out_dir: Optional[str] = None,
     # models beside each other, in one house style.  A figure the sweep
     # cannot support (the learning curve, without a second training-set size)
     # is reported as skipped rather than drawn empty.
+    #
+    # It is rendered ONE BUNDLE AT A TIME — figures/40_points_per_ray/ and so
+    # on — rather than once with every budget on every axes.  Fifteen
+    # labelled series per plot exhausts the palette and the labels collide,
+    # so the combined version was unreadable long before it was wrong.  A
+    # sweep with only one bundle still goes straight into figures/.
     log.detail()
-    model_figures.render_all(
-        [c for c in configs_in_order(configs, rows)], rows, fig_dir)
+    figure_bundles.bundle(sweep_dir=out,
+                          configs=configs_in_order(configs, rows),
+                          rows=rows)
     return rows
 
 

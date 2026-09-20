@@ -1,26 +1,33 @@
 """
 figure_bundles.py — the comparison gallery, split into readable bundles.
 
-results/<sweep>/figures/ draws every budget on every plot.  For a 2-D sweep
-that is fifteen labelled series per axes, and the figures stop being
-readable long before they stop being correct: the lines overlap, the point
-labels collide, and a trend that IS there cannot be seen.
+A gallery that draws every budget on every plot stops being readable long
+before it stops being correct.  For a 2-D sweep that is fifteen labelled
+series per axes: the palette runs out, the lines overlap, the point labels
+collide, and a trend that IS there cannot be seen.
 
-This re-renders the same gallery once per BUNDLE — a slice of the sweep in
-which only one thing varies — into its own folder beside the full one:
+So the gallery is not drawn that way.  It is rendered once per BUNDLE — a
+slice of the sweep in which only one thing varies — each in its own folder,
+and there is no combined copy:
 
-    results/<sweep>/figures/                 all 15 budgets (unchanged)
+    results/<sweep>/figures/
                     40_points_per_ray/       4x40  5x40  6x40  7x40  8x40
                     50_points_per_ray/       4x50  5x50  6x50  7x50  8x50
                     60_points_per_ray/       4x60  5x60  6x60  7x60  8x60
 
 Five series per plot instead of fifteen, and inside a bundle the only thing
-that changes is the ray count — so every figure answers one question.
+that changes is the ray count — so every figure answers one question.  Each
+folder also carries the comparison.csv for just those budgets and a
+README.txt naming them, including any whose training did not converge.
 
-Nothing is recomputed and nothing existing is overwritten: this reads the
-metrics.json each configuration already has and adds folders.  The full
-gallery stays exactly where it was, because it is the one place that can
-show a budget behaving unlike its neighbours.
+A sweep with only ONE bundle goes straight into figures/: there is nothing
+to separate, and a folder named after the thing every budget shares would
+claim a distinction the sweep does not make.
+
+Nothing is recomputed: this reads the metrics.json each configuration
+already has.  comparison.run() calls it, so run_4 produces the bundles
+directly; run_10 is for re-rendering them afterwards, or grouping the other
+way with by="rays".
 
 Group the other way with by="rays" (4 rays at 40, 50 and 60 points, ...),
 which isolates ray resolution instead of ray count.
@@ -34,7 +41,7 @@ import os
 from typing import Dict, List, Optional, Sequence, Tuple
 
 from ..config import log, paths
-from . import comparison, model_figures
+from . import model_figures
 from .config import StudyConfig, existing_configs
 
 # A run that never left its initial plateau tops out near 0.42 on the
@@ -122,8 +129,8 @@ def _readme(path: str, label: str, varies: str, constant: str,
         % varies,
         "figure answers one question.",
         "",
-        "The full gallery, with every budget in the sweep on every plot, is",
-        "one level up in figures/.  Nothing here replaces it.",
+        "The other bundles of this sweep sit beside this folder.  There is",
+        "no combined gallery: fifteen series on one axes is not readable.",
         "",
         "budgets",
         "-------",
@@ -159,13 +166,22 @@ def _readme(path: str, label: str, varies: str, constant: str,
 
 def bundle(sweep_dir: Optional[str] = None,
            by: str = "points",
-           configs: Optional[Sequence[StudyConfig]] = None) -> List[str]:
+           configs: Optional[Sequence[StudyConfig]] = None,
+           rows: Optional[Sequence[Dict]] = None) -> List[str]:
     """
-    Re-render the gallery once per bundle of *sweep_dir*.
+    Render the gallery, one folder per bundle of *sweep_dir*.
 
     Returns the folders written.  With no sweep_dir, every sweep under
-    results/ that has a comparison.csv is bundled.
+    results/ that has a comparison.csv is done.  Pass *rows* to reuse a
+    comparison that has already been collected (comparison.run does).
+
+    A sweep with only ONE bundle is rendered flat into figures/ instead:
+    there is nothing to separate, and a folder called 40_points_per_ray that
+    held the entire sweep would claim a distinction the sweep does not make.
     """
+    # Imported here, not at module scope: comparison imports this module, so
+    # a top-level import would close the cycle.
+    from . import comparison
     targets = [sweep_dir] if sweep_dir else sweep_dirs()
     if not targets:
         log.warn("no sweep folder under results/ has a comparison.csv — "
@@ -176,23 +192,39 @@ def bundle(sweep_dir: Optional[str] = None,
     written: List[str] = []
     for sweep in targets:
         sweep = os.path.abspath(sweep)
-        mine = configs_in(sweep, configs)
+        if rows is not None and configs is not None:
+            # The caller has already decided what belongs together, and the
+            # output folder need not physically contain the configuration
+            # folders -- comparison.run() names it after the sweep, which for
+            # a comparison spanning two runs is a third folder entirely.
+            # Filtering by path here would silently drop every one of them.
+            mine = list(configs)
+        else:
+            mine = configs_in(sweep, configs)
         if not mine:
             log.warn("no configuration folders inside %s" % sweep)
             continue
-        rows, missing = comparison.collect(mine)
-        if missing:
-            log.detail("not yet evaluated, so left out: " + ", ".join(missing))
-        if not rows:
+        if rows is None:
+            mine_rows, missing = comparison.collect(mine)
+            if missing:
+                log.detail("not yet evaluated, so left out: "
+                           + ", ".join(missing))
+        else:
+            mine_rows = list(rows)
+        if not mine_rows:
             log.warn("nothing evaluated in %s" % sweep)
             continue
-        by_name = {r["configuration"]: r for r in rows}
+        by_name = {r["configuration"]: r for r in mine_rows}
 
         log.say(os.path.basename(sweep))
         groups = group([c for c in mine if c.name in by_name], by)
         if len(groups) < 2:
-            log.warn("  only one %s in this sweep — bundling would just "
-                     "copy the gallery, so nothing was written" % varies)
+            flat = os.path.join(sweep, "figures")
+            os.makedirs(flat, exist_ok=True)
+            log.say("  one %s only — rendered flat into figures/" % varies)
+            model_figures.render_all([c for c in mine if c.name in by_name],
+                                     mine_rows, flat)
+            written.append(flat)
             continue
 
         for label, cfgs in groups:
