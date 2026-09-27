@@ -6,15 +6,54 @@ measurements.**
 E. Alizadeh Kashtiban, T. Fujita, A. Oiwa — Osaka University
 (Graduate School of Science and SANKEN).
 
-![The simulated device. (a) the constant-capacitance network, (b) the four capacitance matrices it is drawn from.](docs/figures/dqd_model.png)
+![The constant-capacitance model of the simulated device: (a) the capacitor network, (b) the four capacitance matrices.](docs/figures/dqd_model_full_bigb_v2.png)
 
-*The simulated device and the parameters it is drawn from. **(a)** the
-constant-capacitance network of the double dot with its charge sensor: each
-plunger gate couples to its own dot (C_d1g1, C_d2g2) and, more weakly, to the
-other (C_d2g1, C_d1g2); the dots are coupled by C_d1d2, and the sensor dot
-QD_s couples to both dots and to its own gate V_g3. **(b)** the model's four
-capacitance matrices; every entry is drawn independently and uniformly per
-device. The ranges are in `src/csdrecon/config/capacitance_config.py`.*
+*The constant-capacitance model of the simulated device (Fig. 1 of the
+paper). **(a)** The capacitor network: two quantum dots QD₁ and QD₂, a
+sensor dot QD_s, and three gates. **(b)** The four capacitance matrices that
+define a device. A device is one uniform draw of the 14 free parameters
+listed below.*
+
+### The constant-capacitance model
+
+Each simulated device is a double quantum dot (DQD) capacitively coupled to
+a single charge sensor, modelled with the QArray simulator in the
+constant-capacitance approximation: the device is a network of fixed
+capacitors, and for a gate-voltage vector V_g the ground-state charge
+configuration n = (n₁, n₂) is the integer occupation that minimises the
+electrostatic energy of the network. The transition lines of the stability
+diagram are where two charge configurations are degenerate.
+
+Each of the three islands (two dots and the sensor) couples to each of the
+three gates — nine branches — and the islands couple to one another through
+c_d1d2, c_s1d1 and c_s1d2 — three more, twelve drawn in (a). The
+self-capacitances c_d1d1 and c_d2d2 are not drawn, so a device is specified
+by **14 capacitances**, collected into four matrices: C_dd (2 × 2,
+symmetric, so c_d1d2 = c_d2d1), C_dg (2 × 3), C_sd (1 × 2) and C_sg
+(1 × 3). Every entry is drawn independently and uniformly from its interval,
+in QArray's dimensionless capacitance units:
+
+| matrix | entry | interval |
+|---|---|---|
+| C_dd | c_d1d1 | 0.30 – 1.40 |
+| C_dd | c_d2d2 | 0.30 – 1.40 |
+| C_dd | c_d1d2 | 0.20 – 2.00 |
+| C_dg | c_d1g1 | 0.80 – 6.00 |
+| C_dg | c_d2g2 | 0.80 – 6.00 |
+| C_dg | c_d1g2 | 0.05 – 0.60 |
+| C_dg | c_d2g1 | 0.05 – 0.60 |
+| C_dg | c_d1g3 | 0.01 – 0.10 |
+| C_dg | c_d2g3 | 0.01 – 0.10 |
+| C_sd | c_s1d1 | 0.02 – 0.15 |
+| C_sd | c_s1d2 | 0.02 – 0.15 |
+| C_sg | c_s1g1 | 0.02 – 0.10 |
+| C_sg | c_s1g2 | 0.02 – 0.10 |
+| C_sg | c_s1g3 | 0.10 – 1.00 |
+
+No sampled device is filtered or rejected. Training and test devices are
+drawn from the same intervals and are separated by device identity only.
+The intervals are `DEFAULT_INTERVALS` in
+`src/csdrecon/config/capacitance_config.py`; this table is that dictionary.
 
 A charge stability diagram (CSD) is normally acquired as a full raster scan of
 the (V₁, V₂) plane, and the cost of that scan grows with the square of the
@@ -26,9 +65,11 @@ a **per-pixel probability** that a transition line passes through each pixel of
 the whole plane.
 
 Two properties distinguish the output from an image reconstruction: it is a
-**calibrated probability map**, not a picture, and the **threshold** that turns
-it into lines is itself a reported quantity, chosen out-of-sample on a
-validation split carved out of the training devices.
+**probability map** of the transition lines, not a picture of the sensor
+signal, and the **threshold** that turns it into lines is itself a reported
+quantity, chosen out-of-sample on a validation split carved out of the
+training devices. Whether the probabilities are calibrated has not been
+tested.
 
 ## Install
 
@@ -73,27 +114,25 @@ From `results/4-5-6-7-8_rays_40-50-60_points_500_samples/`. 15 measurement budge
 
 ### Every budget
 
-| budget | coverage | coverage@1 | F1@1 | precision@1 | recall@1 | IoU (strict) | threshold |
-|---|---|---|---|---|---|---|---|
-| 4 × 40 | 1.57 % | 7.61 % | 0.660 | 0.617 | 0.719 | 0.204 | 0.60 |
-| 5 × 40 | 1.94 % | 9.40 % | 0.701 | 0.625 | 0.813 | 0.225 | 0.60 |
-| 6 × 40 | 2.33 % | 11.21 % | 0.735 | 0.683 | 0.804 | 0.237 | 0.40 |
-| 7 × 40 | 2.72 % | 12.93 % | 0.747 | 0.700 | 0.819 | 0.253 | 0.30 |
-| 8 × 40 | 3.11 % | 14.75 % | 0.783 | 0.748 | 0.830 | 0.276 | 0.60 |
-| 4 × 50 | 1.95 % | 9.29 % | 0.683 | 0.628 | 0.758 | 0.215 | 0.50 |
-| 5 × 50 | 2.44 % | 11.49 % | 0.736 | 0.709 | 0.773 | 0.250 | 0.70 |
-| 6 × 50 ‡ | 2.94 % | 13.71 % | 0.661 | 0.625 | 0.713 | 0.211 | 0.70 |
-| 7 × 50 | 3.42 % | 15.80 % | 0.738 | 0.696 | 0.796 | 0.252 | 0.70 |
-| 8 × 50 | 3.88 % | 17.85 % | 0.796 | 0.786 | 0.815 | 0.295 | 0.70 |
-| 4 × 60 | 2.35 % | 9.84 % | 0.670 | 0.623 | 0.736 | 0.214 | 0.60 |
-| 5 × 60 ‡ | 2.96 % | 12.09 % | 0.731 | 0.674 | 0.809 | 0.250 | 0.50 |
-| 6 × 60 | 3.52 % | 14.68 % | 0.772 | 0.732 | 0.822 | 0.271 | 0.60 |
-| 7 × 60 ‡ | 4.10 % | 16.59 % | 0.789 | 0.756 | 0.837 | 0.287 | 0.40 |
-| **8 × 60** ‡ | 4.66 % | 18.91 % | 0.817 | 0.806 | 0.836 | 0.312 | 0.60 |
+| rays × points | coverage (%) | threshold | precision | recall | F1@0 | F1@1 |
+|---|---|---|---|---|---|---|
+| 4 × 40 | 1.57 | 0.6 | 0.617 | 0.719 | 0.335 | 0.660 |
+| 5 × 40 | 1.94 | 0.6 | 0.625 | 0.813 | 0.363 | 0.701 |
+| 6 × 40 | 2.33 | 0.4 | 0.683 | 0.804 | 0.378 | 0.735 |
+| 7 × 40 | 2.72 | 0.3 | 0.700 | 0.819 | 0.396 | 0.747 |
+| 8 × 40 | 3.11 | 0.6 | 0.748 | 0.830 | 0.426 | 0.783 |
+| 4 × 50 | 1.95 | 0.5 | 0.628 | 0.758 | 0.350 | 0.683 |
+| 5 × 50 | 2.44 | 0.7 | 0.709 | 0.773 | 0.394 | 0.736 |
+| 6 × 50\* | 2.94 | 0.7 | 0.625 | 0.713 | 0.344 | 0.661 |
+| 7 × 50 | 3.42 | 0.7 | 0.696 | 0.796 | 0.396 | 0.738 |
+| 8 × 50 | 3.88 | 0.7 | 0.786 | 0.815 | 0.449 | 0.796 |
+| 4 × 60 | 2.35 | 0.6 | 0.623 | 0.736 | 0.348 | 0.670 |
+| 5 × 60\* | 2.96 | 0.5 | 0.674 | 0.809 | 0.393 | 0.731 |
+| 6 × 60 | 3.52 | 0.6 | 0.732 | 0.822 | 0.422 | 0.772 |
+| 7 × 60\* | 4.10 | 0.4 | 0.756 | 0.837 | 0.438 | 0.789 |
+| **8 × 60**\* | 4.66 | 0.6 | 0.806 | 0.836 | 0.469 | **0.817** |
 
-‡ 4 of these 15 trainings never left their initial plateau at the first attempt and were retrained from a different random initialisation, with the data, architecture and training procedure unchanged; the first retraining whose best validation F1@1 reached 0.55 was kept (scripts/run_10_retrain_collapsed.py, retrain_collapsed.json).
-
-The two coverage columns are the same plane at two tolerances. `coverage` is what the rays actually touched; `coverage@1` is every pixel within 1 px of a measured one, which is the area F1@1 is effectively judged over. Allowing a single pixel of slack inflates it by 4.0 to 4.8 times, so a tolerant score must always be read against it.
+Budgets marked \* were retrained from a different random initialisation.
 
 The threshold is not 0.5 and is not tuned on the test devices: it is chosen on a validation split carved out of the training devices and stored in the checkpoint.
 
@@ -108,7 +147,7 @@ The threshold is not 0.5 and is not tuned on the test devices: it is chosen on a
 
 `coverage@τ` is how far the measurement itself reaches at that tolerance: the fraction of the plane within τ pixels of a measured pixel. At τ = 0 it is the plain coverage, 4.66 %. Read the two columns together — a tolerant score is only evidence of recovery while the tolerance stays small against the plane.
 
-Per-device spread at this budget: F1@1 mean 0.817, sd 0.138, min 0.281, max 0.945 over 50 held-out devices. Strict IoU is 0.312: one-pixel-wide lines are punished hard by IoU, and it is reported rather than hidden. Pixel accuracy is not reported as a result — predicting no line anywhere already scores 92.9 %.
+Per-device spread at this budget: F1@1 mean 0.817, sd 0.138, min 0.281, max 0.945 over 50 held-out devices. Pixel accuracy is not reported as a result — predicting no line anywhere already scores 92.9 %.
 
 <!-- RESULTS:END -->
 
@@ -124,11 +163,11 @@ pixel over the whole plane, measured or not.*
 
 | | |
 |---|---|
-| **Simulator** | QArray, constant-capacitance model. QD₁ and QD₂ on plunger gates coupled through C_m; a third dot is the charge sensor. Capacitances are drawn at random per device. The ground truth is the exact charge-state boundary from the simulator, not an edge-detected image. Noise-free. |
-| **Window** | a 2 × 2 mV window, randomly offset per device by up to 0.35 of its width, so the honeycomb is not phase-locked to a common origin. 100 × 100 px. |
+| **Simulator** | QArray, constant-capacitance model (above): 14 capacitances per device, drawn uniformly from the intervals in the table. The ground truth is the exact charge-state boundary from the simulator, not an edge-detected image. Noise-free (NoNoise, nothing added afterwards). 550 devices: 500 training (75 of them validation), 50 held out. |
+| **Window** | a 2 × 2 mV window, shifted at random per device by up to 35 % of its width along each axis, so the transition lines do not appear at fixed positions in the frame. 100 × 100 px. |
 | **Measurement** | `n_rays × n_points` samples along rays from one corner. Rays are oblique, so one ray crosses both families of honeycomb edges. |
 | **Network input** | 2 channels: the raw sensor value where a ray passed, and a visited mask, so "measured and low" is distinguishable from "never measured". |
-| **Network** | fully convolutional U-Net, depth 3 (32→64→128, bottleneck 256), sigmoid head → one probability per pixel. |
+| **Network** | fully convolutional U-Net, depth 3 (32→64→128, bottleneck 256), sigmoid head → one probability per pixel; 1 949 409 trainable parameters, the same for every budget. One model is trained per budget, 50 epochs, keeping the epoch with the best validation F1@1. |
 | **Loss** | BCEWithLogits with the positive class weighted by its rarity (capped at 8) + soft Dice. Adam 1e-3, batch 16. |
 | **Metric** | tolerant **F1@τ**: a predicted pixel counts when a true line pixel lies within τ, and vice versa. τ = 0…3 are all reported. |
 
@@ -138,7 +177,9 @@ pixel over the whole plane, measured or not.*
 pip install pytest && pytest -q
 ```
 
-Nine checks on the metric the study is reported in — that a one-pixel offset
-scores zero at τ = 0 and one at τ = 1, that an empty prediction is not
-rewarded, that scores are averaged per device. They need no data, no model
-and no simulator, and run in under a second.
+25 checks, among them the metric the study is reported in — that a
+one-pixel offset scores zero at τ = 0 and one at τ = 1, that an empty
+prediction is not rewarded, that scores are averaged per device — and that
+this README's results section cannot go stale or mark a converged training
+as failed. They need no data, no model and no simulator, and run in a few
+seconds.

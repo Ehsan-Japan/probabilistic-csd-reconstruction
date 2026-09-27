@@ -36,7 +36,8 @@ def test_section_carries_the_numbers_from_the_csv(tmp_path):
     text = rr.render(write_run(tmp_path))
     assert "0.630" in text or "0.63" in text     # F1@1
     assert "1.57 %" in text                      # coverage
-    assert "0.40" in text                        # the stored threshold
+    assert "| 0.4 |" in text                     # the stored threshold,
+                                                 # one decimal as in the paper
     assert text.startswith(rr.BEGIN) and text.rstrip().endswith(rr.END)
 
 

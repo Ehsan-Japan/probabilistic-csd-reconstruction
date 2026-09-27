@@ -145,79 +145,49 @@ def _best(rows: Sequence[Dict], run_dir: Optional[str] = None) -> Dict:
 
 def _budget_table(rows: Sequence[Dict], run_dir: Optional[str] = None
                   ) -> List[str]:
-    # TWO coverage columns.  The first is what the rays actually touched;
-    # the second is the same plane seen through the tolerance the score is
-    # read at -- every pixel within 1 px of a measured one.  Quoting F1@1
-    # beside coverage alone flatters the result, because the area the
-    # score is judged over is several times larger than the area measured.
-    out = ["| budget | coverage | coverage@1 | F1@1 | precision@1 "
-           "| recall@1 | IoU (strict) | threshold |",
-           "|---|---|---|---|---|---|---|---|"]
+    """Every budget, in the layout of the paper's results table.
+
+    The same columns as the manuscript's Table II (make_method_docs.py,
+    _table_results_rows): budget, coverage, the validation-chosen
+    threshold, precision and recall at tau = 1, strict F1 at tau = 0 and
+    F1 at tau = 1.  Grouped by points per ray, as the paper groups them.
+    A budget retrained after its first training stalled carries a *.
+    """
+    out = ["| rays × points | coverage (%) | threshold | precision | "
+           "recall | F1@0 | F1@1 |",
+           "|---|---|---|---|---|---|---|"]
     best = _best(rows, run_dir)
-    failed = retrained = 0
-    for r in rows:
-        budget = f"{r['n_rays']} × {r['n_points']}"
-        if r is best and len(rows) > 1:
-            budget = f"**{budget}**"
+    retrained = _retrained(run_dir) if run_dir else {}
+    failed = n_star = 0
+    order = sorted(rows, key=lambda r: (int(r["n_points"]), int(r["n_rays"])))
+    for r in order:
+        budget, mark = f"{r['n_rays']} × {r['n_points']}", ""
         if run_dir and not converged(run_dir, r):
-            budget += " †"
+            mark = " †"
             failed += 1
-        elif run_dir and r.get("configuration") in _retrained(run_dir):
-            budget += " ‡"
-            retrained += 1
+        elif r.get("configuration") in retrained:
+            mark = "\*"                  # escaped: a bare * is emphasis
+            n_star += 1
+        f1 = _f(r["f1@1"])
+        if r is best and len(rows) > 1:
+            budget, f1 = f"**{budget}**", f"**{f1}**"
+        budget += mark
         out.append(
-            f"| {budget} | {_pct(r['coverage'])} | "
-            f"{_pct(r.get('coverage@1'))} | {_f(r['f1@1'])} | "
-            f"{_f(r['precision@1'])} | {_f(r['recall@1'])} | {_f(r['iou'])} | "
-            f"{_f(r['threshold'], 2)} |")
+            f"| {budget} | {_f(float(r['coverage']) * 100, 2)} | "
+            f"{_f(r['threshold'], 1)} | {_f(r['precision@1'])} | "
+            f"{_f(r['recall@1'])} | {_f(r.get('f1@0'))} | {f1} |")
+    if n_star:
+        # the paper's caption, word for word
+        out += ["", "Budgets marked \* were retrained from a different random "
+                    "initialisation."]
     if failed:
         out += [
             "",
             f"† {failed} of these {len(rows)} trainings did not converge "
-            f"— they never left their initial plateau, reaching a best "
-            f"validation F1@1 near 0.42 where every other run here reaches at "
-            f"least 0.66. Those rows are the score of a failed fit, not of "
-            f"the measurement budget. They are listed rather than dropped so "
-            f"the gap in the sweep is visible; re-running those budgets is "
-            f"enough to fill them in.",
-        ]
-    if retrained:
-        out += [
-            "",
-            f"‡ {retrained} of these {len(rows)} trainings never left their "
-            f"initial plateau at the first attempt and were retrained from a "
-            f"different random initialisation, with the data, architecture "
-            f"and training procedure unchanged; the first retraining whose "
-            f"best validation F1@1 reached {COLLAPSE_VAL_F1} was kept "
-            f"(scripts/run_10_retrain_collapsed.py, retrain_collapsed.json).",
+            f"— they never left their initial plateau. Those rows are the "
+            f"score of a failed fit, not of the measurement budget.",
         ]
     return out
-
-
-def _coverage_note(rows: Sequence[Dict]) -> str:
-    """One sentence on how far the tolerance inflates the measured area."""
-    factors = []
-    for r in rows:
-        try:
-            base, wide = float(r["coverage"]), float(r["coverage@1"])
-        except (TypeError, ValueError, KeyError):
-            continue
-        if base > 0:
-            factors.append(wide / base)
-    if not factors:
-        return ("`coverage` is the fraction of the plane the rays actually "
-                "touched.")
-    lo, hi = min(factors), max(factors)
-    span = (f"{lo:.1f}x" if hi - lo < 0.05
-            else f"{lo:.1f} to {hi:.1f} times")
-    return (
-        "The two coverage columns are the same plane at two tolerances. "
-        "`coverage` is what the rays actually touched; `coverage@1` is "
-        "every pixel within 1 px of a measured one, which is "
-        "the area F1@1 is effectively judged over. Allowing a single "
-        "pixel of slack inflates it by {span}, so a tolerant score "
-        "must always be read against it."
-    ).replace("{span}", span)
 
 
 def _tau_table(row: Dict) -> List[str]:
@@ -297,8 +267,6 @@ def render(run_dir: str, figures: Sequence[Tuple[str, str]] = ()) -> str:
     body += _budget_table(rows, run_dir)
     body += [
         "",
-        _coverage_note(rows),
-        "",
         f"The threshold is not 0.5 and is not tuned on the test devices: it is "
         f"chosen on a validation split carved out of the training devices and "
         f"stored in the checkpoint.",
@@ -320,8 +288,6 @@ def render(run_dir: str, figures: Sequence[Tuple[str, str]] = ()) -> str:
         f"sd {_f(best.get('f1@1_std'))}, "
         f"min {_f(best.get('f1@1_min'))}, max {_f(best.get('f1@1_max'))} "
         f"over {n_test} held-out devices. "
-        f"Strict IoU is {_f(best['iou'])}: one-pixel-wide lines are punished "
-        f"hard by IoU, and it is reported rather than hidden. "
         f"Pixel accuracy is not reported as a result — predicting no line "
         f"anywhere already scores "
         f"{_pct(1 - float(best.get('true_line_fraction') or 0), 1)}.",
