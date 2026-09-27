@@ -170,16 +170,3 @@ pixel over the whole plane, measured or not.*
 | **Network** | fully convolutional U-Net, depth 3 (32→64→128, bottleneck 256), sigmoid head → one probability per pixel; 1 949 409 trainable parameters, the same for every budget. One model is trained per budget, 50 epochs, keeping the epoch with the best validation F1@1. |
 | **Loss** | BCEWithLogits with the positive class weighted by its rarity (capped at 8) + soft Dice. Adam 1e-3, batch 16. |
 | **Metric** | tolerant **F1@τ**: a predicted pixel counts when a true line pixel lies within τ, and vice versa. τ = 0…3 are all reported. |
-
-## Tests
-
-```bash
-pip install pytest && pytest -q
-```
-
-25 checks, among them the metric the study is reported in — that a
-one-pixel offset scores zero at τ = 0 and one at τ = 1, that an empty
-prediction is not rewarded, that scores are averaged per device — and that
-this README's results section cannot go stale or mark a converged training
-as failed. They need no data, no model and no simulator, and run in a few
-seconds.
