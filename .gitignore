@@ -53,3 +53,10 @@ paper_figures/method_docs/*/*_citations/*
 !paper_figures/method_docs/*/*_citations/README.txt
 # superseded documents moved aside, not deleted (2026-09-26)
 paper_figures/method_docs/_trash/
+
+# Other publishers' papers dropped into the project root -- never ours to
+# publish (2026-09-27)
+/RF-Squad.pdf
+/QArray_A_physics-informed_GPU-accelerated_simulato.pdf
+/qdarts.pdf
+/Qdsim.pdf
