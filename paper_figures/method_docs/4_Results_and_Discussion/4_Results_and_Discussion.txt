@@ -1,0 +1,201 @@
+======================================================================
+ 4.  RESULTS AND DISCUSSION
+ Document:  4_Results_and_Discussion.docx  /  4_Results_and_Discussion.pdf
+======================================================================
+
+[INVENTORY -- regenerated, do not write in this block]
+
+ SECTIONS
+  1. 1. Recovery against measurement budget  -- 3 paragraphs
+  2. 2. Dependence on tolerance  -- 3 paragraphs
+  3. 3. Runs that did not converge  -- 1 paragraph
+
+ FIGURES
+  1. results_budget_ladder.png
+     F1 at tau = 1 against the fraction of the plane measured. The
+     line is the 40-points-per-ray ladder; the number beside each
+     point is the ray count. The best converged budget is ringed. The
+     open marker is the same-coverage comparison of ray count against
+     points per ray. 4 budgets that did not converge are not shown.
+  2. fig_tau_metrics.png
+     Pixel accuracy, precision, recall, F1 and grid coverage against
+     the tolerance tau, for three budgets, on 50 held-out devices.
+     Pixel accuracy is shown only to make clear why it is not used as
+     a score. Grid coverage is not a score: it is the fraction of the
+     plane within tau pixels of a measured pixel, i.e. the area the
+     scores to its left are read over.
+
+[END INVENTORY]
+
+
+======================================================================
+ YOU WRITE  --  anything below this line is read
+======================================================================
+
+ Point at something:   S2 P3   section 2, paragraph 3
+                       FIG 4   figure 4 of this part
+                       TABLE I / ABSTRACT / TITLE
+                       FORMAT  font, spacing, margins, captions
+ Or just say it in prose -- "the third paragraph is too long" is enough.
+
+ One request per line, starting with a dash.  Nothing here is ever
+ deleted or overwritten by a rebuild.
+
+-
+-
+-
+
+
+======================================================================
+
+ Point at something:   S2 P3   section 2, paragraph 3
+                       FIG 4   figure 4 of this part
+                       TABLE I / ABSTRACT / TITLE
+                       FORMAT  font, spacing, margins, captions
+ Or just say it in prose -- "the third paragraph is too long" is enough.
+
+ One request per line, starting with a dash.  Nothing here is ever
+ deleted or overwritten by a rebuild.
+
+-
+-
+-
+
+
+======================================================================
+ THE REPLY  --  what was actually changed, and where
+======================================================================
+
+ 2026-09-21  NO MORE CAPITALS, AND THE TONE MADE FORMAL.  Both in
+             programs/make_method_docs.py, so they survive a rebuild.
+
+             CAPITALS: you were right, and there were 17 of them, not
+             one.  Emphasis had been set as ALL CAPS in running prose --
+             CHARGE STABILITY DIAGRAM, SLOPE, ANTICROSSING, THRESHOLD,
+             TOLERANCE, VALIDATION, DISTINCT, TRAINING, MORE RAYS, NO
+             DRAW IS FILTERED..., THE THING THAT IS SPLIT..., and NOT
+             used for emphasis in three places.  All are now ordinary
+             sentence case.  I re-scanned every rendered PDF for runs of
+             capitals afterwards: none left outside CSD and JJAP.
+
+             TONE: 24 passages rewritten from spoken register into
+             academic register.  What went:
+               "locating them is what tuning means in practice"
+                 -> "locating them is the objective of tuning"
+               "The appeal is that a ray is cheap"
+                 -> "The advantage is that a ray is inexpensive to
+                    acquire"
+               "reported rather than buried" -> "stated explicitly"
+               "nothing enforces it: the capacitances are drawn and
+                whatever they produce is kept"
+                 -> "the condition is not enforced: the capacitances are
+                    drawn without rejection"
+               "which is what makes pixel accuracy useless as a score"
+                 -> "which renders pixel accuracy uninformative"
+               "that is measured rather than asserted"
+                 -> "this is verified quantitatively"
+               "the quantity an experiment pays for"
+                 -> "which determines the acquisition time"
+               "Comparing them pixel for pixel is brutal ... for a result
+                any physicist would call correct"
+                 -> "is unduly strict ... although the reconstruction is
+                    physically correct"
+               "is satisfied by a blanket of positives; Dice penalises
+                the spread"
+                 -> "can be satisfied by an indiscriminate positive
+                    prediction; the Dice term penalises such a
+                    prediction"
+               "One-pixel-wide lines are punished hard by IoU and it is
+                reported rather than hidden"
+                 -> "IoU penalises one-pixel-wide structures severely;
+                    it is reported here for completeness"
+               "Pixel accuracy is included only so that it can be
+                dismissed" -> "only to show why it is not used"
+             plus the smaller ones: "decide what the honeycomb looks
+             like", "lands somewhere unusual", "is what lets", "the
+             study depends on", "matters far less than", "this is a
+             limitation and is stated as one", "which is the relevant
+             yardstick", "so a device's data always lands on one side",
+             "this is the reason the problem is not trivial", "a run can
+             end on a high loss and still have saved a good model", and
+             two sentences that opened with a numeral.
+
+             No number, claim, caveat or figure reference changed.  The
+             documents are the same length to within a line.
+
+ 2026-09-21  THE PART IS NOW 4. RESULTS AND DISCUSSION, following your
+             rename of the folder.  The generator writes here rather than
+             recreating 4_Results/: _figures.py -> P5 and the part's slug
+             and title in make_method_docs.py.  stem() no longer flattens
+             a slug's capitals, which is how "and_Discussion" survives.
+
+             THE EQUAL-COVERAGE CLAIM WAS OVERSTATED, and it is your
+             inconvenient result, so it is now in the text.  The
+             paragraph used to assert flatly that more rays beats more
+             points per ray.  It does not, in every pair.  It now reads
+             from the run:
+
+               "of the 4 converged pairs lying within 0.1 % of the plane
+                of each other, 3 favour the budget with more rays.  The
+                exception is 7 rays x 50 points, which reaches F1 at
+                tau = 1 of 0.738 against 0.772 for 6 rays x 60 points at
+                the same 3.4 % of the plane."
+
+             The tally and the exception are computed by
+             _equal_coverage_sentence() from comparison.csv, not typed,
+             so re-running the sweep moves them and cannot quietly turn
+             the sentence back into a rule.  The figure caption no longer
+             says "showing that more rays beats more points per ray"
+             either.
+
+             Still 4 pages.  Figures 1 and 2 unchanged.
+
+             OLD FILES IN THIS FOLDER, left for you to decide on:
+             4_Results.docx / .pdf / .txt (the pre-rename build) and
+             "4_Results and Discussion.docx" (your template copy).  I did
+             not delete any of them.
+
+ ----------------------------------------------------------------------
+ Carried over from 4_Results.txt when the part was renamed, 2026-09-21.
+ That file is still on disk, unchanged; this sheet is the live one.
+ ----------------------------------------------------------------------
+
+ (nothing yet)
+
+ (nothing yet)
+
+
+======================================================================
+ HOW THIS PART IS BUILT
+======================================================================
+
+ The document is generated, so a request is applied by editing the
+ generator and rebuilding -- that way it survives the next rebuild:
+
+   wording, a section, the abstract   programs/make_method_docs.py
+   which figures this part carries    the parts() list in the same file
+   a figure itself                    programs/make_figures.py
+                                      (or make_tau_grids.py,
+                                       make_threshold_figure.py)
+   fonts, spacing, margins            the format block in
+                                      make_method_docs.py
+   the cover letter's look            templates/cover_letter-RP.docx
+
+   python paper_figures/programs/make_method_docs.py    the .docx
+   python paper_figures/programs/make_pdfs.py           the .pdf
+
+ IF YOU EDIT THE WORD FILE YOURSELF -- that is safe.  Every document is
+ fingerprinted when it is written, so a rebuild can tell you changed it:
+
+   * a document you edited is NEVER overwritten;
+   * the new machine-made version is written beside it as
+     4_Results_and_Discussion_rebuilt.docx, and the run says so;
+   * the copy any replaced document had before goes to backups/ with a
+     timestamp, and the last ten are kept;
+   * make_pdfs.py exports whatever .docx is on disk, so the PDF matches
+     the Word file, hand-edited or not.
+
+ What that does NOT do is put your edit back into the generator.  So if
+ an edit should become the way the document is built, say so above in
+ one line -- "keep my S1 P2 rewrite" -- and it will be moved into
+ make_method_docs.py.

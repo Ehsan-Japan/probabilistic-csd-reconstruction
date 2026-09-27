@@ -1,0 +1,107 @@
+======================================================================
+ 5.  CONCLUSIONS
+ Document:  5_Conclusions.docx  /  5_Conclusions.pdf
+======================================================================
+
+[INVENTORY -- regenerated, do not write in this block]
+
+ SECTIONS
+  1. 1. Summary  -- 3 paragraphs
+  2. 2. Limitations  -- 2 paragraphs
+  3. 3. Outlook  -- 1 paragraph
+
+ FIGURES
+  (none)
+
+[END INVENTORY]
+
+
+======================================================================
+ YOU WRITE  --  anything below this line is read
+======================================================================
+
+ Point at something:   S2 P3   section 2, paragraph 3
+                       FIG 4   figure 4 of this part
+                       TABLE I / ABSTRACT / TITLE
+                       FORMAT  font, spacing, margins, captions
+ Or just say it in prose -- "the third paragraph is too long" is enough.
+
+ One request per line, starting with a dash.  Nothing here is ever
+ deleted or overwritten by a rebuild.
+
+-
+-
+-
+
+
+======================================================================
+ THE REPLY  --  what was actually changed, and where
+======================================================================
+
+ 2026-09-21  THIS PART IS NEW -- you asked for it to be built.  It is
+             written into programs/make_method_docs.py like every other
+             part, so it rebuilds with the rest.
+
+             YOUR 5_Conclusions.docx WAS NOT TOUCHED.  It is not what
+             this script wrote, so the guard treated it as yours and put
+             the generated document beside it as
+             5_Conclusions_rebuilt.docx.  Look at that one; if it should
+             become the part, say so and I will make it 5_Conclusions.docx.
+
+             Three sections, one page, every number read from the run:
+               1. Summary -- the headline budget (8 x 50, 3.88 % of the
+                  plane, F1 at tau = 1 of 0.796 over 50 held-out devices,
+                  threshold 0.7 chosen on the validation split), the
+                  equal-coverage finding WITH its counter-example, and
+                  the reporting rule (F1 beside coverage, no pixel
+                  accuracy).
+               2. Limitations -- noise-free constant-capacitance
+                  simulation, no measured data, same intervals for both
+                  sides of the split so this is not an extrapolation
+                  test, and the 4 budgets of 15 that did not converge.
+               3. Outlook -- hardware validation first; then, if a
+                  simulator-trained model transfers, using the
+                  probability map to choose where the next ray goes.
+
+             NOTHING HERE IS A NEW RESULT.  Section 3 is the only
+             forward-looking text in the part and it claims nothing.
+             Rewrite any of it in the block above and it goes into the
+             generator.
+
+ (nothing yet)
+
+
+======================================================================
+ HOW THIS PART IS BUILT
+======================================================================
+
+ The document is generated, so a request is applied by editing the
+ generator and rebuilding -- that way it survives the next rebuild:
+
+   wording, a section, the abstract   programs/make_method_docs.py
+   which figures this part carries    the parts() list in the same file
+   a figure itself                    programs/make_figures.py
+                                      (or make_tau_grids.py,
+                                       make_threshold_figure.py)
+   fonts, spacing, margins            the format block in
+                                      make_method_docs.py
+   the cover letter's look            templates/cover_letter-RP.docx
+
+   python paper_figures/programs/make_method_docs.py    the .docx
+   python paper_figures/programs/make_pdfs.py           the .pdf
+
+ IF YOU EDIT THE WORD FILE YOURSELF -- that is safe.  Every document is
+ fingerprinted when it is written, so a rebuild can tell you changed it:
+
+   * a document you edited is NEVER overwritten;
+   * the new machine-made version is written beside it as
+     5_Conclusions_rebuilt.docx, and the run says so;
+   * the copy any replaced document had before goes to backups/ with a
+     timestamp, and the last ten are kept;
+   * make_pdfs.py exports whatever .docx is on disk, so the PDF matches
+     the Word file, hand-edited or not.
+
+ What that does NOT do is put your edit back into the generator.  So if
+ an edit should become the way the document is built, say so above in
+ one line -- "keep my S1 P2 rewrite" -- and it will be moved into
+ make_method_docs.py.

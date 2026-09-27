@@ -1,0 +1,206 @@
+======================================================================
+ 1.  PROBABILISTIC RECONSTRUCTION OF CHARGE STABILITY DIAGRAMS FROM SPARSE RAY MEASUREMENTS
+ Document:  1_Abstract.docx  /  1_Abstract.pdf
+======================================================================
+
+[INVENTORY -- regenerated, do not write in this block]
+
+ SECTIONS
+  (none)
+
+ FIGURES
+  (none)
+
+[END INVENTORY]
+
+
+======================================================================
+ YOU WRITE  --  anything below this line is read
+======================================================================
+
+ Point at something:   S2 P3   section 2, paragraph 3
+                       FIG 4   figure 4 of this part
+                       TABLE I / ABSTRACT / TITLE
+                       FORMAT  font, spacing, margins, captions
+ Or just say it in prose -- "the third paragraph is too long" is enough.
+
+ One request per line, starting with a dash.  Nothing here is ever
+ deleted or overwritten by a rebuild.
+
+-FIRST WE MUSY TALK ABOUT THE ROLE OF CHARGE SENSOR IN SPIN-BASED QUNATUM COMPUTATION...CHARACTERIGING CHARGE SENSOR IS TIME-CONSUMING AND CONVENTOAN AOPPROACH RELIES ON 2D RASTER SCANS. CURENLYT VERY GOOD QUANTUM DOT SIMULATORS ARE BEING DEISNGED ANDF PRODUCED WHICH CAN ACT AS DIGITAL TWINS OF QUANTUM DOT ARRAYS.IMNAGING SUCH SIMULATOR EXISTS WE PROPOSE A NEW PARADIGM FOR CHARACERTIZING CHARGE SENSORS.. TRAINING A U-NET WHICH BASED ON SPARSE MEASUREMTNS PRODUCES PROBABILITY MAP.. WE USE QARRAY AS SIMULATOR , CONSTANT CAPACUATNCE SIMULATOR AND SHOW HOW MANY RAYS GAVE RISE TO WHAT BLAHBLAH BLAH ....
+-
+-
+
+
+======================================================================
+ THE REPLY  --  what was actually changed, and where
+======================================================================
+
+ 2026-09-21  ABSTRACT CUT TO FIT ONE PAGE -- you chose (b).  276 -> 231
+             words, in programs/make_method_docs.py -> ABSTRACT.  The
+             rendered PDF is now ONE page, with about 2 cm of margin to
+             spare; I looked at the page, I did not only count words.
+
+             Nothing was dropped whole.  No claim, number or caveat left
+             the abstract -- the cut is compression, sentence by
+             sentence, so the prior-work sentence and its [ref] are still
+             there:
+               * "presupposes control of the charge" -> "presupposes
+                 charge control"; "set so that exchange can be turned on
+                 and off" -> "set so exchange can be switched on and off"
+               * "scales quadratically with linear resolution" ->
+                 "...with resolution"
+               * the generative-models sentence, 46 -> 30 words: "Recent
+                 generative models reconstruct a full diagram from a
+                 sparse scan [ref], but their training data, and the
+                 transition-line labels classical detectors extract from
+                 it, are still measured."  The "cutting acquisition time
+                 on a new device" clause is the one idea that is gone.
+               * "as many diagrams as network training requires" -> "as
+                 training requires"; the trailing "rather than extracted
+                 by a detector" dropped, since the sentence before it now
+                 says detectors
+               * "let the model see the device only through a sparse set
+                 of one-dimensional rays" -> "letting the model see the
+                 device only through sparse one-dimensional rays"
+               * "a U-Net that outputs a per-pixel probability map of
+                 transition-line position from ray measurements alone" ->
+                 "a U-Net that maps rays alone to a per-pixel probability
+                 of transition-line position"
+               * "with F1 reported across tolerances of 0-3 pixels
+                 alongside the area fraction each admits" -> "with F1 and
+                 coverage reported across tolerances of 0-3 pixels"
+               * "This work establishes the simulation side; whether..."
+                 -> "Whether..."  The hardware caveat itself is intact.
+
+             _check_abstract() still passes: 8 rays, 50 points, 3.9 %,
+             F1 = 0.796, 50 held-out devices, 4-8 rays and 40-60 points
+             all still read from comparison.csv and all still present.
+
+             SAY THE WORD if you want the acquisition-time clause or "This
+             work establishes the simulation side" back -- there is room
+             on the page for one of them.
+
+ 2026-09-20  ABSTRACT: the simulator sentence replaced with your new
+             wording, word for word -- "A simulator generates as many
+             diagrams as network training requires, and since each is
+             produced from a known charge configuration, its transition
+             lines are exact by construction rather than extracted by a
+             detector."  The generative-models sentence before it was
+             already identical to what you sent, so nothing there moved.
+             Now 276 words; checked against the rendered PDF.
+             Still two pages: the overflow grew from two lines to three.
+
+ 2026-09-20  ABSTRACT replaced with your NEW text, word for word
+             (267 words), in programs/make_method_docs.py -> ABSTRACT.
+             Verified against the rendered PDF, character for character.
+             "[ref]" left standing as your citation placeholder.
+             _check_abstract() now also guards the swept ranges: 4-8 rays
+             and 40-60 points, on top of 8 rays, 50 points, 3.9 %,
+             F1 = 0.796 and 50 held-out devices.  All seven match
+             comparison.csv today.
+
+             IT NO LONGER FITS ON ONE PAGE.  The last two lines fall onto
+             a second page.  Nothing was cut and no spacing was changed:
+             the page is the template's and the words are yours, so the
+             choice is yours --
+               (a) leave it at two pages;
+               (b) cut about 40 words (the generative-models sentence is
+                   the longest at 46);
+               (c) drop one of the two blank lines above the abstract,
+                   which is template spacing, not font or style.
+             Say which and it is one edit.
+
+             Earlier replies below, kept for the record:
+ 2026-09-20  ABSTRACT replaced with YOUR earlier text, word for word, in
+             programs/make_method_docs.py -> ABSTRACT.  189 words.
+             Nothing was re-worded, re-ordered or trimmed, and "[ref]" is
+             left standing as a placeholder for the edge/ridge-detector
+             citation.  Verified against the rendered PDF: the wording in
+             1_Abstract.pdf is character-for-character yours.
+
+             This is the one block of text here that is NOT assembled
+             from the run, so _check_abstract() now guards it: the build
+             refuses to write the title page if 8 rays, 50 points, 3.9 %,
+             F1 = 0.796 or 50 held-out devices stops matching
+             comparison.csv.  All five match today.
+
+             Superseded, kept for the record -- the earlier draft to your
+             five-move arc:
+             programs/make_method_docs.py -> ABSTRACT.
+             Five moves, in your order:
+               1. the charge sensor's role -- spin qubits are tuned and
+                  read out through it, and its map, the charge stability
+                  diagram, is what says how many electrons each dot holds
+               2. why it is expensive -- conventionally a dense 2D raster
+                  scan, cost growing as resolution squared and with every
+                  dot added
+               3. simulators accurate enough to be digital twins now exist
+               4. given such a twin, the new paradigm: a U-Net trained on
+                  sparse ray measurements, returning a probability per
+                  pixel that a transition line passes through it
+               5. QArray, constant-capacitance; budgets of 4-8 rays at
+                  40-60 points; 8 x 50 measures 3.88 % and reaches
+                  F1@1 = 0.796 on 50 held-out devices
+
+ INCONVENIENT RESULT, and it is in the abstract as written:
+             "more rays beats more points per ray" holds in 3 of the 4
+             equal-coverage pairs, NOT all four.  7 x 50 (0.738) loses to
+             6 x 60 (0.772) at 3.4 % of the plane.  The abstract says
+             "3 of the 4 comparable pairs" rather than stating the rule.
+             The pairs are found by _equal_coverage() in
+             make_method_docs.py, which counts every converged pair within
+             0.1 % of the plane -- so the sentence cannot quietly become a
+             claim about the best pair only.
+
+ EVERY NUMBER is read from
+             results/4-5-6-7-8_rays_40-50-60_points_500_samples/
+             comparison.csv, not typed in: the ray and point ranges, the
+             coverage, F1@1, the device count and the 3-of-4 tally all
+             follow the run.  Re-running the sweep moves them.
+
+ NOT SAID:   "characterising the charge sensor" is written as
+             "characterise the sensor response", because what is
+             reconstructed here is the transition-line geometry of the
+             diagram the sensor produces -- not the sensor's own transfer
+             function.  Say the word if you want the stronger phrasing.
+
+ The abstract is 257 words, which is long for JJAP.  Say so and I will cut
+ it to about 180 by dropping the cost-scaling clause and the tolerance
+ sentence.
+
+
+======================================================================
+ HOW THIS PART IS BUILT
+======================================================================
+
+ The document is generated, so a request is applied by editing the
+ generator and rebuilding -- that way it survives the next rebuild:
+
+   wording, a section, the abstract   programs/make_method_docs.py
+   which figures this part carries    the parts() list in the same file
+   a figure itself                    programs/make_figures.py
+                                      (or make_tau_grids.py,
+                                       make_threshold_figure.py)
+   fonts, spacing, margins            the format block in
+                                      make_method_docs.py
+   the cover letter's look            templates/cover_letter-RP.docx
+
+   python paper_figures/programs/make_method_docs.py    the .docx
+   python paper_figures/programs/make_pdfs.py           the .pdf
+
+ IF YOU EDIT THE WORD FILE YOURSELF -- that is safe.  Every document is
+ fingerprinted when it is written, so a rebuild can tell you changed it:
+
+   * a document you edited is NEVER overwritten;
+   * the new machine-made version is written beside it as
+     1_Abstract_rebuilt.docx, and the run says so;
+   * the copy any replaced document had before goes to backups/ with a
+     timestamp, and the last ten are kept;
+   * make_pdfs.py exports whatever .docx is on disk, so the PDF matches
+     the Word file, hand-edited or not.
+
+ What that does NOT do is put your edit back into the generator.  So if
+ an edit should become the way the document is built, say so above in
+ one line -- "keep my S1 P2 rewrite" -- and it will be moved into
+ make_method_docs.py.

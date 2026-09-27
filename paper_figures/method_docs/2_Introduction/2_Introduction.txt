@@ -1,0 +1,467 @@
+======================================================================
+ 2.  INTRODUCTION
+ Document:  2_Introduction.docx  /  2_Introduction.pdf
+======================================================================
+
+[INVENTORY -- regenerated, do not write in this block]
+
+ SECTIONS
+  1. (continuous text, no heading)  -- 10 paragraphs
+
+ FIGURES
+  1. fig_overview.png
+     Overview of the method; all four panels show the same simulated
+     device. (a) The charge-sensor signal over the (V_{1}, V_{2})
+     plane, with the exact charge-transition lines overlaid. The
+     capacitances are drawn at random for each simulated device and
+     the ground-state charge configuration (N_{1}, N_{2}) is computed
+     at every point of the plane, so the lines are exact by
+     construction rather than extracted from the image. (b) The
+     sparse measurement: the sensor signal is recorded only at the
+     marked points, along a fan of oblique rays emitted from one
+     corner of the gate-voltage window; 8 rays of 50 points sample
+     3.88 % of the plane. (c) The sampled signal and a binary mask of
+     the sampled pixels form the two input channels of a U-Net,
+     trained on simulated devices only, which returns the probability
+     that a charge-transition line passes through each pixel. The
+     dashed arrow marks the intended application to a fabricated
+     device, which is not demonstrated in this work. (d) That
+     probability map for the device, which is one of the held-out
+     devices, with its exact lines overlaid.
+
+[END INVENTORY]
+
+
+======================================================================
+ YOU WRITE  --  anything below this line is read
+======================================================================
+
+ Point at something:   S2 P3   section 2, paragraph 3
+                       FIG 4   figure 4 of this part
+                       TABLE I / ABSTRACT / TITLE
+                       FORMAT  font, spacing, margins, captions
+ Or just say it in prose -- "the third paragraph is too long" is enough.
+
+ One request per line, starting with a dash.  Nothing here is ever
+ deleted or overwritten by a rebuild.
+
+-
+-
+-
+
+
+======================================================================
+ THE REPLY  --  what was actually changed, and where
+======================================================================
+
+ 2026-09-21  NO MORE CAPITALS, AND THE TONE MADE FORMAL.  Both in
+             programs/make_method_docs.py, so they survive a rebuild.
+
+             CAPITALS: you were right, and there were 17 of them, not
+             one.  Emphasis had been set as ALL CAPS in running prose --
+             CHARGE STABILITY DIAGRAM, SLOPE, ANTICROSSING, THRESHOLD,
+             TOLERANCE, VALIDATION, DISTINCT, TRAINING, MORE RAYS, NO
+             DRAW IS FILTERED..., THE THING THAT IS SPLIT..., and NOT
+             used for emphasis in three places.  All are now ordinary
+             sentence case.  I re-scanned every rendered PDF for runs of
+             capitals afterwards: none left outside CSD and JJAP.
+
+             TONE: 24 passages rewritten from spoken register into
+             academic register.  What went:
+               "locating them is what tuning means in practice"
+                 -> "locating them is the objective of tuning"
+               "The appeal is that a ray is cheap"
+                 -> "The advantage is that a ray is inexpensive to
+                    acquire"
+               "reported rather than buried" -> "stated explicitly"
+               "nothing enforces it: the capacitances are drawn and
+                whatever they produce is kept"
+                 -> "the condition is not enforced: the capacitances are
+                    drawn without rejection"
+               "which is what makes pixel accuracy useless as a score"
+                 -> "which renders pixel accuracy uninformative"
+               "that is measured rather than asserted"
+                 -> "this is verified quantitatively"
+               "the quantity an experiment pays for"
+                 -> "which determines the acquisition time"
+               "Comparing them pixel for pixel is brutal ... for a result
+                any physicist would call correct"
+                 -> "is unduly strict ... although the reconstruction is
+                    physically correct"
+               "is satisfied by a blanket of positives; Dice penalises
+                the spread"
+                 -> "can be satisfied by an indiscriminate positive
+                    prediction; the Dice term penalises such a
+                    prediction"
+               "One-pixel-wide lines are punished hard by IoU and it is
+                reported rather than hidden"
+                 -> "IoU penalises one-pixel-wide structures severely;
+                    it is reported here for completeness"
+               "Pixel accuracy is included only so that it can be
+                dismissed" -> "only to show why it is not used"
+             plus the smaller ones: "decide what the honeycomb looks
+             like", "lands somewhere unusual", "is what lets", "the
+             study depends on", "matters far less than", "this is a
+             limitation and is stated as one", "which is the relevant
+             yardstick", "so a device's data always lands on one side",
+             "this is the reason the problem is not trivial", "a run can
+             end on a high loss and still have saved a good model", and
+             two sentences that opened with a numeral.
+
+             No number, claim, caveat or figure reference changed.  The
+             documents are the same length to within a line.
+
+ 2026-09-22  THE SUBSECTIONS ARE GONE, AND SO IS "BAD".  Both in
+             programs/make_method_docs.py, so they survive a rebuild.
+
+             SUBSECTIONS: "1. Quantum dots and the cost of tuning",
+             "2. Prior work" and "3. What this work does" were three
+             headings over eight paragraphs.  The introduction is now
+             one continuous section with no headings in it at all --
+             the same eight paragraphs, in the same order, unchanged.
+             The part's own title, "2. Introduction", is the only
+             heading on the page.  build() now takes a section whose
+             heading is None and prints its text with nothing above it,
+             so this is the way the document is built, not an edit made
+             to the Word file afterwards.
+
+             "BAD": one occurrence, in the part abstract --
+               "it scales badly with the number of dots"
+                 -> "it scales unfavourably with the number of dots"
+             That was the only one in the generator's prose.  I
+             re-checked every part afterwards: the word does not appear
+             in any of the nine documents.
+
+             No number, claim, caveat or reference changed.  The
+             introduction is the same length to within a line.
+
+ 2026-09-22  YOUR INTRODUCTION, SET WORD FOR WORD.  In
+             programs/make_method_docs.py, so it survives a rebuild.
+
+             THE TEXT: the nine paragraphs you gave, in your wording and
+             your order, replacing everything that was there.  The part
+             abstract is gone too -- the text you gave is the whole
+             section, and a summary above it would have been a second
+             opening paragraph saying the same thing.  No subsection
+             headings; "2. Introduction" is the only heading on the page.
+             2_Introduction.pdf is 4 pages.
+
+             THE NUMBERS: every one of yours is in the run, and each is
+             now read from it rather than typed, so a re-run cannot leave
+             the text behind:
+               "approximately 7% of the pixels"   true_line_fraction 7.14
+               "eight rays of 50 points"          8 x 50
+               "3.9% of the voltage plane"        coverage 3.88
+               "F1@1 = 0.80"                      f1@1 0.7957
+               "50 held-out devices"              n_test 50
+               "17.9% ... within one pixel"       coverage@1 17.85
+             Two of those needed half-up rounding to come out as you
+             wrote them (17.85 -> 17.9), so _rounded() does that rather
+             than Python's %.1f, which gives 17.8.
+
+             THE REFERENCES: renumbered to match your [1]-[8].  1-4 and
+             5 (Hernandes) were already here and are unchanged.
+
+             TWO THINGS FOR YOU:
+
+             1. References 6, 7 and 8 -- QArray, QDsim, QDarts -- have no
+                entry in this repo and I did not invent one.  Each is in
+                the list with its title and "[authors and journal to be
+                added]", which prints in the PDF so it cannot be missed.
+                Drop the PDFs in 2_Introduction_citations/ or write the
+                entries here and I will set them.
+
+             2. Two references are now cited nowhere and were dropped
+                from the list: your own Jpn. J. Appl. Phys. 64, 02SP22
+                (2025), and Muto et al. on the U-Net with clustering.
+                Your new text does not refer to either.  Say the word if
+                one of them should go back in with a citation.
+
+             Also: this part cites as [1-3], while 3.1 to 5 still cite in
+             the JJAP style, "qubit.1)".  One of the two has to give
+             before submission; tell me which and I will make the whole
+             manuscript match.
+
+ 2026-09-22  THE SIMULATOR PARAGRAPH, REPLACED WORD FOR WORD, AND
+             QArray+ ADDED AS [9].  In make_method_docs.py.
+
+             Your new text opens with the same sentence as the one that
+             was there, so I replaced that paragraph rather than adding a
+             tenth one.  It is now yours verbatim, with one full stop
+             added at the very end, after "tunnel-coupled devices [9]",
+             which your text did not close.
+
+             Reference 9 is in the list as
+               9) "QArray+: a physics-informed simulator for quantum dot
+                  arrays". [authors, full title and journal to be added]
+             on the same footing as 6 to 8 -- I did not invent the
+             bibliographic details.
+
+             TWO SENTENCES ARE NOW GONE that were in the paragraph
+             before.  Your text does not contain them and I did not put
+             them back; say the word if either should return:
+
+               1. "It also captures physical effects such as measurement
+                  of the charge stability diagram with a single-electron
+                  transistor and thermal broadening of charge
+                  transitions."   (was about QArray, after [6])
+
+               2. "A simulator generates as many diagrams as training
+                  requires, and it computes the ground-state charge
+                  configuration at every point of the voltage plane. The
+                  transition lines are therefore exact by construction,
+                  and no manual annotation is required."   (closed the
+                  paragraph)
+
+             The second one is the one to look at.  It was the paragraph's
+             conclusion -- the reason simulated training data answers the
+             two objections raised against the measured dataset in the
+             Hernandes paragraph above it (bounded number of diagrams,
+             manual labelling, detector-derived reference lines).  Without
+             it the simulator paragraph lists packages and the argument is
+             left to the reader.  The paragraph that follows opens "We
+             therefore propose", and the "therefore" now has nothing
+             immediately before it to rest on.
+
+ 2026-09-22  QArray+ EXPLAINED IN YOUR WORDS.  In
+             make_method_docs.py.
+
+             The sentence
+               "It adds a gate-dependent coherent interdot tunnel
+                coupling to the electrostatic energy, so that charge
+                configurations near degeneracy hybridize."
+             is replaced by your three:
+               "It includes the coherent tunnel coupling between
+                neighbouring dots, whose strength depends on the gate
+                voltages. Near an interdot transition, where two charge
+                configurations are nearly degenerate, the ground state
+                becomes a superposition of both. The simulated diagrams
+                therefore exhibit the avoided crossings and fractional
+                charge occupations observed in tunnel-coupled devices
+                [9]."
+             Your third sentence was already the last one of the
+             paragraph, so it is not duplicated.  The rest of the
+             paragraph, and "Most recently, QArray+ has extended this
+             framework into a physics-informed simulator [9]." before it,
+             are unchanged.  2_Introduction.pdf is still 4 pages.
+
+ 2026-09-23  THE DIGITAL-TWIN SCHEMATIC IS NOW FIGURE 1.
+
+             Slide 7 of SSDMpresentation_Ehsan_2026_edited.pptx, "QArray
+             as a digital twin builder".  The diagram group was exported
+             from PowerPoint on its own -- the slide title, the banner,
+             the bottom caption box and the slide number are not in it --
+             and filed as docs/figures/digital_twin.png, the same place
+             the hand-drawn dqd_model figures live.  It is registered in
+             _figures.STATIC, so a rebuild copies it into
+             2_Introduction/figures/ rather than trying to generate it.
+
+             The introduction had no figures before, so it now has a
+             folder of its own (_figures.P0) like the other parts.
+
+             It sits after the simulator paragraph, where you asked.  One
+             sentence was added to point at it, since a figure that no
+             sentence names is a figure a reader skips:
+               "Figure 1 sets out the role such a simulator plays here.
+                It stands in for the device while the network is trained,
+                supplying both the stability diagrams and the transition
+                lines that label them; the trained network is then
+                presented with sparse measurements of a fabricated device
+                and returns a probability map for it."
+             Your nine paragraphs are otherwise untouched.
+
+             TWO THINGS ABOUT IT BEING A SLIDE.  The wording inside the
+             boxes is the talk's, not the paper's -- "Change the
+             Capacitances of the model", "Perform Sparse measurement",
+             "pretrained neural net" -- with slide capitalisation, and
+             the type is sans-serif while the manuscript is Times.  It
+             reads as a slide dropped into a paper, because it is one.
+             Say the word and I will reset the labels in the manuscript's
+             register and face; the geometry would not change.
+
+             Second, the right-hand circle is a real device on a dilution
+             fridge, which this work does not have.  As a statement of
+             the method's intent that is right, and the caption says
+             "applied on the right"; as a figure in a paper whose
+             devices are all simulated it invites the question at once.
+             The conclusions already say hardware is future work.
+
+ 2026-09-23  THE REVIEW APPLIED.  Figure 1 is now built from the run
+             (programs/make_figures.py fig_overview), and the slide is
+             gone.  Point by point:
+
+             1. OVERCLAIMING.  Fixed, and it was the right catch.  The
+                figure no longer shows a real device at all.  The
+                intended application is a grey box behind a dashed arrow
+                out of the trained network, and the caption says "not
+                demonstrated in this work", which is now the same
+                statement the limitations paragraph makes.
+
+             2. THE RAYS WERE MISSING.  Fixed.  The fan is panel (b),
+                drawn from ray_peaks.fan_angles and ray_polyline, with
+                the sampled points marked, so it cannot be mistaken for
+                a grid.  The figure also now carries the stability
+                diagram (a), the two channels (c) and the probability
+                map (d) -- the method is readable from Fig. 1 alone.
+
+             3. TERMINOLOGY.  "Digital twin" is gone from the paper
+                entirely; the caption says "simulated device".  "Extract"
+                is gone with it: the caption says the configuration is
+                computed at every point "so the lines are exact by
+                construction rather than extracted from the image",
+                which is also the distinction from Hernandes et al.
+
+             4. STYLE.  No Venn diagram, no callout boxes, no imperative
+                slide text: panels (a)-(d) left to right, top to bottom,
+                everything explanatory in the caption.  17.8 cm double
+                column, one sans-serif face, 7 pt minimum, no shadows or
+                gradients.  Axes are V_1 and V_2 in mV on every map
+                panel.  A vector twin is written beside the PNG as
+                fig_overview.pdf.
+
+             TWO PLACES I DID NOT FOLLOW THE REVIEW, and why:
+
+             a. The capacitance-network schematic is NOT in panel (a).
+                At 8 cm the panel holds one diagram legibly; the
+                schematic is already Figure 2, at full text width, three
+                pages later.  Shrinking it into a 3 cm inset would make
+                both worse.  Say the word and I will make it a five-panel
+                figure at the cost of every panel getting smaller.
+
+             b. Panel (b) shows EIGHT rays, not the four of Figure 5.
+                All four panels are one device and one measurement --
+                the 8 x 50 budget the results are quoted at -- so (c)
+                and (d) are what the network makes of exactly the fan
+                drawn in (b).  Four rays there would have been a
+                different measurement from the one (c) and (d) show.
+
+             The whole figure is one device, sample_10, which is in the
+             held-out split; (d) is therefore a genuine held-out result
+             and not a training device.
+
+ 2026-09-23  THE SSDM SLIDE IS FIGURE 1 AGAIN.  The four-panel
+             overview is out of the manuscript.
+
+             docs/figures/digital_twin.png is back, exported the same way
+             as before -- the diagram group alone, without the slide
+             title, the banner, the bottom caption box or the page
+             number.  It is filed in _figures.STATIC again, so a rebuild
+             copies it in.
+
+             The four-panel figure is NOT lost.  fig_overview() is still
+             in make_figures.py and still filed in _figures.LAYOUT, so it
+             can be regenerated with one call; only its PNG and PDF were
+             removed from 2_Introduction/figures/ so that an unused file
+             does not sit beside the one in use.  Putting it back in the
+             manuscript is one line in make_method_docs.
+
+             ONE THING I KEPT FROM THE REVIEW, and you should decide
+             whether to keep it.  The caption used to end "The network is
+             trained on the left and applied on the right."  It now ends
+             "The network is trained on the left and is intended to be
+             applied on the right; that application to a measured device
+             is not demonstrated in this work."  Everything else in the
+             caption is as it was.  I kept that clause because the figure
+             shows a dilution-fridge device and the paper has none, and
+             the reviewer's first point was that the figure as captioned
+             contradicts your own limitations paragraph.  It is one
+             clause and I will take it out if you want the original.
+
+             The figure's own labels are still the talk's -- "Digital
+             twin", "Extract transition lines as ground truth", "Change
+             the Capacitances of the model" -- in sans-serif, which is
+             what the review objected to in points 3 and 4.  Those are
+             inside the image, so changing them means editing the
+             PowerPoint group and re-exporting.  Say the word and I will
+             do that without touching the layout.
+
+ 2026-09-23  FIGURE 1 REDRAWN IN ILLUSTRATOR, IN THE SLIDE'S STYLE.
+
+             docs/figures/build_overview.jsx builds it; Illustrator is
+             driven over COM, and the script writes method_overview.png,
+             .pdf and .ai beside itself.  The .ai is editable, so you can
+             move anything by hand without going through me.
+
+             THE STYLE IS KEPT, as you asked: the same two large
+             overlapping discs in the same two teals, the multiply blend
+             that darkens the overlap, the pale U-Net pill sitting in it,
+             the rounded callout boxes with white bold text around the
+             outside, the dashed schematic on the simulated side and the
+             solid one on the measured side, the numbered dots and the
+             sensor hanging off the channel.
+
+             WHAT CHANGED IS THE TEXT AND THREE SMALL FIGURES, which is
+             the licence you gave me and is enough to answer the review:
+
+               1. OVERCLAIM.  The right disc now says "not demonstrated
+                  in this work" in the disc itself, and the arrow into it
+                  is dashed and labelled "intended application".  No box
+                  on that side claims a measured result any more.
+
+               2. THE RAYS WERE MISSING.  Three tiles from the run are
+                  now in the figure: the fan over a stability diagram,
+                  the two input channels, and the probability map.  Each
+                  sits beside the box that names it.
+
+               3. TERMINOLOGY.  "Digital twin" is gone -- an ensemble of
+                  randomly drawn capacitances is not a twin of any one
+                  device -- and so is "Extract transition lines as ground
+                  truth", which now reads "exact transition lines from
+                  the charge configuration".
+
+               4. THE BOX TEXT.  No imperatives and no half-capitalised
+                  headings: "Change the Capacitances of the model" is
+                  "capacitances drawn at random for each simulated
+                  device", "Perform Sparse measurement on the voltage
+                  grid" is "sparse measurement: a fan of rays from one
+                  corner", and so on.  The dashed-versus-solid schematic
+                  is now explained in the caption.
+
+             WHAT I DID NOT CHANGE, because you asked for the style: it
+             is still two overlapping discs, which the review wanted
+             replaced by a left-to-right flow, and the two teals are
+             still close in lightness.  If a referee raises the greyscale
+             point, the fix is one line -- the right disc's fill -- and
+             the layout does not move.
+
+             The orange double arrows of the slide are gone: they were
+             never explained, and the box beside the schematic now says
+             what they meant.
+
+ (nothing yet)
+
+
+======================================================================
+ HOW THIS PART IS BUILT
+======================================================================
+
+ The document is generated, so a request is applied by editing the
+ generator and rebuilding -- that way it survives the next rebuild:
+
+   wording, a section, the abstract   programs/make_method_docs.py
+   which figures this part carries    the parts() list in the same file
+   a figure itself                    programs/make_figures.py
+                                      (or make_tau_grids.py,
+                                       make_threshold_figure.py)
+   fonts, spacing, margins            the format block in
+                                      make_method_docs.py
+   the cover letter's look            templates/cover_letter-RP.docx
+
+   python paper_figures/programs/make_method_docs.py    the .docx
+   python paper_figures/programs/make_pdfs.py           the .pdf
+
+ IF YOU EDIT THE WORD FILE YOURSELF -- that is safe.  Every document is
+ fingerprinted when it is written, so a rebuild can tell you changed it:
+
+   * a document you edited is NEVER overwritten;
+   * the new machine-made version is written beside it as
+     2_Introduction_rebuilt.docx, and the run says so;
+   * the copy any replaced document had before goes to backups/ with a
+     timestamp, and the last ten are kept;
+   * make_pdfs.py exports whatever .docx is on disk, so the PDF matches
+     the Word file, hand-edited or not.
+
+ What that does NOT do is put your edit back into the generator.  So if
+ an edit should become the way the document is built, say so above in
+ one line -- "keep my S1 P2 rewrite" -- and it will be moved into
+ make_method_docs.py.

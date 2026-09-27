@@ -1,0 +1,13 @@
+{
+ "n_rays": 4,
+ "n_points": 50,
+ "angles": [
+  18.0,
+  36.0,
+  54.0,
+  72.0
+ ],
+ "on_line": 3,
+ "peaks_found": 15,
+ "measurements": 200
+}

@@ -1,0 +1,75 @@
+======================================================================
+ 0.  COVER LETTER
+ Document:  0_Cover_letter.docx  /  0_Cover_letter.pdf
+======================================================================
+
+[INVENTORY -- regenerated, do not write in this block]
+
+ SECTIONS
+  1. To the Editor  -- 7 paragraphs
+
+ FIGURES
+  (none)
+
+[END INVENTORY]
+
+
+======================================================================
+ YOU WRITE  --  anything below this line is read
+======================================================================
+
+ Point at something:   S2 P3   section 2, paragraph 3
+                       FIG 4   figure 4 of this part
+                       TABLE I / ABSTRACT / TITLE
+                       FORMAT  font, spacing, margins, captions
+ Or just say it in prose -- "the third paragraph is too long" is enough.
+
+ One request per line, starting with a dash.  Nothing here is ever
+ deleted or overwritten by a rebuild.
+
+-
+-
+-
+
+
+======================================================================
+ THE REPLY  --  what was actually changed, and where
+======================================================================
+
+ (nothing yet)
+
+
+======================================================================
+ HOW THIS PART IS BUILT
+======================================================================
+
+ The document is generated, so a request is applied by editing the
+ generator and rebuilding -- that way it survives the next rebuild:
+
+   wording, a section, the abstract   programs/make_method_docs.py
+   which figures this part carries    the parts() list in the same file
+   a figure itself                    programs/make_figures.py
+                                      (or make_tau_grids.py,
+                                       make_threshold_figure.py)
+   fonts, spacing, margins            the format block in
+                                      make_method_docs.py
+   the cover letter's look            templates/cover_letter-RP.docx
+
+   python paper_figures/programs/make_method_docs.py    the .docx
+   python paper_figures/programs/make_pdfs.py           the .pdf
+
+ IF YOU EDIT THE WORD FILE YOURSELF -- that is safe.  Every document is
+ fingerprinted when it is written, so a rebuild can tell you changed it:
+
+   * a document you edited is NEVER overwritten;
+   * the new machine-made version is written beside it as
+     0_Cover_letter_rebuilt.docx, and the run says so;
+   * the copy any replaced document had before goes to backups/ with a
+     timestamp, and the last ten are kept;
+   * make_pdfs.py exports whatever .docx is on disk, so the PDF matches
+     the Word file, hand-edited or not.
+
+ What that does NOT do is put your edit back into the generator.  So if
+ an edit should become the way the document is built, say so above in
+ one line -- "keep my S1 P2 rewrite" -- and it will be moved into
+ make_method_docs.py.

@@ -1,0 +1,1509 @@
+######################################################################
+ 3_Methods -- the comment sheets of 3.1 ... 3.4, one after another.
+ Document:  3_Methods.docx  /  3_Methods.pdf
+ Write under the subsection you mean; S/P/FIG numbers are that
+ subsection's own, as in each sheet's inventory.
+######################################################################
+
+
+======================================================================
+ 3.1.  DEVICE SIMULATION AND DATASET CONSTRUCTION
+ Document:  3_1_Device_simulation_and_dataset.docx  /  3_1_Device_simulation_and_dataset.pdf
+======================================================================
+
+[INVENTORY -- regenerated, do not write in this block]
+
+ SECTIONS
+  1. 1. The constant-capacitance model  -- 14 paragraphs
+  2. 2. Ground truth  -- 1 paragraph
+  3. 3. Train/test split  -- 5 paragraphs
+
+ FIGURES
+  1. dqd_model_full.png
+     The constant-capacitance model of the simulated device. (a) The
+     capacitor network: two quantum dots QD1 and QD2, a sensor dot
+     QDs, and three gates. (b) The four capacitance matrices that
+     define a device. A device is one uniform draw of the 14 free
+     parameters of Table I.
+  2. panel_charge_sensor.png
+     One simulated device. (a) The charge-sensor signal over the
+     gate-voltage window. (b) The same signal with its slow
+     background subtracted, which brings the charge transitions out.
+     (c) The transition lines the simulator returns for the same
+     device: exact by construction, and the target the network is
+     trained to predict.
+  3. fig_data_split.png
+     The train/test split. 550 devices are divided by device identity
+     into 500 training and 50 held-out devices (seed 12345). Inside
+     the training devices, 15 % is carved out as a validation split
+     before any training, leaving 425 devices to fit the weights.
+
+[END INVENTORY]
+
+
+======================================================================
+ YOU WRITE  --  anything below this line is read
+======================================================================
+
+ Point at something:   S2 P3   section 2, paragraph 3
+                       FIG 4   figure 4 of this part
+                       TABLE I / ABSTRACT / TITLE
+                       FORMAT  font, spacing, margins, captions
+ Or just say it in prose -- "the third paragraph is too long" is enough.
+
+ One request per line, starting with a dash.  Nothing here is ever
+ deleted or overwritten by a rebuild.
+
+-
+-
+-
+
+
+======================================================================
+ THE REPLY  --  what was actually changed, and where
+======================================================================
+
+ 2026-09-21  FIGURE 1 IS NOW dqd_model_full.png -- the one you picked, with
+             all twelve couplings.  Registered in programs/_figures.py
+             (LAYOUT and STATIC) and used by the part in
+             make_method_docs.py.  The old dqd_model.png is still on disk
+             and still registered; nothing was deleted.
+
+             THE TYPE IN THE FIGURE HAD TO GROW.  The drawing is about
+             11 in wide by nature and is placed at the 6.3 in text width,
+             so everything in it prints at 0.56x -- footnotesize labels
+             were landing at about 5 pt and were unreadable on the page.
+             Labels are now \large, the island names \large, the panel
+             letters \LARGE, the matrices \LARGE, and the wires 1.0 pt.
+             Rebuilt every format; the .svg groups were re-named, so the
+             labels are still one named object each.
+
+             THE COUNT IS EXPLAINED TWICE, ONCE AGAINST EACH PANEL:
+               from (b): the four matrices print 15 numbers of which 14
+                 are free -- 3 for Cdd, 6 for Cdg, 2 for Csd, 3 for Csg
+                 (the breakdown now prints the paper's symbols, not
+                 QArray's keys, which it was doing wrongly for one build).
+               from (a): three islands x three gates = 9 couplings, plus
+                 c_d1d2, c_s1d1 and c_s1d2 = 3 more, so 12 wires in the
+                 drawing; the remaining two are the self-capacitances
+                 c_d1d1 and c_d2d2, which couple a dot to ground and are
+                 not drawn.  9 + 3 + 2 = 14.
+             Every number there is computed -- 15, 14, the per-matrix
+             breakdown and the 12 drawn are all derived from the shapes
+             the generator uses and from DEFAULT_INTERVALS, so the
+             sentence cannot drift from the code.
+
+             The caption says the same in one line, and says explicitly
+             that the self-capacitances are in (b) but not in (a), so a
+             referee who counts the picture is not left with 12.
+
+             Still 8 pages.
+
+ ONE THING WORTH FIXING, and it is yours to call: the prose writes these
+             symbols as "c_d1d2", with an underscore, because the document
+             text is plain runs.  The figure sets them properly as
+             subscripts.  In a submission the text should match the figure.
+             I can add a subscript convention to the text pipeline so
+             "c_{d1d2}" in the source comes out as a real subscript
+             everywhere -- say the word and it is one change in
+             make_method_docs.py.
+
+ 2026-09-21  COLOURED VERSIONS, as new files.  The black-and-white ones are
+             untouched:
+
+               dqd_model_full_color.*     wide-arc layout, colour
+               dqd_model_sketch_color.*   your sketch layout, colour
+               (.tex .pdf .svg .png .ai for each)
+
+             COLOUR ONLY IN PANEL (a).  The matrices stay black: a matrix
+             entry is not a wire, and colouring one would claim a grouping
+             the algebra does not have.
+
+             COLOUR SAYS WHAT A COUPLING DOES -- the same grouping S1 P4 of
+             this part already argues in words:
+               blue    plunger gate to its own dot   the honeycomb period
+               orange  cross-coupling                the slope of the lines
+               violet  interdot                      the anticrossing
+               green   the sensor's couplings        readout
+               grey    gate 3 to the dots            the smallest entries
+                                                     of Table I (0.01-0.10)
+             Grey rather than a fifth hue because those two really are the
+             weak ones; the colour says so.
+
+             THE PALETTE WAS CHECKED, NOT CHOSEN BY EYE.  Six checks on a
+             white surface: worst normal-vision separation 16.3 (floor 15),
+             worst colour-blind separation 8.4 (target 8), every hue at or
+             above 3.0 contrast.  My first two attempts FAILED and were
+             thrown away -- orange against yellow at 13.7 for normal
+             vision, and orange against green at 3.2 for protanopia, which
+             is the classic red-green trap.  A key sits below panel (a),
+             and every wire still carries its own label, so nothing is
+             identified by colour alone.
+
+             The naming script now covers all four figures, so the labels
+             are still one named group each in the coloured SVGs too --
+             plus key_primary, key_cross, key_interdot, key_sensor,
+             key_weak for the five rows of the key.
+
+ 2026-09-21  YOUR SKETCH, DRAWN:  docs/figures/dqd_model_sketch.*
+             (.tex .pdf .svg .png .ai)   Sensor above, the two dots below,
+             the plunger gates out to the sides, straight wires -- your
+             arrangement.  Nothing was deleted: dqd_model.png and
+             dqd_model_full.* are both still there.
+
+             TWO THINGS I DID NOT COPY FROM THE SKETCH, and why:
+               * Gate 3 is in.  Your sketch has only Vg1 and Vg2, which
+                 leaves out c_d1g3, c_d2g3 and c_s1g3 -- and c_s1g3 is the
+                 LARGEST entry of Csg (0.10-1.00, Table I).  It sits above
+                 the sensor, where its wire is short and meets nothing.
+               * The sensor keeps its index: c_s1g1, not c_sg1, so a symbol
+                 in the drawing is the same symbol as in the matrix.
+             Say if you want either back the way you drew it.
+
+             THREE HOPS, not one.  Your arrangement puts QD1 and QD2 below
+             the line each far gate takes to the other dot, so the two
+             sensor-to-dot wires cross the two cross-couplings, on top of
+             the crossing those two make with each other.  Each is drawn
+             with the semicircular hop, as you did.  The wide-arc version
+             (dqd_model_full) needs only one, because it sends those wires
+             around the outside -- that is the whole trade: your layout is
+             compact and reads like a device, the other is topologically
+             tidier and wider on the page.  Both carry all twelve couplings.
+
+ .AI FILES   dqd_model_sketch.ai and dqd_model_full.ai are there.  Be aware
+             what they are: PDF-compatible .ai, which is what an .ai file
+             has been since Illustrator 9 -- Illustrator opens and edits
+             them normally, and the label text is still live type.  What
+             they are NOT is a file written by Illustrator itself, with its
+             private data in it.  For that, run
+
+                 docs/figures/figures_to_ai.jsx
+
+             from Illustrator (File > Scripts > Other Script...).  It reads
+             the *_paths.svg, groups the art and saves a native .ai for both
+             figures.  It needs Illustrator, which I cannot run.
+
+ 2026-09-21  A NEW FIGURE WITH EVERY COUPLING, drawn from scratch in
+             TikZ so it can be rebuilt rather than re-drawn:
+
+               docs/figures/dqd_model_full.tex   the source
+                                       .pdf   vector, for the manuscript
+                                       .svg   vector, fonts outlined
+                                       .png   600 dpi, for slides
+
+             NOTHING WAS DELETED.  dqd_model.png is untouched and is still
+             the figure the manuscript uses; this is a second file beside
+             it, for you to choose.
+
+             (a) now carries all TWELVE couplings between the three
+             islands and the three gates -- the three that were missing
+             are there: c_d2g3, c_s1g1, c_s1g2.  The two self-capacitances
+             c_d1d1 and c_d2d2 are NOT drawn, as you said: they are
+             couplings to ground, not between the objects in the picture.
+             They are still in (b).
+
+             (b) is the four matrices in full, every entry written out,
+             named Cdd, Cdg, Csd, Csg -- the same convention the text and
+             Table I now use.
+
+             ONE CROSSING, AND IT CANNOT BE AVOIDED.  Three gates each
+             coupling to three islands is K(3,3), which is not planar, so
+             no drawing of it is crossing-free.  The figure has exactly
+             one, between the two cross-couplings, taken with the usual
+             hop -- and the hop sits on the intersection computed by TikZ,
+             not on a guessed coordinate.
+
+             Everything else is lowercase c with the indices in the order
+             you chose, so (a) and (b) agree: c_d1g1 in the drawing is
+             c_d1g1 in Cdg.
+
+ SAY THE WORD and I will point Figure 1 of Section 3.1 at the new file and
+             update the caption -- something like:
+
+               "Fig. 1. The constant-capacitance model of the simulated
+                device. (a) The capacitor network: two quantum dots QD1
+                and QD2, a sensor dot QDs, and three gates, with all
+                twelve couplings between them. The self-capacitances
+                c_d1d1 and c_d2d2 are couplings to ground and are not
+                drawn; they appear in (b). The semicircular hop marks two
+                wires that do not touch. (b) The four capacitance
+                matrices that define a device. A device is one uniform
+                draw of the 14 entries of Table I."
+
+ 2026-09-21  THE MATRIX NAMES ARE UNIFIED: Cdd, Cdg, Csd, Csg.
+
+             YOUR ENTRIES WERE NEVER WRONG.  I checked it against QArray
+             itself: ChargeSensedDotArray declares Cgd as "(n_dot,
+             n_gate)", and passing the transposed array is REJECTED --
+             "Cgd must be of shape (n_dot, n_gate)".  The code passes 2x3
+             with the dots as rows, which is what the library demands, and
+             the primary couplings d1g1 and d2g2 sit where they belong.
+             Only the NAME was back-to-front, and that name is QArray's,
+             not yours.
+
+             (I also tried to confirm it by measuring the line slopes of
+             60 simulated devices against -c_d1g1/c_d1g2.  That test was
+             useless -- my slope estimator was off by ~28 deg on both
+             hypotheses and could not tell them apart.  The shape
+             assertion is the evidence; ignore the slope numbers.)
+
+             WHAT CHANGED, in programs/make_method_docs.py:
+               * _MATRIX_LABEL now maps the code's QArray keys to the
+                 paper's symbols: Cgd -> Cdg, Cds -> Csd, Cgs -> Csg.
+                 Table I therefore reads "Cdg | d1g1" instead of the
+                 "Cgd | d1g1" that had the two orders side by side in one
+                 row.
+               * S1 P2 names the matrices in the new order and writes the
+                 entries as c_d1g1 rather than bare d1g1.
+               * A new paragraph states the rule once: row index first,
+                 then column index, for the matrix and its entries alike
+                 -- and says plainly that QArray calls the same matrices
+                 Cgd, Cds, Cgs, that the arrays are identical, and that
+                 the code keeps the library's keys.
+               * The geometry and symmetry paragraphs use c_ subscripts
+                 throughout.
+
+             THE FIGURE WAS ALREADY RIGHT, AND HAD BEEN OVERWRITTEN.
+             illustrator/capacitance_matrices.tex types C_dg, C_sd, C_sg
+             and always has -- its header comment even explains why.  The
+             Illustrator export dqd_capacitance_figure.png carries those
+             names, and so does the copy committed to git.  But the file
+             in docs/figures/dqd_model.png had been replaced on 2026-09-20
+             with a version relabelled to QArray's Cgd/Cds/Cgs.  Comparing
+             the two images, ONLY panel (b) differs -- panel (a) is
+             byte-identical -- so that replacement did nothing but rename
+             the matrices the wrong way round.
+
+             I restored the Illustrator export.  The previous file is kept
+             as docs/figures/dqd_model_qarray_names.png.bak; delete it when
+             you are happy.  Rebuilt and re-exported: Figure 1(b) now reads
+             Cdd, Cdg, Csd, Csg and agrees with the text and with Table I.
+             Still 8 pages.
+
+ STILL TO DO   Panel (a) writes its labels with a capital C (C_d1g1) while
+             (b) uses lowercase c.  You asked for lowercase everywhere.
+             The labels are text in the ExtendScript, not outlines, so it
+             is a nine-line change in
+             illustrator/dqd_figure_parts.jsxinc, lines 309-317:
+             capLabel(cD1G1, -GAP, 0, "C", "d1g1", "r")  ->  "c".
+             That file is in the OTHER project folder, so I have not
+             touched it; say the word and I will. Re-running the .jsx needs
+             Illustrator, which only you can do.
+
+             The five capacitors missing from panel (a) -- d1d1, d2d2,
+             d2g3, s1g1, s1g2 -- are still missing, and would be added in
+             the same script.  See docs/codebase/capacitance_count.pdf.
+
+ 2026-09-21  THE SYMMETRY AND THE PARAMETER COUNT ARE NOW IN THE TEXT,
+             S1, new paragraph after the list of the four matrices:
+
+               "Cdd is symmetric. The mutual capacitance between the two
+                dots is one physical quantity, so d1d2 = d2d1 and the
+                block is drawn as a symmetric matrix rather than as four
+                independent entries. Counting across the four matrices,
+                Figure 1(b) therefore prints 15 numbers of which 14 are
+                free parameters: 3 for Cdd, 6 for Cgd, 2 for Cds, 3 for
+                Cgs. Those 14 are the parameters listed in Table I, and a
+                device is one uniform draw of them."
+
+             15 and 14 and the per-matrix breakdown are COMPUTED, by
+             _free_parameters() in programs/make_method_docs.py, from the
+             shapes MatrixGenerator.generate_all uses and from
+             DEFAULT_INTERVALS.  It asserts that each matrix's interval
+             count matches its shape -- n(n+1)/2 for the symmetric one,
+             rows x cols for the rest -- so if an entry is ever added or
+             the symmetry dropped, the build stops instead of printing a
+             stale number.  Typing the count by hand is exactly how the
+             text came to say 13.
+
+             Still 8 pages.
+
+ FIGURE 1(a) STILL DISAGREES WITH 1(b), and I cannot fix it -- it is your
+             Illustrator drawing in docs/figures/dqd_model.png, kept where
+             no generator can overwrite it.  Panel (a) draws NINE
+             capacitors: d1g1, d1g2, d2g1, d2g2, d1d2, d1g3, s1d1, s1d2,
+             s1g3.  Five that panel (b) tabulates are not drawn: d1d1 and
+             d2d2 (the dot self-capacitances to ground), d2g3, s1g1 and
+             s1g2.  9 + 5 = 14, which is the same count from the other
+             side -- but a referee who counts (a) against the new sentence
+             will find nine where the text says fourteen.
+
+ 2026-09-21  A NUMBER IN THIS PART WAS WRONG.  S1 P5 said a device is a
+             point in a "13-dimensional box".  It is 14.  The capacitance
+             draw has 14 independent entries -- Cdd 3, Cgd 6, Cds 2,
+             Cgs 3 -- and device_split.VECTOR_KEYS lists all 14, which is
+             also why the separation sentence two paragraphs later already
+             said "14-dimensional normalised parameter space".  The part
+             contradicted itself and I did not notice when I wrote it.
+
+             Found while generating docs/codebase/codebase.pdf, which
+             counts the entries instead of quoting them.
+
+             FIXED in three places, and the manuscript now reads the count
+             from the run rather than carrying it as a typed number:
+               programs/make_method_docs.py  -> %d, from
+                                                f["separation"]["dimensions"]
+               src/csdrecon/config/capacitance_config.py  comment
+               src/csdrecon/simulation/device_factory.py  docstring
+             Rebuilt and re-exported; the PDF now reads "14-dimensional
+             box".  Still 8 pages, Table I unchanged -- the table always
+             listed 14 rows, which is the other place this was visible.
+
+ 2026-09-21  NO MORE CAPITALS, AND THE TONE MADE FORMAL.  Both in
+             programs/make_method_docs.py, so they survive a rebuild.
+
+             CAPITALS: you were right, and there were 17 of them, not
+             one.  Emphasis had been set as ALL CAPS in running prose --
+             CHARGE STABILITY DIAGRAM, SLOPE, ANTICROSSING, THRESHOLD,
+             TOLERANCE, VALIDATION, DISTINCT, TRAINING, MORE RAYS, NO
+             DRAW IS FILTERED..., THE THING THAT IS SPLIT..., and NOT
+             used for emphasis in three places.  All are now ordinary
+             sentence case.  I re-scanned every rendered PDF for runs of
+             capitals afterwards: none left outside CSD and JJAP.
+
+             TONE: 24 passages rewritten from spoken register into
+             academic register.  What went:
+               "locating them is what tuning means in practice"
+                 -> "locating them is the objective of tuning"
+               "The appeal is that a ray is cheap"
+                 -> "The advantage is that a ray is inexpensive to
+                    acquire"
+               "reported rather than buried" -> "stated explicitly"
+               "nothing enforces it: the capacitances are drawn and
+                whatever they produce is kept"
+                 -> "the condition is not enforced: the capacitances are
+                    drawn without rejection"
+               "which is what makes pixel accuracy useless as a score"
+                 -> "which renders pixel accuracy uninformative"
+               "that is measured rather than asserted"
+                 -> "this is verified quantitatively"
+               "the quantity an experiment pays for"
+                 -> "which determines the acquisition time"
+               "Comparing them pixel for pixel is brutal ... for a result
+                any physicist would call correct"
+                 -> "is unduly strict ... although the reconstruction is
+                    physically correct"
+               "is satisfied by a blanket of positives; Dice penalises
+                the spread"
+                 -> "can be satisfied by an indiscriminate positive
+                    prediction; the Dice term penalises such a
+                    prediction"
+               "One-pixel-wide lines are punished hard by IoU and it is
+                reported rather than hidden"
+                 -> "IoU penalises one-pixel-wide structures severely;
+                    it is reported here for completeness"
+               "Pixel accuracy is included only so that it can be
+                dismissed" -> "only to show why it is not used"
+             plus the smaller ones: "decide what the honeycomb looks
+             like", "lands somewhere unusual", "is what lets", "the
+             study depends on", "matters far less than", "this is a
+             limitation and is stated as one", "which is the relevant
+             yardstick", "so a device's data always lands on one side",
+             "this is the reason the problem is not trivial", "a run can
+             end on a high loss and still have saved a good model", and
+             two sentences that opened with a numeral.
+
+             No number, claim, caveat or figure reference changed.  The
+             documents are the same length to within a line.
+
+ 2026-09-22  TWO CUTS, BOTH IN make_method_docs.py.
+
+             1. The abstract now stops at "... 2 x 2 mV gate-voltage
+                window."  Deleted:
+                  "The simulation is noise-free. Devices are split by
+                   device identity, not by image, so no device
+                   contributes to both sets."
+                Neither fact is lost from the part: the noise-free
+                simulation is still stated in S1 ("the simulations are
+                noise-free ... the Coulomb peak width is"), and the split
+                by device identity is still in S3 and in Table II, which
+                gives it a row of its own.
+
+             2. "locus" and "minimiser" are gone from S1 P1.  It read
+                  "... minimises the electrostatic energy at the applied
+                   gate voltages, and a transition line in the stability
+                   diagram is a locus where that minimiser changes."
+                and now reads
+                  "... minimises the electrostatic energy at the applied
+                   gate voltages. A transition line in the stability
+                   diagram marks the gate voltages at which that
+                   occupation changes from one integer configuration to
+                   the next."
+                Same statement, in plain words, and split into two
+                sentences because the first had grown too long to carry
+                the definition at its end.  Neither word appears anywhere
+                else in this part.
+
+             3_1_Device_simulation_and_dataset.pdf is still 8 pages.
+
+ 2026-09-22  THREE PARAGRAPHS OF INDEX BOOKKEEPING DELETED FROM S1.
+             In make_method_docs.py.
+
+             Gone:
+               P3  "Every symbol is written with its subscripts in one
+                    order ... the code keeps QArray's keys so that a
+                    reader of the repository meets the library's own
+                    names."
+               P4  "Cdd is symmetric ... 3 for Cdd, 6 for Cdg, 2 for
+                    Csd, 3 for Csg."
+               P5  "The same 14 can be counted off Figure 1(a) ...
+                    nothing else about it is chosen."
+
+             S1 now runs: the model and what a transition line is; the
+             four matrices; the three capacitances that set the
+             honeycomb geometry; the slope condition; how a device is
+             drawn.  The section is 9 paragraphs, and the part is 7
+             pages rather than 8.
+
+             One sentence needed a word: P6 opened "Three of these
+             entries determine the geometry of the honeycomb", and
+             "these entries" pointed at the counting paragraph that is
+             now gone.  It reads "Three of these capacitances" and
+             points at the four matrices above it.
+
+             The counts are NOT lost -- they are in Fig. 1's caption,
+             where that level of detail belongs: "every coupling between
+             them drawn - 12 in all ... A device is one uniform draw of
+             the 14 free parameters of Table I."  Both numbers are still
+             computed from the model rather than typed.  "a point in a
+             14-dimensional box" also survives in S1, and Table I's
+             caption still says it.
+
+ 2026-09-22  YOUR S1, SET WORD FOR WORD, WITH REAL SUBSCRIPTS.  In
+             make_method_docs.py.
+
+             S1 now opens with your two blocks: the model and the four
+             matrices as a list of four items, then the reciprocity
+             argument, the count off the circuit as a list of three, and
+             the sentence about the draw.  The three paragraphs deleted
+             an hour earlier are back in your wording, which is what they
+             replace.
+
+             SUBSCRIPTS.  The generator could not write one until now --
+             it wrote c_d1g1 flat.  It now takes C_{dd}, c_{d1g1},
+             R^{2x2} in the source and sets a real Word subscript or
+             superscript, in body text, in captions and in table cells.
+             So the WHOLE part is converted, not only your paragraphs:
+             the slope paragraph, Fig. 1's caption, Table I's Matrix
+             column and Table II's note all now read C_dd and c_d1g1 with
+             the indices set down.  Leaving half the section in the flat
+             form would have been worse than either.
+
+             NUMBERS.  Still read from the run, not typed: 15 entries, 14
+             independent, three/six/two/three per matrix, nine branches,
+             three more, twelve drawn, 14-dimensional.  Your text and the
+             model agree on every one.
+
+             THREE THINGS TO DECIDE:
+
+             1. You write "Fig. 1(a)" in the new text.  The rest of the
+                manuscript writes "Figure 1(a)" in running text and keeps
+                "Fig. 1." for the caption label, which is what the JJAP
+                template does.  Both now appear in this one section --
+                "Fig. 1(b)" in your paragraph and "Figure 2" four
+                paragraphs later.  Tell me which and I will make the
+                whole manuscript match.
+
+             2. The blackboard R of R^{2x2} is not in Times New Roman, so
+                Word substitutes a font for that one character; you can
+                see it is a slightly different face in the PDF.  If that
+                bothers you the usual alternatives are an italic R or
+                simply "a 2 x 2 matrix".
+
+             3. Your closing sentence, "Each device realisation
+                corresponds to a single draw of this 14-dimensional
+                parameter vector from uniform distributions over the
+                ranges listed in Table I", now sits three paragraphs
+                above "Every entry is drawn independently and uniformly
+                from the intervals of Table I, so a device is a point in
+                a 14-dimensional box ...".  They say the same thing
+                twice.  I left both, since you did not ask me to cut the
+                second; the part it adds is "No draw is filtered,
+                inspected or redrawn", which is worth keeping in some
+                form.
+
+             The part is 8 pages again.
+
+ 2026-09-22  FIG. 1'S CAPTION CUT BACK.  In make_method_docs.py.
+
+             Deleted from it:
+               "with every coupling between them drawn - 12 in all. The
+                self-capacitances c_d1d1 and c_d2d2 are couplings to
+                ground rather than between two of these objects and are
+                not drawn; they appear in (b). The semicircular hop marks
+                two wires that cross without touching."
+
+             It now reads:
+               "Fig. 1. The constant-capacitance model of the simulated
+                device. (a) The capacitor network: two quantum dots QD1
+                and QD2, a sensor dot QDs, and three gates. (b) The four
+                capacitance matrices that define a device. A device is
+                one uniform draw of the 14 free parameters of Table I."
+
+             Two of the three facts survive in S1, in your own wording --
+             "so twelve branches are drawn in total" and "the two
+             remaining parameters ... are the capacitances of the dots to
+             ground and are omitted from the drawing" -- so the caption
+             was repeating the text.
+
+             ONE IS NOW EXPLAINED NOWHERE: the semicircular hop in panel
+             (a), which marks two wires crossing without touching.  It is
+             a drawing convention, not a fact about the device, and a
+             reader who does not know it will read the crossing as a
+             junction.  Say the word and I will put that one sentence
+             back, or leave it out on purpose.
+
+             The part is still 8 pages.
+
+ 2026-09-22  FIGURE 2 REBUILT, AND ITS CAPTION.  The figure in
+             programs/make_figures.py, the caption and the paragraph
+             above it in programs/make_method_docs.py.
+
+             THE DEVICE WAS THE PROBLEM, not the colour map.  The old
+             panel showed sample_157, the device every other figure
+             follows, whose sensor response sits almost entirely in one
+             corner: median 0.011 of full scale, 98th percentile 0.38.
+             On a linear scale that is a black sheet with a bright
+             corner, and no amount of recolouring fixes it.
+
+             The figure you sent is the third device of the held-out
+             split, sample_10.  Figure 2 is now drawn on that device,
+             exactly as you drew it: the raw signal in the simulator's
+             own units (5.5 to 7.2 e-05, not rescaled to 0-1), the hot
+             map, a linear scale, and the colour bar labelled "charge
+             sensor signal z".  The honeycomb is legible with no
+             stretching at all.
+
+             THREE PANELS now:
+               (a) charge sensor output      -- your panel
+               (b) background subtracted     -- the transitions
+               (c) transition lines          -- the binary map the
+                                                simulator returns
+             (c) is the one you asked for, and the caption says what it
+             is worth: "exact by construction, and the target the network
+             is trained to predict".
+
+             The bright frame that used to ring panel (b) is gone: it was
+             the finite difference running off the edge of the array, and
+             the outer two pixels are now trimmed.
+
+             THE CAPTION says nothing about cross-talk.  Nor does the
+             paragraph above it any more -- it said "a large, smooth
+             gate-to-sensor cross-talk background" and now says "a large,
+             smooth background".  It also points at the panels by letter
+             and names (c).
+
+             ONE THING TO DECIDE.  Figure 2 is now the only figure on
+             sample_10; Figure 4 and the probability panels still follow
+             sample_157, whose sensor panel is the black one you objected
+             to.  A reader meets a legible sensor map in Figure 2 and a
+             black one two figures later.  I did not move the others,
+             because sample_157 is the device the reported per-device
+             score belongs to.  Say the word and I will either redraw
+             Figure 4's sensor panel on the same stretched scale, or move
+             the whole story to sample_10 and re-read the per-device
+             number from the run.
+
+ 2026-09-23  TABLE II DELETED.  In make_method_docs.py.
+
+             You are right that Figure 3 carries the split: 550 generated,
+             500 training, 50 held out, 425 fitting the weights, 75
+             validation -- every count in the first five rows of the table
+             is in the bar.
+
+             Two rows were NOT anywhere else, so rather than lose them I
+             put them in the sentence that already carries the separation
+             numbers.  It now ends:
+               "... which is the relevant comparison. The mean distance
+                from a held-out device to its nearest training device is
+                0.781, and no device appears in both sets, which is
+                checked by identity and by hash."
+             Both numbers are still read from the run.
+
+             The rest of the table repeated the prose: the seed, the
+             14 dimensions, the two minimum distances and "intervals
+             identical for both sets" are all in the paragraphs above it.
+
+             Table I's caption ended "...not by parameter range (Table
+             II)" and now ends "...not by parameter range".  There is one
+             table in the manuscript now, so the numbering is Table I
+             alone.
+
+ 2026-09-23  FIG. 2's PANEL (b) ENLARGED, AND THE DOCUMENT POINTS AT IT.
+             The matrices printed at a third the height of the circuit and
+             the subscripts were unreadable at column width.
+
+             The drawing is TikZ, so the change is in the source, not in
+             the PNG:
+               docs/figures/dqd_model_full_bigb_v2.tex
+             a copy of dqd_model_full.tex with the matrix block wrapped in
+             \scalebox{1.55} and re-anchored west on the vertical centre
+             of (a) instead of hung from its top.  Panel (a) is untouched,
+             and dqd_model_full.tex/.png are untouched.
+
+             Built with pdflatex, exported at 600 dpi with pdftoppm:
+               docs/figures/dqd_model_full_bigb_v2.pdf / .png   7884 x 3592
+             and copied into this part's figures/ like the other hand-drawn
+             figures.
+
+             Registered in programs/_figures.py (LAYOUT and STATIC) and the
+             parts() list in programs/make_method_docs.py now names
+             dqd_model_full_bigb_v2.png for Fig. 2.  Caption unchanged.
+             Rebuilt: the .docx and the .pdf.  Fig. 2 is on page 5.
+
+             A FIRST TRY AT 2.0 IS ALSO ON DISK, as dqd_model_full_bigb.*
+             -- you asked for it smaller and 1.55 is what the document
+             uses.  Say the word and I will delete the 2.0 files.
+
+ 2026-09-23  S1 CUT BACK AND REORDERED, AND FIG. 3(b) CHANGED.  Four
+             things, all in the generators, so they survive a rebuild.
+
+             1. The self-capacitance sentence.  It read "are the
+                capacitances of the dots to ground and are omitted from the
+                drawing" and now reads "are self-capacitances and are not
+                shown in the drawing, for simplicity".
+
+             2. Two paragraphs deleted, as you asked: the one beginning
+                "Three of these capacitances determine the geometry of the
+                honeycomb" and the one after it, with max(cross) <
+                min(primary) and "0.60 < 0.80".  Nothing else referred to
+                them.  WHAT THAT COSTS: the slope formulas
+                -c_d1g1/c_d1g2 and the condition that keeps the two line
+                families distinguishable are now nowhere in the manuscript.
+                Say the word and I will put the condition back as a clause
+                in Table I's caption.
+
+             3. The two bulleted lists are gone and S1 now runs as two
+                paragraphs, the circuit BEFORE the matrices: first the
+                branch count off Fig. 2(a) ending "a device is specified by
+                14 capacitances in all", then the four matrices of
+                Fig. 2(b) in one paragraph, ending with the symmetry
+                argument and the 15-entries/14-parameters count.  Every
+                number in both is still computed from _FREE and _DRAWN, not
+                typed in.
+
+             4. FIG. 3(b) IS NOW THE DIFFERENTIAL SENSOR OUTPUT.  In
+                make_figures.py it was the diagonal derivative with a
+                Gaussian high-pass taken off it; the high-pass is gone and
+                the panel is the derivative itself, dz/dV1 + dz/dV2, which
+                is what a lock-in returns.  Title and caption follow.
+
+                THE INCONVENIENT PART.  The differential is NOT cleaner
+                than what it replaced.  The high-pass flattened the slow
+                corner-to-corner background; the plain derivative keeps it,
+                so in the top-right of the panel the transition lines are
+                faint against a red background, while the bottom-left is
+                as strong as before.  Compared side by side at 600 dpi the
+                old panel showed the honeycomb more evenly.  It is your
+                call: the derivative is a measurable and the high-pass is a
+                processing step, which is the argument for the change, but
+                the caption's "stand out far more clearly than in the raw
+                signal" is true of (a), not of the old (b).
+
+             Rebuilt: panel_charge_sensor.png (and its big-(b) variant,
+             which shares the code), the .docx and the .pdf.
+
+ (nothing yet)
+
+
+======================================================================
+ HOW THIS PART IS BUILT
+======================================================================
+
+ The document is generated, so a request is applied by editing the
+ generator and rebuilding -- that way it survives the next rebuild:
+
+   wording, a section, the abstract   programs/make_method_docs.py
+   which figures this part carries    the parts() list in the same file
+   a figure itself                    programs/make_figures.py
+                                      (or make_tau_grids.py,
+                                       make_threshold_figure.py)
+   fonts, spacing, margins            the format block in
+                                      make_method_docs.py
+   the cover letter's look            templates/cover_letter-RP.docx
+
+   python paper_figures/programs/make_method_docs.py    the .docx
+   python paper_figures/programs/make_pdfs.py           the .pdf
+
+ IF YOU EDIT THE WORD FILE YOURSELF -- that is safe.  Every document is
+ fingerprinted when it is written, so a rebuild can tell you changed it:
+
+   * a document you edited is NEVER overwritten;
+   * the new machine-made version is written beside it as
+     3_1_Device_simulation_and_dataset_rebuilt.docx, and the run says so;
+   * the copy any replaced document had before goes to backups/ with a
+     timestamp, and the last ten are kept;
+   * make_pdfs.py exports whatever .docx is on disk, so the PDF matches
+     the Word file, hand-edited or not.
+
+ What that does NOT do is put your edit back into the generator.  So if
+ an edit should become the way the document is built, say so above in
+ one line -- "keep my S1 P2 rewrite" -- and it will be moved into
+ make_method_docs.py.
+
+
+======================================================================
+ 3.2.  RAY-BASED MEASUREMENT AND NETWORK INPUT
+ Document:  3_2_Ray_based_measurement.docx  /  3_2_Ray_based_measurement.pdf
+======================================================================
+
+[INVENTORY -- regenerated, do not write in this block]
+
+ SECTIONS
+  1. 1. The ray fan  -- 9 paragraphs
+  2. 2. Encoding the measurement  -- 3 paragraphs
+
+ FIGURES
+  1. fig_ray_fan.png
+     The ray fan and the traces it returns, for one held-out device,
+     drawn at 4 rays so that the individual rays can be told apart;
+     the headline budget uses eight. (a) The rays over the
+     charge-sensor map, coloured by angle, with the peaks the
+     detector finds marked by crosses. (b) The same 50-point traces
+     against normalised distance along each ray, 0 at the emitting
+     corner and 1 where the ray leaves the window. Over the whole
+     fan, 3 of the 200 measured points fall on a transition-line
+     pixel while the detector reports 15 peaks; the peaks are not
+     given to the network.
+  2. fig_measurement_panel.png
+     The measurement, for one held-out device. Left: the
+     charge-sensor map. Centre: the ground-truth transition lines.
+     Right: what the network is shown at 8 rays x 50 points, which is
+     3.9 % of the grid.
+  3. fig_network_input.png
+     The two input channels side by side. Channel 2 is what makes a
+     zero in channel 1 unambiguous.
+
+[END INVENTORY]
+
+
+======================================================================
+ YOU WRITE  --  anything below this line is read
+======================================================================
+
+ Point at something:   S2 P3   section 2, paragraph 3
+                       FIG 4   figure 4 of this part
+                       TABLE I / ABSTRACT / TITLE
+                       FORMAT  font, spacing, margins, captions
+ Or just say it in prose -- "the third paragraph is too long" is enough.
+
+ One request per line, starting with a dash.  Nothing here is ever
+ deleted or overwritten by a rebuild.
+
+-
+-
+-
+
+
+======================================================================
+ THE REPLY  --  what was actually changed, and where
+======================================================================
+
+ 2026-09-21  NO MORE CAPITALS, AND THE TONE MADE FORMAL.  Both in
+             programs/make_method_docs.py, so they survive a rebuild.
+
+             CAPITALS: you were right, and there were 17 of them, not
+             one.  Emphasis had been set as ALL CAPS in running prose --
+             CHARGE STABILITY DIAGRAM, SLOPE, ANTICROSSING, THRESHOLD,
+             TOLERANCE, VALIDATION, DISTINCT, TRAINING, MORE RAYS, NO
+             DRAW IS FILTERED..., THE THING THAT IS SPLIT..., and NOT
+             used for emphasis in three places.  All are now ordinary
+             sentence case.  I re-scanned every rendered PDF for runs of
+             capitals afterwards: none left outside CSD and JJAP.
+
+             TONE: 24 passages rewritten from spoken register into
+             academic register.  What went:
+               "locating them is what tuning means in practice"
+                 -> "locating them is the objective of tuning"
+               "The appeal is that a ray is cheap"
+                 -> "The advantage is that a ray is inexpensive to
+                    acquire"
+               "reported rather than buried" -> "stated explicitly"
+               "nothing enforces it: the capacitances are drawn and
+                whatever they produce is kept"
+                 -> "the condition is not enforced: the capacitances are
+                    drawn without rejection"
+               "which is what makes pixel accuracy useless as a score"
+                 -> "which renders pixel accuracy uninformative"
+               "that is measured rather than asserted"
+                 -> "this is verified quantitatively"
+               "the quantity an experiment pays for"
+                 -> "which determines the acquisition time"
+               "Comparing them pixel for pixel is brutal ... for a result
+                any physicist would call correct"
+                 -> "is unduly strict ... although the reconstruction is
+                    physically correct"
+               "is satisfied by a blanket of positives; Dice penalises
+                the spread"
+                 -> "can be satisfied by an indiscriminate positive
+                    prediction; the Dice term penalises such a
+                    prediction"
+               "One-pixel-wide lines are punished hard by IoU and it is
+                reported rather than hidden"
+                 -> "IoU penalises one-pixel-wide structures severely;
+                    it is reported here for completeness"
+               "Pixel accuracy is included only so that it can be
+                dismissed" -> "only to show why it is not used"
+             plus the smaller ones: "decide what the honeycomb looks
+             like", "lands somewhere unusual", "is what lets", "the
+             study depends on", "matters far less than", "this is a
+             limitation and is stated as one", "which is the relevant
+             yardstick", "so a device's data always lands on one side",
+             "this is the reason the problem is not trivial", "a run can
+             end on a high loss and still have saved a good model", and
+             two sentences that opened with a numeral.
+
+             No number, claim, caveat or figure reference changed.  The
+             documents are the same length to within a line.
+
+ 2026-09-22  THE TWO SINGLE-CHANNEL FIGURES DELETED.  In
+             make_method_docs.py.
+
+             You were right: the old Fig. 5 (channel 1 alone) and Fig. 6
+             (the visited mask alone) are both inside the old Fig. 7,
+             which shows them side by side and is the one the argument
+             needs -- the point is the PAIR, not either channel.
+
+             This part now carries two figures:
+               Fig. 4   the measurement, for one held-out device
+               Fig. 5   the two input channels side by side
+             and the part is 4 pages rather than 6.
+
+             One sentence had to change with them.  It read "Figures 2
+             and 3 show the two channels for the same device" and now
+             reads "Figure 2 shows the two channels for the same device".
+             That sentence was also the one cross-reference in the whole
+             manuscript that was never being set in bold or renumbered:
+             the plural "Figures" does not match the reference pattern,
+             which expects "Figure 2".  It is the only plural of its kind
+             and it is now gone, but if you ever write "Figures 4 and 5"
+             it will pass through unset -- tell me and I will teach the
+             pattern the plural form.
+
+             THE WHOLE MANUSCRIPT RENUMBERED ITSELF, as it is meant to:
+               3.1  Fig. 1-3     Table I-II
+               3.2  Fig. 4-5
+               3.3  Fig. 6-7
+               3.4  Fig. 8-18
+               4    Fig. 19-20
+             20 figures, down from 22.  Every reference in the text
+             followed -- 3.4 now says Figure 8, 12, 13, 17, 18 where it
+             said 10, 14, 15, 19, 20 -- because no figure number in this
+             manuscript is typed anywhere.
+
+             The image files themselves are untouched: panel_channel1.png
+             and panel_channel2.png are still written by make_figures.py
+             and still in this folder, so putting either back is a
+             one-line change.
+
+ 2026-09-23  YOUR TWO PARAGRAPHS, AND A NEW FIGURE 4.
+
+             THE TEXT, word for word, in make_method_docs.py:
+               * the part abstract is yours ("This section specifies the
+                 sparse acquisition scheme ...");
+               * S1 opens with your ray-fan definition, the formula for
+                 theta_k as a displayed equation, and the sentence about
+                 the open interval;
+               * your second paragraph ("A ray is a single voltage sweep
+                 ...") follows it.
+             The generator could not set a displayed equation before; a
+             paragraph now beginning with "$$" is centred and unindented,
+             and the subscript markup added for 3.1 sets n_rays,
+             V_1^max, theta_k and d_k properly.
+
+             THE FORMULA WAS CHECKED AGAINST THE CODE, not taken on
+             trust.  ray_peaks.fan_angles is np.linspace(0, 90,
+             n_rays + 2)[1:-1], which is theta_k = 90 k / (n_rays + 1);
+             ray_peaks.ray_polyline starts at (max Vx, max Vy) and heads
+             in (-cos t, -sin t).  Your formula and your corner are the
+             code's.  The set {10, 20, 30, ..., 80} in the text is read
+             from fan_angles, not typed.
+
+             THE FIGURE is new, Fig. 4, and it is drawn from the
+             pipeline, not re-implemented:
+               (a) the fan, from ray_peaks.fan_angles and
+                   ray_peaks.ray_polyline -- the same two calls
+                   measure() makes -- over the transition lines of
+                   sample_10, the device Figure 2 of 3.1 now uses;
+               (b) one ray's trace, which is Measurement.traces[k]
+                   straight out of ray_peaks.measure, with the peaks
+                   scipy find_peaks returns on it.
+
+             I OWE YOU A CORRECTION HERE.  My first version of panel (b)
+             did not use ray_peaks.measure: it sampled the grid along the
+             polyline itself and subtracted a smooth trend, which is not
+             what the pipeline does and is not what the network is given.
+             You were right to call it.  It is now the measurement.
+
+             AND THE INCONVENIENT NUMBER, which that change exposed and
+             which is now in the caption: over the whole fan, 14 of the
+             400 measured points fall on a transition-line pixel, while
+             the detector reports 29 peaks.  The peak finder is not
+             picking out transitions one for one on this device, and
+             along the first two thirds of the ray the sensor is flat
+             enough that a crossing leaves almost no feature at all.
+             Your sentence "each crossing appears as a localised peak in
+             the sensor trace" is therefore optimistic as written.  It
+             does not damage the method -- the peaks are not given to the
+             network, S1 says so, and the network is given the raw
+             signal -- but a referee looking at Fig. 4(b) will see it.
+             The counts are written by the figure into
+             figures/ray_fan_counts.json and read from there, so the
+             caption cannot drift from the picture.
+
+             The two figure references in this part moved on by one:
+             Figure 1 -> Figure 2 (the measurement panel), Figure 2 ->
+             Figure 3 (the two channels).  This part is 5 pages.
+
+ 2026-09-23  FIGURE 4 REDRAWN IN THE RBC PROJECT'S OWN STYLE.
+             In programs/make_figures.py.
+
+             You were right that the plot already existed.  It is in
+             I:/trash/static_RBC_test_noise_3_21/src/dqd/visualization/
+             plotter.py:
+               plot_current_vs_distance   current against NORMALISED
+                                          distance, 0 to 1, one line per
+                                          ray, viridis by angle, angle
+                                          legend, dashed grid
+               plot_rays_with_peaks       the map in hot, the rays over
+                                          it, find_peaks marked
+               plot_each_ray_separately   one ray, peaks marked
+             Figure 4 is now those two, side by side, in those
+             conventions.  My previous version plotted distance in mV and
+             showed one ray; normalised distance and all eight is the
+             house style and is the better figure.
+
+             What is PLOTTED is still this repository's measurement, not
+             the old project's: the traces are Measurement.traces out of
+             ray_peaks.measure and the crosses are scipy find_peaks on
+             them.  The two agree by construction -- ray_processor.run
+             does nearest-cell lookup along the polyline and
+             ray_peaks._sample_nearest says so in its docstring -- but
+             the numbers in this paper come from this repository.
+
+             The caption follows the panels and still carries the
+             inconvenient count: 14 of 400 measured points land on a
+             transition-line pixel, 29 peaks reported.
+
+ 2026-09-23  FIGURE 4 DRAWN AT FOUR RAYS.  make_figures.py FAN_RAYS,
+             which is the one place the number lives.
+
+             Four rays at this size are four rays; eight leaving one
+             corner within 80 degrees of each other are a fan of touching
+             strokes.  The scheme is what the figure has to show, and it
+             does not change with n_rays.
+
+             THE TEXT FOLLOWED, and is read back from the figure's own
+             sidecar rather than typed.  The angle sentence now gives
+             both:
+               "For n_rays = 4 this gives theta in {18, 36, 54, 72}, and
+                for the headline budget of 8 rays, theta in {10, 20, 30,
+                ..., 80}."
+             The caption says outright that it is drawn at 4 rays so the
+             rays can be told apart and that the headline budget uses
+             eight, so no reader takes the picture for the budget the
+             results come from.  The counts moved with it: 3 of the 200
+             measured points land on a transition-line pixel and the
+             detector reports 15 peaks, against 14 of 400 and 29 at eight
+             rays.  Both sets come from the same count in the figure.
+
+             Nothing else changed: the abstract still quotes the headline
+             8 x 50 and 3.88 %, and S1's nearest-cell paragraph still
+             works the coverage out at 8 x 50 = 400.
+
+ 2026-09-23  YOUR WORD EDIT IS NOW THE WAY THIS PART IS BUILT.  You
+             deleted the measurement-panel figure, dropped the sentence
+             that pointed at it, and moved the last pointer from Figure 7
+             to Figure 6.  I diffed your .docx against the copy the
+             generator had last written and moved exactly that into
+             programs/make_method_docs.py:
+
+               * fig_measurement_panel.png removed from the part's figure
+                 list -- the figure is still generated by make_figures.py
+                 and still filed in P2, it is simply not carried here;
+               * "Figure ... shows the charge sensor, the ground truth and
+                 what the measurement actually sees" deleted;
+               * the channels pointer renumbered.  The numbers in the
+                 source are LOCAL; renumber() gives the printed ones, so
+                 nothing downstream had to be touched by hand.
+               * Fig. 5's caption set to your wording: "The ray
+                 measurements", "one simulated device", and without the
+                 "headline budget uses eight" aside and the closing
+                 sentence with the on-line and peak counts.
+
+             The rebuild then matched your document WORD FOR WORD (checked
+             paragraph by paragraph), so it was adopted as the file and
+             fingerprinted; your own copy is in backups/ as
+             3_2_Ray_based_measurement_20260923_083958.docx.  The guard no
+             longer flags this part.
+
+             The whole manuscript renumbered, because there is one figure
+             fewer: Fig. 1-20 now instead of 1-21.  Checked in the exported
+             PDFs -- every caption and every "Figure n" in the running text
+             of all six parts agrees.  3.3 is Fig. 7, 3.4 is Fig. 8-18,
+             Results is Fig. 19-20.  All .docx and .pdf rebuilt.
+
+             ONE THING I DID NOT CHANGE.  Your caption reads "...can be
+             told apart (a) The rays over..." with no full stop before the
+             (a); it was there before the aside you cut.  Say the word and
+             I will put the stop back.
+
+ 2026-09-25  YOUR TWO PARAGRAPHS, WORD FOR WORD (given in chat).  In
+             programs/make_method_docs.py, part 3_2:
+
+               * the section's opening paragraph ("In this section, we
+                 describe ...") replaces the old "This section specifies
+                 ..." paragraph;
+               * the second paragraph ("Each ray corresponds to ...")
+                 replaces S1 P4, the old "A ray is a single voltage sweep
+                 ... fair baseline for adaptive schemes" paragraph, in the
+                 same place.
+
+             Every number is still read from the run, not typed: 8, 50
+             and 3.88 % from the headline row; "4, 5, 6, 7, and 8" and
+             "40, 50, or 60" from the swept budgets; 15 = 5 x 3; 550 /
+             500 / 50 from the run config.  All agree with what you wrote.
+             .docx and .pdf rebuilt, the rendered page checked.
+
+             Three things to look at; I changed none of them:
+
+               * S1 P3 ("the endpoints are excluded because an axis-aligned
+                 ray runs along the window boundary ...") and your new
+                 sentence ("We restrict all ray angles to the open interval
+                 (0°, 90°) ...") now say the same thing two paragraphs
+                 apart.  One of them can go.
+               * "500 serve for training": 75 of those 500 are the
+                 validation split, so the weights are fitted on 425
+                 (section 3.1 says so).  Not wrong, but a referee
+                 reading both sections may ask.
+               * The old paragraph's two physics points went with it:
+                 a ray crosses lines transversally, so each crossing
+                 shows up as a peak in the trace, and axis-aligned cuts
+                 run nearly parallel to one family of lines.  If you
+                 want either back, say so.
+
+             5_Conclusions is still your hand-edited copy; the rebuild is
+             beside it as 5_Conclusions_rebuilt.docx, as before.
+
+ 2026-09-25  THE 8-RAY MENTIONS CUT, AND A POINTER AT THE 4-RAY ANGLES
+             (asked in chat).  In programs/make_method_docs.py, part 3_2:
+
+               * ABSTRACT: "For the reference budget of 8 rays with 50
+                 points each, this scheme samples 3.88 % of the voltage
+                 plane." deleted.
+               * S1 P3: ", and for the headline budget of 8 rays,
+                 θ ∈ {10°, ..., 80°}" deleted; the sentence now ends
+                 "θ ∈ {18°, 36°, 54°, 72°} (Figure 5)."
+
+             .docx and .pdf rebuilt, page 1 checked.
+
+             Still there, not touched:
+               * S1 P5 "Figure 5 shows the fan over one device, and the
+                 traces the rays return." now follows a sentence that
+                 already points at Figure 5.  Cut it, or keep it for the
+                 traces (panel b)?
+               * The nearest-cell paragraph still works the coverage out
+                 at 8 x 50 = 400 measurements -> 3.88 %.  This is now the
+                 only place in 3.2 that gives the reference budget.
+
+ (nothing yet)
+
+
+======================================================================
+ HOW THIS PART IS BUILT
+======================================================================
+
+ The document is generated, so a request is applied by editing the
+ generator and rebuilding -- that way it survives the next rebuild:
+
+   wording, a section, the abstract   programs/make_method_docs.py
+   which figures this part carries    the parts() list in the same file
+   a figure itself                    programs/make_figures.py
+                                      (or make_tau_grids.py,
+                                       make_threshold_figure.py)
+   fonts, spacing, margins            the format block in
+                                      make_method_docs.py
+   the cover letter's look            templates/cover_letter-RP.docx
+
+   python paper_figures/programs/make_method_docs.py    the .docx
+   python paper_figures/programs/make_pdfs.py           the .pdf
+
+ IF YOU EDIT THE WORD FILE YOURSELF -- that is safe.  Every document is
+ fingerprinted when it is written, so a rebuild can tell you changed it:
+
+   * a document you edited is NEVER overwritten;
+   * the new machine-made version is written beside it as
+     3_2_Ray_based_measurement_rebuilt.docx, and the run says so;
+   * the copy any replaced document had before goes to backups/ with a
+     timestamp, and the last ten are kept;
+   * make_pdfs.py exports whatever .docx is on disk, so the PDF matches
+     the Word file, hand-edited or not.
+
+ What that does NOT do is put your edit back into the generator.  So if
+ an edit should become the way the document is built, say so above in
+ one line -- "keep my S1 P2 rewrite" -- and it will be moved into
+ make_method_docs.py.
+
+
+======================================================================
+ 3.3.  NETWORK ARCHITECTURE AND TRAINING
+ Document:  3_3_Network_and_training.docx  /  3_3_Network_and_training.pdf
+======================================================================
+
+[INVENTORY -- regenerated, do not write in this block]
+
+ SECTIONS
+  1. 1. Architecture  -- 3 paragraphs
+  2. 2. Loss  -- 1 paragraph
+  3. 3. Optimisation  -- 2 paragraphs
+
+ FIGURES
+  1. fig_unet.png
+     The network. Two input channels, an encoder of widths 32/64/128
+     with 2x2 max pooling, a bottleneck of width 256, a mirrored
+     decoder with skip connections, and a 1x1 convolution to one
+     output channel.
+
+[END INVENTORY]
+
+
+======================================================================
+ YOU WRITE  --  anything below this line is read
+======================================================================
+
+ Point at something:   S2 P3   section 2, paragraph 3
+                       FIG 4   figure 4 of this part
+                       TABLE I / ABSTRACT / TITLE
+                       FORMAT  font, spacing, margins, captions
+ Or just say it in prose -- "the third paragraph is too long" is enough.
+
+ One request per line, starting with a dash.  Nothing here is ever
+ deleted or overwritten by a rebuild.
+
+-
+-
+-
+
+
+======================================================================
+ THE REPLY  --  what was actually changed, and where
+======================================================================
+
+ 2026-09-21  NO MORE CAPITALS, AND THE TONE MADE FORMAL.  Both in
+             programs/make_method_docs.py, so they survive a rebuild.
+
+             CAPITALS: you were right, and there were 17 of them, not
+             one.  Emphasis had been set as ALL CAPS in running prose --
+             CHARGE STABILITY DIAGRAM, SLOPE, ANTICROSSING, THRESHOLD,
+             TOLERANCE, VALIDATION, DISTINCT, TRAINING, MORE RAYS, NO
+             DRAW IS FILTERED..., THE THING THAT IS SPLIT..., and NOT
+             used for emphasis in three places.  All are now ordinary
+             sentence case.  I re-scanned every rendered PDF for runs of
+             capitals afterwards: none left outside CSD and JJAP.
+
+             TONE: 24 passages rewritten from spoken register into
+             academic register.  What went:
+               "locating them is what tuning means in practice"
+                 -> "locating them is the objective of tuning"
+               "The appeal is that a ray is cheap"
+                 -> "The advantage is that a ray is inexpensive to
+                    acquire"
+               "reported rather than buried" -> "stated explicitly"
+               "nothing enforces it: the capacitances are drawn and
+                whatever they produce is kept"
+                 -> "the condition is not enforced: the capacitances are
+                    drawn without rejection"
+               "which is what makes pixel accuracy useless as a score"
+                 -> "which renders pixel accuracy uninformative"
+               "that is measured rather than asserted"
+                 -> "this is verified quantitatively"
+               "the quantity an experiment pays for"
+                 -> "which determines the acquisition time"
+               "Comparing them pixel for pixel is brutal ... for a result
+                any physicist would call correct"
+                 -> "is unduly strict ... although the reconstruction is
+                    physically correct"
+               "is satisfied by a blanket of positives; Dice penalises
+                the spread"
+                 -> "can be satisfied by an indiscriminate positive
+                    prediction; the Dice term penalises such a
+                    prediction"
+               "One-pixel-wide lines are punished hard by IoU and it is
+                reported rather than hidden"
+                 -> "IoU penalises one-pixel-wide structures severely;
+                    it is reported here for completeness"
+               "Pixel accuracy is included only so that it can be
+                dismissed" -> "only to show why it is not used"
+             plus the smaller ones: "decide what the honeycomb looks
+             like", "lands somewhere unusual", "is what lets", "the
+             study depends on", "matters far less than", "this is a
+             limitation and is stated as one", "which is the relevant
+             yardstick", "so a device's data always lands on one side",
+             "this is the reason the problem is not trivial", "a run can
+             end on a high loss and still have saved a good model", and
+             two sentences that opened with a numeral.
+
+             No number, claim, caveat or figure reference changed.  The
+             documents are the same length to within a line.
+
+ 2026-09-23  FIGURE 8 DELETED (fig_model_flow).
+
+             It showed the two measured channels going into the U-Net and
+             one probability per pixel coming out, which is what the
+             architecture figure beside it already shows and what the
+             new Figure 1 of the introduction now shows at the level of
+             the whole method.
+
+             The sentence that named it changed with it: "Figure 1 is the
+             architecture and Figure 2 the whole flow, from the two
+             measured channels to the probability map" now reads "Figure
+             1 is the architecture, from the two measured channels to the
+             probability map."
+
+             This part carries one figure and is 3 pages.  fig_model_flow
+             is still written by make_figures.py and still in this
+             folder, so putting it back is a one-line change.
+
+ 2026-09-23  YOUR ABSTRACT AND YOUR S1, SET WORD FOR WORD.  Both are in
+             programs/make_method_docs.py, so they survive a rebuild.  S1 is
+             one paragraph now, as you wrote it; the old three paragraphs
+             and the old abstract are gone.
+
+             WHAT I DID NOT TYPE IN.  Every number in your text is still
+             read from the run rather than fixed in the prose: the widths
+             32/64/128 and the bottleneck 256 come from f["widths"], the
+             two tensor shapes and the pooling chain 100 -> 50 -> 25 -> 12
+             from f["res"], and 7.1 % from f["line_frac"] (7.142, printed
+             at one decimal).  If a width or the grid changes, the sentence
+             follows it.  Only "depth 3" is a literal, because your
+             sentence says it in words.
+
+             "Fig. 7" is written "Fig. 1" in the source -- the numbers
+             there are LOCAL and renumber() prints the manuscript's.  It
+             comes out as Fig. 7 in the PDF, checked.
+
+             THREE THINGS YOUR TEXT CHANGES BESIDE THE WORDING, all of them
+             left as you wrote them:
+
+               * the abstract no longer states the optimiser.  Adam, lr
+                 0.001, batch 16, 50 epochs, seed 0 are still in S3, so
+                 nothing is lost, but the abstract used to carry them.
+               * "7.1%" in your abstract, with no space.  S2 prints
+                 "7.1 %", with one, and so does the rest of the
+                 manuscript.  Say the word and I will make them agree.
+               * "Sec. 3.4" in your S1.  Everywhere else the running text
+                 writes "Section 3.4".  Same offer.
+
+             Rebuilt: the .docx and the .pdf.  Still three pages, and I
+             looked at page 1: the superscripts, y-hat and the arrows all
+             typeset.
+
+ (nothing yet)
+
+
+======================================================================
+ HOW THIS PART IS BUILT
+======================================================================
+
+ The document is generated, so a request is applied by editing the
+ generator and rebuilding -- that way it survives the next rebuild:
+
+   wording, a section, the abstract   programs/make_method_docs.py
+   which figures this part carries    the parts() list in the same file
+   a figure itself                    programs/make_figures.py
+                                      (or make_tau_grids.py,
+                                       make_threshold_figure.py)
+   fonts, spacing, margins            the format block in
+                                      make_method_docs.py
+   the cover letter's look            templates/cover_letter-RP.docx
+
+   python paper_figures/programs/make_method_docs.py    the .docx
+   python paper_figures/programs/make_pdfs.py           the .pdf
+
+ IF YOU EDIT THE WORD FILE YOURSELF -- that is safe.  Every document is
+ fingerprinted when it is written, so a rebuild can tell you changed it:
+
+   * a document you edited is NEVER overwritten;
+   * the new machine-made version is written beside it as
+     3_3_Network_and_training_rebuilt.docx, and the run says so;
+   * the copy any replaced document had before goes to backups/ with a
+     timestamp, and the last ten are kept;
+   * make_pdfs.py exports whatever .docx is on disk, so the PDF matches
+     the Word file, hand-edited or not.
+
+ What that does NOT do is put your edit back into the generator.  So if
+ an edit should become the way the document is built, say so above in
+ one line -- "keep my S1 P2 rewrite" -- and it will be moved into
+ make_method_docs.py.
+
+
+======================================================================
+ 3.4.  FROM PROBABILITY MAP TO TRANSITION LINES: THRESHOLD AND TOLERANCE
+ Document:  3_4_Threshold_and_tolerance.docx  /  3_4_Threshold_and_tolerance.pdf
+======================================================================
+
+[INVENTORY -- regenerated, do not write in this block]
+
+ SECTIONS
+  1. 1. Binarising the output: the threshold  -- 3 paragraphs
+  2. 2. Scoring the output: the tolerance  -- 3 paragraphs
+  3. 3. Reporting  -- 2 paragraphs
+
+ FIGURES
+  1. threshold_validation.png
+     Choosing the threshold. Mean F1 at tau = 1 over the 75
+     validation devices for every candidate cut, with the stored
+     value ringed. The curve is flat from 0.3 to 0.8 and collapses
+     only past 0.9.
+  2. p2l_1_probability.png
+     The U-Net output for one held-out device: a probability per
+     pixel that a transition line passes through it.
+  3. p2l_2_threshold_0p7.png
+     The same map cut at the chosen threshold, P > 0.7.
+  4. p2l_3_threshold_0p9.png
+     The same map cut too high, at P > 0.9. Lines break up and are
+     lost.
+  5. tau_example.png
+     Why a tolerance is needed. Left to right: the ground truth; the
+     same line drawn one pixel to the left; the two superimposed,
+     adjacent everywhere and coincident nowhere; and the same pair
+     with the tau = 1 band. Strict F1 is 0.00 and F1 at tau = 1 is
+     1.00.
+  6. tau_neighbourhood.png
+     What tau admits around one pixel the model drew, for tau = 0, 1,
+     2 and 3. Distances are Euclidean, so a diagonal neighbour (1.41
+     px) counts only from tau = 2.
+  7. p2l_4_tau0.png
+     One prediction scored at tau = 0.
+  8. p2l_5_tau1.png
+     The same prediction scored at tau = 1, the headline tolerance.
+  9. p2l_6_tau3.png
+     The same prediction scored at tau = 3.
+  10. p2l_9_tau_zoom.png
+     The same truth and the same output at tau = 0 to 3, zoomed until
+     individual pixels are visible. Only the tolerance band grows.
+  11. p2l_7_tolerance_curve.png
+     F1 against tau for the headline budget, with the precision and
+     recall behind it, over the 50 held-out devices.
+
+[END INVENTORY]
+
+
+======================================================================
+ YOU WRITE  --  anything below this line is read
+======================================================================
+
+ Point at something:   S2 P3   section 2, paragraph 3
+                       FIG 4   figure 4 of this part
+                       TABLE I / ABSTRACT / TITLE
+                       FORMAT  font, spacing, margins, captions
+ Or just say it in prose -- "the third paragraph is too long" is enough.
+
+ One request per line, starting with a dash.  Nothing here is ever
+ deleted or overwritten by a rebuild.
+
+-
+-
+-
+
+
+======================================================================
+ THE REPLY  --  what was actually changed, and where
+======================================================================
+
+ 2026-09-21  NO MORE CAPITALS, AND THE TONE MADE FORMAL.  Both in
+             programs/make_method_docs.py, so they survive a rebuild.
+
+             CAPITALS: you were right, and there were 17 of them, not
+             one.  Emphasis had been set as ALL CAPS in running prose --
+             CHARGE STABILITY DIAGRAM, SLOPE, ANTICROSSING, THRESHOLD,
+             TOLERANCE, VALIDATION, DISTINCT, TRAINING, MORE RAYS, NO
+             DRAW IS FILTERED..., THE THING THAT IS SPLIT..., and NOT
+             used for emphasis in three places.  All are now ordinary
+             sentence case.  I re-scanned every rendered PDF for runs of
+             capitals afterwards: none left outside CSD and JJAP.
+
+             TONE: 24 passages rewritten from spoken register into
+             academic register.  What went:
+               "locating them is what tuning means in practice"
+                 -> "locating them is the objective of tuning"
+               "The appeal is that a ray is cheap"
+                 -> "The advantage is that a ray is inexpensive to
+                    acquire"
+               "reported rather than buried" -> "stated explicitly"
+               "nothing enforces it: the capacitances are drawn and
+                whatever they produce is kept"
+                 -> "the condition is not enforced: the capacitances are
+                    drawn without rejection"
+               "which is what makes pixel accuracy useless as a score"
+                 -> "which renders pixel accuracy uninformative"
+               "that is measured rather than asserted"
+                 -> "this is verified quantitatively"
+               "the quantity an experiment pays for"
+                 -> "which determines the acquisition time"
+               "Comparing them pixel for pixel is brutal ... for a result
+                any physicist would call correct"
+                 -> "is unduly strict ... although the reconstruction is
+                    physically correct"
+               "is satisfied by a blanket of positives; Dice penalises
+                the spread"
+                 -> "can be satisfied by an indiscriminate positive
+                    prediction; the Dice term penalises such a
+                    prediction"
+               "One-pixel-wide lines are punished hard by IoU and it is
+                reported rather than hidden"
+                 -> "IoU penalises one-pixel-wide structures severely;
+                    it is reported here for completeness"
+               "Pixel accuracy is included only so that it can be
+                dismissed" -> "only to show why it is not used"
+             plus the smaller ones: "decide what the honeycomb looks
+             like", "lands somewhere unusual", "is what lets", "the
+             study depends on", "matters far less than", "this is a
+             limitation and is stated as one", "which is the relevant
+             yardstick", "so a device's data always lands on one side",
+             "this is the reason the problem is not trivial", "a run can
+             end on a high loss and still have saved a good model", and
+             two sentences that opened with a numeral.
+
+             No number, claim, caveat or figure reference changed.  The
+             documents are the same length to within a line.
+
+ (nothing yet)
+
+
+======================================================================
+ HOW THIS PART IS BUILT
+======================================================================
+
+ The document is generated, so a request is applied by editing the
+ generator and rebuilding -- that way it survives the next rebuild:
+
+   wording, a section, the abstract   programs/make_method_docs.py
+   which figures this part carries    the parts() list in the same file
+   a figure itself                    programs/make_figures.py
+                                      (or make_tau_grids.py,
+                                       make_threshold_figure.py)
+   fonts, spacing, margins            the format block in
+                                      make_method_docs.py
+   the cover letter's look            templates/cover_letter-RP.docx
+
+   python paper_figures/programs/make_method_docs.py    the .docx
+   python paper_figures/programs/make_pdfs.py           the .pdf
+
+ IF YOU EDIT THE WORD FILE YOURSELF -- that is safe.  Every document is
+ fingerprinted when it is written, so a rebuild can tell you changed it:
+
+   * a document you edited is NEVER overwritten;
+   * the new machine-made version is written beside it as
+     3_4_Threshold_and_tolerance_rebuilt.docx, and the run says so;
+   * the copy any replaced document had before goes to backups/ with a
+     timestamp, and the last ten are kept;
+   * make_pdfs.py exports whatever .docx is on disk, so the PDF matches
+     the Word file, hand-edited or not.
+
+ What that does NOT do is put your edit back into the generator.  So if
+ an edit should become the way the document is built, say so above in
+ one line -- "keep my S1 P2 rewrite" -- and it will be moved into
+ make_method_docs.py.
+
+

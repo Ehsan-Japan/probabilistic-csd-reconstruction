@@ -1,0 +1,154 @@
+% dqd_model_full_bigb.tex — the constant-capacitance model, with EVERY coupling
+% the model draws, and the four matrices in full.
+%
+% A NEW figure.  It does not replace dqd_model.png, which stays as it is.
+% What is different here:
+%
+%   (a) carries all TWELVE couplings between the three islands and the three
+%       gates; the earlier drawing showed nine.  Added: c_{d_2g_3},
+%       c_{s_1g_1}, c_{s_1g_2}.  The two self-capacitances c_{d_1d_1} and
+%       c_{d_2d_2} are deliberately NOT drawn -- they are couplings to
+%       ground, not between the objects in the picture -- but they are in (b).
+%   (b) the four matrices in full, every entry written out.
+%
+% The three gates each couple to all three islands, which is K_{3,3}: it
+% cannot be drawn in the plane without a crossing.  The drawing therefore has
+% exactly one, between the two cross-couplings, taken with the usual hop.
+%
+% Naming: a matrix carries its subscripts in the same order as its entries,
+% so C_dg holds c_{d_i g_j}.  QArray calls that same matrix Cgd, after the
+% pair it couples rather than the order of its indices; the arrays are
+% identical and the code keeps QArray's keys.
+%
+% Build:
+%     pdflatex dqd_model_full.tex
+%
+\documentclass[border=10pt]{standalone}
+\usepackage{amsmath}
+\usepackage{tikz}
+\usetikzlibrary{calc,intersections}
+
+\begin{document}
+\begin{tikzpicture}[
+    island/.style = {circle, draw, line width=0.9pt, minimum size=21mm,
+                     fill=white, inner sep=0pt},
+    gate/.style   = {circle, draw, line width=0.9pt, minimum size=5.5mm,
+                     fill=white, inner sep=0pt},
+    wire/.style   = {line width=1.0pt},
+    lab/.style    = {font=\large, inner sep=2.2pt,
+                     fill=white, fill opacity=0.92,
+                     text opacity=1},
+  ]
+
+  % ── nodes ──────────────────────────────────────────────────────────────
+  \node[gate]   (g1) at (-5.8,  4.8) {};
+  \node[gate]   (g2) at ( 5.8,  4.8) {};
+  \node[gate]   (g3) at ( 0.0, -7.4) {};
+  \node[island] (d1) at (-2.3,  1.1) {\large$QD_1$};
+  \node[island] (d2) at ( 2.3,  1.1) {\large$QD_2$};
+  \node[island] (s1) at ( 0.0, -3.0) {\large$QD_\mathrm{s}$};
+
+  \node[font=\large] at ($(g1)+(0,0.76)$) {$V_{g1}$};
+  \node[font=\large] at ($(g2)+(0,0.76)$) {$V_{g2}$};
+  \node[font=\large] at ($(g3)+(0,-0.76)$) {$V_{g3}$};
+
+  % ── the capacitor symbol ───────────────────────────────────────────────
+  % #1,#2  two points a short way apart ON the wire: the plates are drawn
+  %        square to the line joining them, so this works on a curve as well
+  %        as on a straight, and the white stroke opens the gap between them.
+  % #3     the label, #4 where it sits
+  \newcommand{\plates}[5]{%
+    \draw[white, line width=2.2pt] (#1) -- (#2);
+    \draw[line width=1.5pt] ($(#1)!0.40cm!90:(#2)$) --
+                            ($(#1)!0.40cm!-90:(#2)$);
+    \draw[line width=1.5pt] ($(#2)!0.40cm!90:(#1)$) --
+                            ($(#2)!0.40cm!-90:(#1)$);
+    \coordinate (mid) at ($(#1)!0.5!(#2)$);
+    \node[lab] at ($(mid)!#5!#4:(#2)$) {$c_{#3}$};
+  }
+
+  % ── every wire first, so no plate is drawn over by a later line ────────
+  \draw[wire] (g1) -- (d1);
+  \draw[wire] (g2) -- (d2);
+  \draw[wire, name path=cross1] (g1) -- (d2);
+  \draw[wire, name path=cross2] (g2) -- (d1);
+  \draw[wire] (d1) -- (d2);
+  \draw[wire] (d1) -- (s1);
+  \draw[wire] (d2) -- (s1);
+  \draw[wire] (g3) -- (s1);
+  \draw[wire] (d1) .. controls (-6.4,0.4) and (-5.0,-6.2) .. (g3);
+  \draw[wire] (d2) .. controls ( 6.4,0.4) and ( 5.0,-6.2) .. (g3);
+  \draw[wire] (g1) .. controls (-9.4,1.6) and (-7.0,-5.4) .. (s1);
+  \draw[wire] (g2) .. controls ( 9.4,1.6) and ( 7.0,-5.4) .. (s1);
+
+  % ── the hop, at the one crossing the graph cannot avoid ────────────────
+  % g1--d2 and g2--d1 meet on the axis of symmetry; the point is taken from
+  % the path rather than guessed.
+  \path[name intersections={of=cross1 and cross2, by=xing}];
+  \fill[white] ($(xing)+(-0.24,-0.04)$) rectangle ($(xing)+(0.24,0.30)$);
+  \draw[wire] ($(xing)+(-0.22,-0.03)$) arc (180:0:0.22);
+
+  % ── the plates ─────────────────────────────────────────────────────────
+  \path (g1) -- (d1) coordinate[pos=0.56] (a1) coordinate[pos=0.64] (a2);
+  \plates{a1}{a2}{d_1g_1}{-90}{0.86cm}
+  \path (g2) -- (d2) coordinate[pos=0.56] (b1) coordinate[pos=0.64] (b2);
+  \plates{b1}{b2}{d_2g_2}{90}{0.86cm}
+
+  \path (g1) -- (d2) coordinate[pos=0.19] (c1) coordinate[pos=0.25] (c2);
+  \plates{c1}{c2}{d_2g_1}{90}{1.05cm}
+  \path (g2) -- (d1) coordinate[pos=0.19] (e1) coordinate[pos=0.25] (e2);
+  \plates{e1}{e2}{d_1g_2}{-90}{1.05cm}
+
+  \path (d1) -- (d2) coordinate[pos=0.47] (f1) coordinate[pos=0.53] (f2);
+  \plates{f1}{f2}{d_1d_2}{-90}{0.86cm}
+  \path (d1) -- (s1) coordinate[pos=0.47] (h1) coordinate[pos=0.55] (h2);
+  \plates{h1}{h2}{s_1d_1}{-90}{0.86cm}
+  \path (d2) -- (s1) coordinate[pos=0.47] (i1) coordinate[pos=0.55] (i2);
+  \plates{i1}{i2}{s_1d_2}{90}{0.86cm}
+  \path (g3) -- (s1) coordinate[pos=0.45] (j1) coordinate[pos=0.53] (j2);
+  \plates{j1}{j2}{s_1g_3}{-90}{0.86cm}
+
+  \path (d1) .. controls (-6.4,0.4) and (-5.0,-6.2) .. (g3)
+        coordinate[pos=0.68] (k1) coordinate[pos=0.74] (k2);
+  \plates{k1}{k2}{d_1g_3}{-90}{0.86cm}
+  \path (d2) .. controls (6.4,0.4) and (5.0,-6.2) .. (g3)
+        coordinate[pos=0.68] (l1) coordinate[pos=0.74] (l2);
+  \plates{l1}{l2}{d_2g_3}{90}{0.86cm}
+  \path (g1) .. controls (-9.4,1.6) and (-7.0,-5.4) .. (s1)
+        coordinate[pos=0.46] (m1) coordinate[pos=0.52] (m2);
+  \plates{m1}{m2}{s_1g_1}{-90}{0.86cm}
+  \path (g2) .. controls (9.4,1.6) and (7.0,-5.4) .. (s1)
+        coordinate[pos=0.46] (n1) coordinate[pos=0.52] (n2);
+  \plates{n1}{n2}{s_1g_2}{90}{0.86cm}
+
+  \node[font=\bfseries\LARGE] at (-9.8, 5.6) {(a)};
+
+  % ── (b) the matrices, in full ──────────────────────────────────────────
+  % (b) SCALED UP.  The matrices are the point of this panel and at
+  % \LARGE they printed a third the height of (a).  \scalebox takes
+  % the whole block up by 2, and it is re-anchored west on the vertical
+  % centre of (a) rather than hung from the top.
+  \node[anchor=west, font=\LARGE] at (12.2, -1.3) {\scalebox{2.0}{$\begin{aligned}
+      \mathbf{C}_{\mathbf{dd}} &=
+        \begin{bmatrix}
+          c_{d_1 d_1} & c_{d_1 d_2} \\
+          c_{d_2 d_1} & c_{d_2 d_2}
+        \end{bmatrix} \\[18pt]
+      \mathbf{C}_{\mathbf{dg}} &=
+        \begin{bmatrix}
+          c_{d_1 g_1} & c_{d_1 g_2} & c_{d_1 g_3} \\
+          c_{d_2 g_1} & c_{d_2 g_2} & c_{d_2 g_3}
+        \end{bmatrix} \\[18pt]
+      \mathbf{C}_{\mathbf{sd}} &=
+        \begin{bmatrix}
+          c_{s_1 d_1} & c_{s_1 d_2}
+        \end{bmatrix} \\[18pt]
+      \mathbf{C}_{\mathbf{sg}} &=
+        \begin{bmatrix}
+          c_{s_1 g_1} & c_{s_1 g_2} & c_{s_1 g_3}
+        \end{bmatrix}
+    \end{aligned}$}};
+  \node[font=\bfseries\LARGE] at (11.4, 5.6) {(b)};
+
+\end{tikzpicture}
+\end{document}

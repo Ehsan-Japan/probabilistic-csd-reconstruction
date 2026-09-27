@@ -10,6 +10,87 @@ The dense diagnostic gallery in
 what goes in the paper. It is for reading a sweep, not for showing one.
 `scripts/run_10_bundle_figures.py` splits it into bundles of five.
 
+## The manuscript, in eight parts
+
+`method_docs/` holds one folder per part, each self-contained (the four
+subsections of the method share `3_methods/`) -- the Word
+file, the PDF, the figures it uses, and a comment file:
+
+```
+method_docs/0_Cover_letter/       0_Cover_letter.docx  .pdf  .txt
+            1_Abstract/           title page, abstract, keywords
+            2_Introduction/
+            3_methods/            3_Methods.docx  .pdf  .txt   part 3, the method,
+                                  3.1 ... 3.4 in one; figures/  backups/
+            4_Results/                          + figures/
+```
+
+The method is one part in four subsections, numbered `3_1` … `3_4` in a
+folder name and *3.1 … 3.4* in prose, in the order the data flows through
+it. Part 0 is built from `templates/cover_letter-RP.docx` -- the letter sent
+with the 2025 JJAP paper -- and parts 1 to 4 from the JJAP regular-paper
+template. Every number in them is read from the run.
+
+```bash
+python paper_figures/programs/make_method_docs.py    # the parts, as .docx
+python paper_figures/programs/make_manuscript.py     # the parts, as one paper
+python paper_figures/programs/make_methods.py        # 3.1-3.4, as one 3_Methods.docx
+python paper_figures/programs/make_pdfs.py           # the .pdf, from Word
+python paper_figures/programs/make_method_notes.py   # the comment files
+```
+
+### One run of figure and table numbers
+
+A part is written with its own figures starting at 1, and printed with the
+numbers the *paper* uses: 3.1 gets Fig. 1-3 and Table I-II, 3.2 gets
+Fig. 4-7, 3.3 Fig. 8-9, 3.4 Fig. 10-20, 4 Fig. 21-22. The offset is
+counted off the parts before it and applied by `renumber()` on every string
+on its way into a document -- body text, captions, table cells -- so a
+reference and the figure it points at cannot drift apart. Each run prints
+the span it gave each part.
+
+### `method_docs/Manuscript.docx` -- the assembled paper
+
+`make_manuscript.py` builds the whole paper from the same source the parts
+are built from, *not* by merging the part `.docx` files, so no number or
+caption in it can be a stale copy of one in a part. It carries the author
+block and the abstract once, the sections under the numbers their folders
+already use (2, 3, 3.1 ... 3.4, 4, 5), then the references, the two tables
+and all 22 figures at the end -- the order JJAP asks for and the one a
+per-part document cannot give. The cover letter is left out; it is not part
+of the paper. Because it is a build and not a merge, an edit you made by
+hand in a part `.docx` is *not* in it -- feed the edit back into the
+generator, as the comment sheets describe.
+
+### Comments go in `<part>/<part>.txt`
+
+One plain-text sheet per folder, named after the folder, in two halves:
+
+* **YOU WRITE** — one request per line. Point at something with `S2 P3`,
+  `FIG 4`, `ABSTRACT`, `FORMAT`, or just say it in prose.
+* **THE REPLY** — what was actually changed, and in which file, written back
+  into the same sheet, dated.
+
+The sheet is never overwritten: `make_method_notes.py` recreates only
+missing ones, and `--refresh-inventory` rewrites only the bracketed block at
+the top that lists the part's sections and figures. A request is applied by
+editing the generator, so it survives the next rebuild.
+
+### Editing the Word file directly is safe
+
+Each document is fingerprinted when it is written. A rebuild compares the
+file on disk with that fingerprint:
+
+* **changed by you** -- not touched. The new version is written beside it as
+  `<part>_rebuilt.docx` and the run says so.
+* **unchanged** -- replaced, and the copy it replaced goes to
+  `<part>/backups/` with a timestamp (the last ten are kept).
+
+`make_pdfs.py` exports whatever `.docx` is on disk, so the PDF always
+matches the Word file, hand-edited or not. What the guard does *not* do is
+feed an edit back into `make_method_docs.py` -- note it in the comment file
+if it should become the way the document is built.
+
 ## Build
 
 ```bash
