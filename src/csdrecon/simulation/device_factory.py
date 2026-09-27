@@ -1,9 +1,6 @@
 """
 device_factory.py — make the simulated devices the study reads.  LIBRARY ONLY.
 
-There is no command line here on purpose; the programs you run live in
-scripts/ and all start with run_.
-
 One device folder is:
 
     <pool>/sample_<i>/
@@ -14,30 +11,20 @@ One device folder is:
             ground_truth_labels.npy   the answer the network is trained against
         device.json                   capacitances, window, charge stats
 
-TWO GUARANTEES THIS FILE PROVIDES
-─────────────────────────────────
-1.  Every device in the pool is an UNFILTERED capacitance draw.  There is no
-    acceptance test of any kind — nothing looks at the simulated diagram and
-    asks whether it is a honeycomb.  Whatever the simulator produces enters
-    the dataset, so the pool is a plain sample of the capacitance space.
-    A draw is lost only when the simulator itself raises.
+Two guarantees.  First, every device is an unfiltered capacitance draw: there
+is no acceptance test of any kind, and a draw is lost only when the simulator
+itself raises.  Second, every device is a different device — besides the 14
+independent capacitance draws, the gate-voltage window is randomly offset per
+device, so the honeycomb is not phase-locked to the image frame.
 
-2.  Every device is a different device.  Besides the 13 independent
-    capacitance draws, the swept gate-voltage WINDOW is randomly offset per
-    device, which slides the honeycomb lattice relative to the image frame.
-    Without that offset every diagram is phase-locked to the same origin and
-    the whole dataset shares one alignment — a large part of why the previous
-    training set "all looked the same".
-
-generate() is RESUMABLE and never overwrites: a device that already has its
-device.json and ground truth is skipped.  Pointing it at a full folder is
-free, and asking for more devices than are there only makes the missing ones.
+generate() is resumable and never overwrites: a device that already has its
+device.json and ground truth is skipped.
 """
 import json
 import os
 import shutil
 import time
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Tuple
 
 import numpy as np
 
@@ -68,20 +55,16 @@ OFFSET_SCALE = 0.35
 
 
 def pool_name(n_devices: int, resolution: int, config) -> str:
-    """
-    The canonical folder name for a device pool, e.g.
+    """The canonical folder name for a device pool.
 
         pool_name(1000, 100, cfg)  ->  "devices_n1000_res100_c1df7b6bf"
 
-    ONE pool.  Train and test devices are drawn from the same distribution
-    and live side by side; which of them is which is decided afterwards, by
-    ID, in study/device_split.py.  Nothing about a device says which side it
-    is on, so a device cannot be generated onto the wrong side.
-
-    The trailing fingerprint is a hash of the exact capacitance intervals, so
-    changing the parameter space changes the folder name.  Devices simulated
-    under one set of intervals can then never be silently reused under
-    another — the most expensive mistake available in this project.
+    One pool: train and test devices are drawn from the same distribution and
+    live side by side, and which is which is decided afterwards by ID
+    (study/device_split.py), so a device cannot be generated onto the wrong
+    side.  The trailing fingerprint hashes the exact capacitance intervals, so
+    devices simulated under one parameter space can never be silently reused
+    under another.
     """
     return f"devices_n{n_devices}_res{resolution}_c{config.fingerprint}"
 
@@ -165,20 +148,16 @@ def generate(out_dir: str,
              max_attempts: int = MAX_ATTEMPTS,
              progress_every: int = 25,
              label: str = "") -> Dict:
-    """
-    Simulate n_devices devices into out_dir.  No device is filtered out.
+    """Simulate n_devices devices into out_dir.  No device is filtered out.
 
-    config       : the CapacitanceConfig every device is drawn from.  ONE
-                   distribution for the whole pool — the train/test split is
-                   made later, by device ID (study/device_split.py).
-    seed         : one reproducible stream per split — same seed, same devices
-                   in the same order.
+    config       : the CapacitanceConfig every device is drawn from — one
+                   distribution for the whole pool.
+    seed         : same seed, same devices in the same order.
     offset_scale : random window offset per device, as a fraction of the
-                   window width.  0 pins every device to the same origin.
+                   window width; 0 pins every device to the same origin.
 
-    Returns the generation log: how many draws were made, how many failed in
-    the simulator, and how many of the kept devices would have failed each
-    DQD criterion.
+    Returns the generation log: draws made, failures in the simulator, and how
+    many kept devices would have failed each DQD criterion.
     """
     vx_min, vx_max, vy_min, vy_max = voltage_window
     width, height = vx_max - vx_min, vy_max - vy_min
@@ -229,12 +208,9 @@ def generate(out_dir: str,
                 log["rejected"] += 1
                 continue
 
-            # No acceptance test: every capacitance draw that the simulator
-            # completes enters the pool, honeycomb or not.
-            #
-            # Write the device's own record, then strip the folder
-            # down to the arrays.  The record is what the dataset report reads
-            # to describe the split, so it never has to reopen a single array.
+            # No acceptance test: every draw the simulator completes enters
+            # the pool, honeycomb or not.  The record written here is what the
+            # dataset report reads, so it never reopens a single array.
             with open(record_path, "w") as f:
                 json.dump({
                     # The device's identity.  device_id is what the train/test
@@ -292,23 +268,3 @@ def generate(out_dir: str,
     return log
 
 
-def load_records(pool_dir: str) -> List[Dict]:
-    """Every device.json in a pool, in sample order."""
-    out = []
-    if not os.path.isdir(pool_dir):
-        return out
-    for name in sorted(os.listdir(pool_dir),
-                       key=lambda s: (len(s), s)):        # sample_2 before _10
-        path = os.path.join(pool_dir, name, DEVICE_RECORD)
-        if os.path.isfile(path):
-            with open(path) as f:
-                out.append(json.load(f))
-    return out
-
-
-def load_generation_log(pool_dir: str) -> Optional[Dict]:
-    path = os.path.join(pool_dir, GENERATION_LOG)
-    if not os.path.isfile(path):
-        return None
-    with open(path) as f:
-        return json.load(f).get("latest")

@@ -1,45 +1,28 @@
 """
 sampling.py — WHERE the measurement points are put, at a fixed budget.
 
-The budget study asks how MANY points are needed.  This module asks the other
-question, the one the paper argues:
+The budget study asks how many points are needed; this asks whether it matters
+where they go.  A strategy turns a budget into a set of pixels to look at and
+produces the same Measurement object the rays do, so the same channels,
+network, training constants and metrics apply to all of them.
 
-    given the SAME number of measured points, does it matter WHERE you put
-    them — along a few directional sweeps, or spread over the diagram?
+    rays     n_rays sweeps of n_points each, fired from the (max Vx, max Vy)
+             corner (ml/ray_peaks.py — the real experiment)
+    grid     N points on an evenly spaced lattice
+    random   N pixels uniformly at random, a different draw per device
 
-A "strategy" is a rule that turns a budget into a set of pixels to look at.
-Everything downstream is untouched: each strategy produces exactly the same
-Measurement object the rays produce, so the same channels, the same network,
-the same training constants and the same metrics apply to all of them and a
-difference in the result is a difference in WHERE the points were put and
-nothing else.
+with N = n_rays x n_points.
 
-    rays     the pipeline's own measurement: n_rays directional sweeps of
-             n_points each, fired from the (max Vx, max Vy) corner
-             (ml/ray_peaks.py — this is the real experiment)
-    grid     N points on an evenly spaced lattice covering the whole diagram
-    random   N pixels drawn uniformly at random, a different draw per device
+Two honest notes.  The rays sample at nearest grid cell, so points on one ray
+can land on the same pixel and neighbouring rays cross near the corner: the
+rays visit somewhat fewer unique pixels than N, while grid and random visit
+exactly N.  The comparison reports measured coverage for that reason — if the
+rays win, they win from no more pixels.  And `grid` uses nr x nc with
+nr = round(sqrt(N)), so the count is N only when N factorises that way; the
+actual count is reported, never assumed.
 
-with N = n_rays x n_points, the same number of points the rays get.
-
-TWO HONEST NOTES ABOUT THE BUDGET
-
-1. The rays are sampled at nearest grid cell, so two points on the same ray
-   can land on the same pixel and neighbouring rays cross near the corner.
-   The rays therefore end up visiting somewhat FEWER unique pixels than
-   n_rays x n_points, while grid and random visit exactly their N.  The
-   comparison reports the measured coverage of each strategy for that reason:
-   if the rays win, they win from an equal or smaller number of pixels.
-
-2. `grid` uses an nr x nc lattice with nr = round(sqrt(N)) and
-   nc = round(N / nr), so the point count is N only when N factorises that
-   way (it is exactly 100 for 5 x 20).  The actual count is reported, never
-   assumed.
-
-Peaks (channel 2, figures only) are detected on a ray's 1-D trace, which only
-exists for `rays`; the scattered strategies leave that channel empty.  The
-network never sees it — it is shown channels 0 and 1 — so this changes
-nothing about what is being compared.
+Peaks (channel 2, figures only) exist only for `rays`.  The network is shown
+channels 0 and 1, so this changes nothing about what is compared.
 """
 from typing import Dict, List, Sequence, Tuple
 
@@ -183,15 +166,12 @@ def vcut_lines(n_rays: int, n_points: int, ux, uy) -> np.ndarray:
 
 
 def parallel_diag_lines(n_rays: int, n_points: int, ux, uy) -> np.ndarray:
-    """
-    n_rays lines all along (-1, -1), evenly spaced across the window.
+    """n_rays lines all along (-1, -1), evenly spaced across the window.
 
-    The lines are indexed by their offset c = Vx - Vy (constant along the
-    direction (-1,-1)); c is spread evenly over its range so the family
-    covers the diagram from the bottom-right corner to the top-left one,
-    with no two lines sharing an origin.  The central line is the window's
-    main diagonal — the same line as the fan's middle ray when n_rays is
-    odd, which is the point of the comparison.
+    Indexed by their offset c = Vx - Vy, spread evenly over its range, so the
+    family covers the diagram corner to corner with no two lines sharing an
+    origin.  The central line is the window's main diagonal — the fan's middle
+    ray when n_rays is odd, which is the point of the comparison.
     """
     wx, wy = ux[-1] - ux[0], uy[-1] - uy[0]
     c_lo, c_hi = -wy, wx                      # Vx - Vy, in window-relative units
@@ -299,22 +279,17 @@ def measure(sample_dir: str, n_rays: int, n_points: int,
 def build(sample_dirs: Sequence[str], n_rays: int, n_points: int,
           strategy: str = DEFAULT, seed: int = 0,
           verbose: bool = True) -> Tuple[np.ndarray, np.ndarray]:
-    """
-    (X, Y) for a list of devices under one strategy — the same arrays, the
-    same shapes and the same channel meaning as ml/grid_dataset.build.
+    """(X, Y) for a list of devices under one strategy — the same arrays and
+    channel meaning as ml/grid_dataset.build.
 
-    X : (N, 3, H, W) float32     ch0 signal, ch1 visited, ch2 peaks
-    Y : (N, H, W)    float32     the transition-line map, IDENTICAL for every
-                                 strategy — only X changes, which is the
-                                 whole point of the comparison
+    X : (N, 3, H, W)  ch0 signal, ch1 visited, ch2 peaks
+    Y : (N, H, W)     the transition-line map, identical for every strategy;
+                      only X changes, which is the point of the comparison
 
-    `rays` delegates to grid_dataset.build so the baseline arm of this
-    comparison is byte-for-byte the dataset the four-step study builds, not a
-    re-implementation of it.
-
-    The random draw is seeded per DEVICE (seed + position in the list), so
-    re-running gives the same measurement, every device gets a different draw,
-    and train and test devices are never handed the same pattern.
+    `rays` delegates to grid_dataset.build, so the baseline arm is
+    byte-for-byte the dataset the four-step study builds.  The random draw is
+    seeded per device (seed + position), so re-running gives the same
+    measurement and no two devices share a pattern.
     """
     if strategy not in STRATEGIES:
         raise KeyError(f"unknown sampling strategy {strategy!r}; "

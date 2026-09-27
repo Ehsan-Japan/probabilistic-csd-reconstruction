@@ -1,45 +1,25 @@
 """
 device_split.py — the train/test split, made once, at the level of the DEVICE.
 
-THE ONE RULE
-The thing that is split is the device, not the image.  Capacitance
-configurations are drawn first, each gets an ID, and the IDs are split.  Only
-then is anything generated from them.  Every image, every measurement budget
-and every augmentation of a device inherits that device's ID and stays on its
-side, so a device can never contribute to both sets.
-
     devices    ID 0 .. N-1        drawn once, from ONE distribution
     split      IDs -> train/test  decided once, written to disk, never redrawn
     images     inherit the ID of the device they came from
 
-WHY THIS AND NOT DISJOINT PARAMETER RANGES
-Because the capacitances are drawn from continuous ranges, two independent
-draws are never the same device — so the only way to leak is to reuse a
-device on both sides.  Splitting the IDs removes that possibility outright,
-and it keeps train and test drawn from the SAME distribution, which is what
-makes the held-out number an estimate of performance on new devices from the
-population the paper describes.
+The thing that is split is the device, not the image, so a device can never
+contribute to both sets.  Splitting IDs rather than parameter ranges keeps
+train and test drawn from the same distribution, which is what makes the
+held-out number an estimate of performance on new devices from the population
+the paper describes.
 
-THE LEAK THIS FILE EXISTS TO PREVENT
-The sweep reuses one cached device pool across every (rays, points) cell.
-That is fine — and it is exactly why the split has to be decided ONCE,
-outside the sweep, and stored WITH the pool.  If each cell re-drew or
-re-split, device 37 could be a training device in the 3-ray cell and a test
-device in the 5-ray cell, and the comparison across cells would no longer be
-like for like.  So:
+The leak this file prevents: the sweep reuses one cached pool across every
+(rays, points) cell, so the split has to be decided once, outside the sweep,
+and stored with the pool.  It is written the first time it is needed and read
+every time after; a config that asks for a split already on disk gets the
+stored one, never a fresh permutation.
 
-    * the split lives in the pool folder, not in the per-cell code;
-    * it is written the first time it is needed and READ every time after;
-    * a config that asks for a split already on disk gets the stored one,
-      never a fresh permutation.
-
-THE EVIDENCE FOR THE PAPER
-:func:`separation` reports the smallest Euclidean distance between any
-training and any test configuration vector in normalised parameter space
-(each of the 13 capacitances mapped to [0, 1] by its own sampling range).
-It is cheap to compute and answers the obvious reviewer question — "how do
-you know a test device is not a near-duplicate of a training one?" — with a
-number instead of an argument.
+separation() reports the smallest Euclidean distance between any training and
+any test configuration vector in normalised parameter space, which answers
+"how do you know a test device is not a near-duplicate?" with a number.
 """
 import json
 import os
@@ -83,15 +63,12 @@ def _make_split(n_devices: int, n_train: int, seed: int) -> Tuple[List[int],
 
 def load_or_create(pool_dir: str, n_devices: int, n_train: int, n_test: int,
                    seed: int) -> Tuple[List[int], List[int], bool]:
-    """
-    (train_ids, test_ids, was_created) for this pool.
+    """(train_ids, test_ids, was_created) for this pool.
 
-    The split is stored in the POOL, under a key naming its sizes, and is
-    read back on every later call.  Two configurations asking for the same
-    split therefore get the identical device assignment — byte for byte, from
-    the same file — rather than two permutations that merely happen to use
-    the same seed.  That is the difference between "should be the same" and
-    "is the same".
+    The split is stored in the pool under a key naming its sizes and read back
+    on every later call, so two configurations asking for the same split get
+    the identical assignment from the same file — not two permutations that
+    merely share a seed.
     """
     if n_train + n_test > n_devices:
         raise ValueError(f"asked for {n_train} + {n_test} devices but the "
@@ -160,18 +137,14 @@ def matrix(records: Sequence[Dict],
 
 def separation(train_records: Sequence[Dict], test_records: Sequence[Dict],
                intervals: Optional[Dict] = None) -> Dict:
-    """
-    How far apart the two sets are in normalised parameter space.
+    """How far apart the two sets are in normalised parameter space.
 
-    The headline is ``min_distance``: the smallest Euclidean distance between
-    ANY training configuration and ANY test configuration.  Strictly positive
-    means no test device is a duplicate of a training one; the value says how
-    close the nearest pair comes.  ``nearest_train_distance`` gives the same
-    quantity per test device, so an unusually close single pair cannot hide
-    inside a comfortable minimum.
-
-    For scale: the space is 14-dimensional and normalised to the unit cube,
-    where two independent uniform draws are typically ~1.5 apart.
+    The headline is min_distance, the smallest Euclidean distance between any
+    training and any test configuration: strictly positive means no test
+    device is a duplicate.  nearest_train_distance gives the same per test
+    device, so one unusually close pair cannot hide inside a comfortable
+    minimum.  For scale, the space is 14-dimensional and normalised to the
+    unit cube, where two independent uniform draws are typically ~1.5 apart.
     """
     A, B = matrix(train_records, intervals), matrix(test_records, intervals)
     if not len(A) or not len(B):

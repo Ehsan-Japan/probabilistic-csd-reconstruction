@@ -2,28 +2,20 @@
 grid_model.py — RayToLinesNet: sparse ray traces -> dense transition-line map.
 
 Input  : (batch, 2, H, W)  ch0 raw sensor signal along the rays, ch1 visited
-Output : (batch, H, W)     per-pixel transition LOGIT (sigmoid -> probability)
+Output : (batch, H, W)     per-pixel transition logit (sigmoid -> probability)
 
-A small U-Net.  The task is sparse-to-dense: a few thin rays of signal have to
-become continuous lines across the whole diagram, so the network needs both a
-wide view (which slope family is this, where do the parallel lines repeat) and
-pixel-precise output (a line one pixel wide).  Down-and-up with skips is the
-standard answer to exactly that pair of demands.
+A small U-Net.  The task is sparse-to-dense — a few thin rays of signal have
+to become continuous lines — so the network needs both a wide view (which
+slope family, where do the parallel lines repeat) and pixel-precise output.
 
-Two properties matter for the budget study:
+Two properties matter for the budget study.  It is fully convolutional, so any
+H, W works and every budget uses the same network with the same parameter
+count: differences across the sweep come from the measurement, not from model
+capacity.  And upsampling resizes to the skip tensor's actual size, so odd
+grids (100 -> 50 -> 25 -> 12) reassemble exactly.
 
-  * fully convolutional — no flatten, no fixed-size layer.  Any H, W works,
-    and every measurement budget uses the SAME network with the SAME number
-    of parameters.  Accuracy differences across the sweep are then caused by
-    the measurement, not by model capacity.
-
-  * upsampling resizes to the skip tensor's actual size, so odd grids
-    (100 -> 50 -> 25 -> 12) reassemble exactly.
-
-WIDTH is the number of filters in each convolution — the model's capacity
-dial, and the only thing here you could sensibly tune.  It is set once,
-below, and nothing else has to know about it.  32 is a reasonable size for
-100 x 100 diagrams; drop it to 16 if training overfits.
+WIDTH is the capacity dial and the only thing here worth tuning: 32 suits
+100 x 100 diagrams, drop it to 16 if training overfits.
 """
 import torch
 import torch.nn as nn

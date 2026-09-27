@@ -1,28 +1,19 @@
 """
 readme_report.py — the results section of README.md, written from the run.
 
-A results table typed into a README by hand is a table that stops being true
-the next time the study is run, and nobody notices.  This module writes that
-section FROM the run's own comparison.csv, so re-running the study with a
-different number of rays, points or devices and re-running
+A results table typed in by hand stops being true the next time the study is
+run and nobody notices.  This writes that section from the run's own
+comparison.csv, so after
 
     python scripts/run_9_update_readme.py
 
-leaves a README that agrees with what is on disk, or says clearly that
-nothing has been run yet.
+the README agrees with what is on disk, or says clearly that nothing has been
+run yet.  The generated text is fenced between <!-- RESULTS:BEGIN --> and
+<!-- RESULTS:END -->; everything outside the markers is left alone.
 
-The generated text is fenced between two markers in README.md:
-
-    <!-- RESULTS:BEGIN -->   ... generated, do not edit by hand ...
-    <!-- RESULTS:END -->
-
-Everything outside the markers is left exactly as it was, so the prose
-around it is still written by a person.
-
-The figures named in FIGURES are COPIED out of results/ into docs/figures/,
-because results/ is generated and not in git: a README cannot show a picture
-that was never committed.  Only the few small cross-configuration figures
-are copied, not the per-device galleries.
+The figures named in FIGURES are copied out of results/ into docs/figures/,
+because results/ is generated and not in git and a README cannot show a
+picture that was never committed.
 """
 import csv
 import json
@@ -40,13 +31,10 @@ END = "<!-- RESULTS:END -->"
 # root.  In git, unlike results/.
 DOCS_FIGURES = os.path.join("docs", "figures")
 
-# (name in docs/figures, path inside the run folder, caption).  A figure
-# that the run did not produce is skipped rather than linked broken.
-# EMPTY ON PURPOSE.  This held 08_cost_and_tolerance.png until that figure
-# was removed from the gallery (see model_figures.GALLERY).  The results
-# section is tables-only until a figure is chosen to replace it; an entry
-# here whose file no longer exists would be skipped silently, which reads
-# like the figure is merely missing rather than gone.
+# (name in docs/figures, path inside the run folder, caption).  A figure the
+# run did not produce is skipped rather than linked broken.  Empty on purpose
+# since 08_cost_and_tolerance.png left the gallery: the results section is
+# tables-only until a figure replaces it.
 FIGURES: Sequence[Tuple[str, str, str]] = ()
 
 # Kept up to date in docs/figures/ so the file in the repo is never a stale
@@ -109,27 +97,43 @@ def latest_run(results_root: Optional[str] = None) -> Optional[str]:
 
 
 def converged(run_dir: str, row: Dict) -> bool:
-    """
-    Did this budget's training actually fit the data?
+    """Did this budget's training actually fit the data?
 
     A run that never left its initial plateau still produces a full set of
-    metrics, and in a table of F1 scores it is indistinguishable from a
-    budget that is simply too small.  It is not: it is a failed fit, and
-    publishing it unmarked beside real results invites the reader to
-    conclude that more rays made things worse.
+    metrics and is indistinguishable in a table from a budget that is simply
+    too small.  It is not: it is a failed fit, and publishing it unmarked
+    invites the reader to conclude that more rays made things worse.
 
-    Decided on the VALIDATION devices, carved out of the training set before
-    training, so nothing here looks at the test set.  A missing or unreadable
-    summary counts as converged: this must never quietly disqualify a budget
-    because an older run wrote no summary.
+    Decided on the validation devices, so nothing here looks at the test set.
+    A missing or unreadable summary counts as converged, so an older run that
+    wrote none is never quietly disqualified.
     """
-    path = os.path.join(run_dir, str(row.get("configuration", "")),
-                        "model", "training_summary.json")
+    path = os.path.join(_model_dir(run_dir, row), "training_summary.json")
     try:
         with open(path, encoding="utf-8") as fh:
             return float(json.load(fh)["best_val_f1"]) >= COLLAPSE_VAL_F1
     except (OSError, KeyError, ValueError, TypeError):
         return True
+
+
+def _retrained(run_dir: str) -> Dict[str, int]:
+    """{configuration: train_seed} for the cells run_10 retrained."""
+    path = os.path.join(run_dir, "retrain_collapsed.json")
+    try:
+        with open(path, encoding="utf-8") as fh:
+            cells = json.load(fh)["cells"]
+    except (OSError, KeyError, ValueError):
+        return {}
+    return {n: c["chosen_seed"] for n, c in cells.items()
+            if c.get("chosen_seed")}
+
+
+def _model_dir(run_dir: str, row: Dict) -> str:
+    """model/, or model_seed<k>/ for a cell retrained at another seed."""
+    name = str(row.get("configuration", ""))
+    seed = _retrained(run_dir).get(name, 0)
+    return os.path.join(run_dir, name,
+                        "model" + (f"_seed{seed}" if seed else ""))
 
 
 def _best(rows: Sequence[Dict], run_dir: Optional[str] = None) -> Dict:
@@ -150,7 +154,7 @@ def _budget_table(rows: Sequence[Dict], run_dir: Optional[str] = None
            "| recall@1 | IoU (strict) | threshold |",
            "|---|---|---|---|---|---|---|---|"]
     best = _best(rows, run_dir)
-    failed = 0
+    failed = retrained = 0
     for r in rows:
         budget = f"{r['n_rays']} × {r['n_points']}"
         if r is best and len(rows) > 1:
@@ -158,6 +162,9 @@ def _budget_table(rows: Sequence[Dict], run_dir: Optional[str] = None
         if run_dir and not converged(run_dir, r):
             budget += " †"
             failed += 1
+        elif run_dir and r.get("configuration") in _retrained(run_dir):
+            budget += " ‡"
+            retrained += 1
         out.append(
             f"| {budget} | {_pct(r['coverage'])} | "
             f"{_pct(r.get('coverage@1'))} | {_f(r['f1@1'])} | "
@@ -173,6 +180,16 @@ def _budget_table(rows: Sequence[Dict], run_dir: Optional[str] = None
             f"the measurement budget. They are listed rather than dropped so "
             f"the gap in the sweep is visible; re-running those budgets is "
             f"enough to fill them in.",
+        ]
+    if retrained:
+        out += [
+            "",
+            f"‡ {retrained} of these {len(rows)} trainings never left their "
+            f"initial plateau at the first attempt and were retrained from a "
+            f"different random initialisation, with the data, architecture "
+            f"and training procedure unchanged; the first retraining whose "
+            f"best validation F1@1 reached {COLLAPSE_VAL_F1} was kept "
+            f"(scripts/run_10_retrain_collapsed.py, retrain_collapsed.json).",
         ]
     return out
 

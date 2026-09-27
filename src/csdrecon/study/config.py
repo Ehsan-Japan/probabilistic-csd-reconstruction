@@ -1,40 +1,22 @@
 """
 config.py — StudyConfig: one configuration of the study, and the folder it owns.
 
-A CONFIGURATION is one measurement budget: a number of rays and a number of
-points along each, plus the size of the training set.  It gets one folder,
-named after exactly those three numbers:
+A configuration is one measurement budget (rays, points per ray, training-set
+size) and gets one folder named after those three numbers, holding config.json,
+train/test .npz, the dataset summary, figures/, model/ and evaluation/.
 
-    data/3_rays_50_points_100_samples/
-        config.json            these settings
-        train.npz  test.npz    the measured inputs and the answers
-        dataset_summary.json   the generation and split evidence
-        figures/               what the dataset looks like
-        model/                 written by run_2_train_model.py
-        evaluation/            written by run_3_evaluate_model.py
-
-Everything about one budget is inside one folder, so the four programs are
-run in order for a budget, and the folder afterwards holds the whole story of
-it.  run_4_compare_configs.py then reads across the folders.
-
-The expensive part — the simulated devices — is NOT inside the folder.
-Devices do not depend on how many rays are fired at them, so they live in a
-shared pool and every configuration reuses them:
-
-    data/_device_pools/devices_n130_res100_c1df7b6bf/
-
-Running 3 rays, then 6, then 12 therefore pays for the simulation once.  The
-pool name carries a fingerprint of the capacitance intervals, so changing the
-parameter space builds a new pool instead of quietly reusing the old one.
-
-The TRAIN/TEST SPLIT lives with that pool, not with the configuration: it is
-made once on device IDs and read back by every cell of every sweep, so a
-device is on the same side in all of them (study/device_split.py).
+The simulated devices are NOT in that folder.  They do not depend on the ray
+budget, so they live in a shared pool under data/_device_pools/ and every
+configuration reuses them; the pool name carries a fingerprint of the
+capacitance intervals, so changing the parameter space builds a new pool
+instead of quietly reusing the old one.  The train/test split lives with the
+pool too (study/device_split.py), so a device is on the same side in every
+cell of every sweep.
 """
 import json
 import os
 from dataclasses import asdict, dataclass, field
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Tuple
 
 from ..config import paths
 from ..config import log
@@ -44,7 +26,6 @@ from ..simulation import device_factory
 from . import sampling
 from .device_figures import DEFAULT_DEVICE_FIGURES, normalise_devices
 
-# Sub-folders of a configuration folder, one per stage.
 DATASET_FILES = {"train": "train.npz", "test": "test.npz"}
 CONFIG_JSON = "config.json"
 SUMMARY_JSON = "dataset_summary.json"
@@ -54,118 +35,75 @@ MODEL_DIR = "model"
 EVAL_DIR = "evaluation"
 POOLS_DIRNAME = "_device_pools"
 
-# How train and test are kept apart; see StudyConfig.split_mode.
 SPLIT_MODES = ("device", "interval")
 
 
 @dataclass
 class StudyConfig:
-    """
-    Every knob of one configuration.  run_1/2/3 each hold a copy of these
-    settings in their SETTINGS block and must agree; run_1 writes them to
-    config.json and run_2 and run_3 read that file back, so they cannot
-    silently disagree with the dataset they are pointed at.
+    """Every knob of one configuration.
+
+    run_1 writes these to config.json; run_2 and run_3 read that file back, so
+    they cannot silently disagree with the dataset they are pointed at.
     """
 
-    # ── the measurement budget: what the study is about ──────────────────
-    n_rays: int = 3           # rays fired across the diagram
-    n_points: int = 50        # points sampled along each ray
+    n_rays: int = 3
+    n_points: int = 50
 
-    # WHERE those n_rays x n_points measured points are put.  "rays" is the
-    # real experiment and the default, so every existing configuration and
-    # every folder name is unchanged.  "grid" and "random" spend the SAME
-    # budget on scattered points instead (study/sampling.py).  The geometry
-    # ablation that compared them was deleted on 2026-09-20; the strategies
-    # remain because StudyConfig validates against them and a folder may
-    # still carry one.
+    # Where those n_rays x n_points points are put.  "rays" is the real
+    # experiment; "grid" and "random" spend the same budget on scattered
+    # points (study/sampling.py).  The geometry ablation that used them was
+    # deleted on 2026-09-20, but a folder on disk may still carry one.
     sampling: str = sampling.DEFAULT
 
-    # ── how much data ────────────────────────────────────────────────────
-    n_train: int = 100        # devices the model trains on
-    n_test: int = 30          # held-out devices (different devices,
-                              # same distribution)
+    n_train: int = 100
+    n_test: int = 30
 
-    # ── how train and test are kept apart ────────────────────────────────
-    # "device"   ONE pool, drawn from the full parameter space, split by
-    #            device ID.  Train and test share every interval; what is
-    #            disjoint is the DEVICE.  Answers "does it work on new
-    #            devices from this population?" — interpolation.
-    # "interval" TWO pools.  Every one of the 14 capacitance ranges is cut in
-    #            half with a dead zone between; train draws only from the
-    #            lower bands, test only from the upper ones.  No parameter
-    #            interval intersects, so a test device is built from values
-    #            the training set never contained.  Answers "does it work
-    #            OUTSIDE the training range?" — extrapolation, and a harder
-    #            question: expect lower scores than the device split gives.
+    # "device"   one pool split by device ID: train and test share every
+    #            interval, so the held-out score is interpolation across
+    #            devices from one population.
+    # "interval" two pools: every capacitance range cut in half with a dead
+    #            zone between, train from the lower bands and test from the
+    #            upper.  Extrapolation, and a harder question — expect lower
+    #            scores than the device split gives.
     split_mode: str = "device"
-    # Width of the dead zone between the two halves, as a fraction of each
-    # full range.  Only read when split_mode == "interval".  0.10 leaves
-    # train and test each 45% of their range with a clear 10% gap.
-    interval_gap: float = 0.10
+    interval_gap: float = 0.10      # dead zone, as a fraction of each range
 
-    # ── the devices ──────────────────────────────────────────────────────
-    resolution: int = 100     # stability-diagram side length, in pixels
-    # The train/test split is made on DEVICE IDs, once, and stored with the
-    # device pool — see study/device_split.py.  Changing this seed is a
-    # different assignment of the same devices; it does not redraw them.
+    resolution: int = 100
+    # The split is made on device IDs once and stored with the pool; changing
+    # this seed reassigns the same devices, it does not redraw them.
     split_seed: int = 12345
     voltage_window: Tuple[float, float, float, float] = (-1.0, 1.0, -1.0, 1.0)
-    offset_scale: float = 0.35        # random per-device window offset
+    offset_scale: float = 0.35      # random per-device window offset
     coulomb_peak_width: float = 0.01
     temperature: float = 0.00001
-    seed: int = 0             # same seed = the same devices, every time
+    seed: int = 0                   # same seed = the same devices, every time
 
-    # ── training (stage 2) ───────────────────────────────────────────────
     epochs: int = 40
 
-    # The TRAINING dice.  Training starts from random initial weights; this
-    # seed is their starting state (and the order the batches are drawn in).
-    # Nothing about the data depends on it — `seed` picks the devices and
-    # `split_seed` the train/test split — so two configurations differing
-    # only here see literally the same measurements and differ only in where
-    # the optimisation landed.
-    #
-    # That is the point: ONE run per arm gives one number from one roll, and
-    # a gap between two arms cannot then be told apart from the spread of the
-    # roll itself.  Re-run each arm at several train_seeds and compare the
-    # clusters, not the single numbers.  model/ and evaluation/ carry the
-    # seed in their
-    # names, so the runs sit side by side instead of overwriting each other;
-    # the dataset does not, because it is the same dataset.
+    # Initial weights and batch order only: nothing about the data depends on
+    # it, so two configurations differing only here see the same measurements
+    # and differ only in where the optimisation landed.  One run per arm is
+    # therefore one roll of the dice — re-run at several train_seeds and
+    # compare the clusters, not the single numbers.  model/ and evaluation/
+    # carry the seed in their names so the runs do not overwrite each other.
     train_seed: int = 0
 
-    # ── per-device figures (stage 1, and re-runnable with run_5) ─────────
-    # Which pictures to draw for individual devices, and for which devices.
-    # These change nothing about the data or the results — they only add
-    # .png files — so they are safe to turn on and off at any time.
+    # Figures change nothing about the data or the results, so they are safe
+    # to turn on and off at any time.
     save_device_figures: bool = True
-
-    # One switch per figure; see study/device_figures.py FIGURE_KINDS.
     device_figures: Dict[str, bool] = field(
         default_factory=lambda: dict(DEFAULT_DEVICE_FIGURES))
-
-    # Which devices to draw, per split:
-    #   "ALL"       every device in the split — what you want when checking
-    #               that every stability diagram really is a DQD
-    #   "NONE"      none
-    #   [1, 3, 7]   those devices (1-based, matching the sample_<i> folders)
-    # "ALL" on a large pool writes a lot of files; the count is printed
-    # before anything is drawn.
+    # Per split: "ALL", "NONE", or [1, 3, 7] (1-based, matching sample_<i>).
+    # "ALL" on a large pool writes a lot of files; the count is printed first.
     figure_devices: Dict[str, object] = field(
         default_factory=lambda: {"train": [1, 2, 3], "test": [1, 2, 3]})
 
-    figure_dpi: int = 200          # 300 for the paper, 150 for a quick look
-    figure_size_in: float = 8.0    # canvas side, in inches
-    figure_cell_grid: bool = True  # draw the voltage-grid cells behind the
-                                   # binary maps (the house style); False
-                                   # gives clean lines on plain white
-
-    # ------------------------------------------------------------------
+    figure_dpi: int = 200           # 300 for the paper, 150 for a quick look
+    figure_size_in: float = 8.0
+    figure_cell_grid: bool = True   # voltage-grid cells behind the binary maps
 
     def __post_init__(self):
-        # Set by load(): the folder this configuration was READ from, which
-        # is where its files stay.  Freshly built configurations have none
-        # and take the folder from paths.CONFIG_ROOT below.
+        # Set by load(): the folder this configuration was read from.
         self._dir = None
         if self.split_mode not in SPLIT_MODES:
             raise ValueError(
@@ -180,45 +118,36 @@ class StudyConfig:
         # lists only the pictures it wants behaves the way it reads.
         self.device_figures = {k: bool(self.device_figures.get(k, False))
                                for k in DEFAULT_DEVICE_FIGURES}
-        # Copied, not shared: dataclasses.replace() hands the SAME dict to
-        # every configuration built from one template (which is how
-        # run_0 sweeps a budget), and mutating it here would edit them all.
-        # Checked at the same time, so a typo like "AL" fails on the first
-        # line of run_1 rather than after twenty minutes of simulation.
+        # Copied, not shared: dataclasses.replace() hands the same dict to
+        # every configuration built from one template, and mutating it here
+        # would edit them all.  Checked now so a typo like "AL" fails on the
+        # first line of run_1, not after twenty minutes of simulation.
         devices = dict(self.figure_devices)
         for split in ("train", "test"):
             devices.setdefault(split, "ALL")
             normalise_devices(devices[split])
         self.figure_devices = devices
 
-    # ── names and places ─────────────────────────────────────────────────
-
     @property
     def name(self) -> str:
-        """
-        The folder name, e.g. '3_rays_50_points_100_samples'.
+        """The folder name, e.g. '3_rays_50_points_100_samples'.
 
-        A non-default sampling strategy adds its name on the end
-        ('5_rays_20_points_300_samples_grid'), so the sampling comparison
-        gets its own folders and the budget study's folders keep the names
-        they already have.
+        A non-default sampling strategy or the interval split adds a suffix,
+        so those are separate folders rather than overwriting the budget
+        study's.
         """
         base = (f"{self.n_rays}_rays_{self.n_points}_points_"
                 f"{self.n_train}_samples")
         if self.sampling != sampling.DEFAULT:
             base = f"{base}_{self.sampling}"
-        # The interval split is a DIFFERENT dataset at the same budget, so it
-        # gets its own folder rather than overwriting the device-split one.
         if self.split_mode == "interval":
             base = f"{base}_disjoint"
         return base
 
     @property
     def dir(self) -> str:
-        # paths.CONFIG_ROOT, not data/, so run_0 can put a whole
-        # sweep - datasets, models, evaluations and the comparison - inside
-        # one folder under results/.  It still defaults to data/,
-        # which is where the hand-run programs write.
+        # CONFIG_ROOT, not data/, so run_0 can put a whole sweep inside one
+        # folder under results/.  It still defaults to data/.
         return self._dir or paths.config_root(self.name)
 
     def path(self, *parts: str) -> str:
@@ -238,11 +167,8 @@ class StudyConfig:
 
     @property
     def _seed_suffix(self) -> str:
-        """'' for the default seed, '_seed3' otherwise.
-
-        Empty at train_seed 0 on purpose: every model and evaluation already
-        on disk was trained at that seed, and keeps the folder it is in.
-        """
+        # Empty at train_seed 0 on purpose: every model already on disk was
+        # trained at that seed and keeps the folder it is in.
         return "" if self.train_seed == 0 else f"_seed{self.train_seed}"
 
     @property
@@ -257,25 +183,18 @@ class StudyConfig:
     def checkpoint(self) -> str:
         return os.path.join(self.model_dir, "unet.pt")
 
-    # ── the capacitance spaces and the device pools ──────────────────────
-
     @property
     def n_devices(self) -> int:
         """Devices in the pool: train and test together, from one draw."""
         return self.n_train + self.n_test
 
     def capacitance_config(self, side: str = None) -> CapacitanceConfig:
-        """
-        The distribution a pool is drawn from.
+        """The distribution a pool is drawn from.
 
-        In "device" mode there is one space and `side` is ignored: train and
-        test come from the same draw, which is what makes the held-out score
-        an estimate of performance on the device population.
-
-        In "interval" mode `side` picks the lower ("train") or upper ("test")
-        half of every capacitance range.  Calling it with side=None there is
-        an error rather than a silent fallback: there is no such thing as
-        "the" distribution once the space has been cut in two.
+        In "device" mode there is one space and `side` is ignored.  In
+        "interval" mode `side` picks the lower ("train") or upper ("test")
+        half of every range; side=None is an error rather than a silent
+        fallback, since there is no "the" distribution once the space is cut.
         """
         if self.split_mode != "interval":
             return CapacitanceConfig()
@@ -298,17 +217,16 @@ class StudyConfig:
         return out
 
     def pool_dir(self, side: str = None) -> str:
-        """
-        Where this configuration's devices live.  A pure function of the
-        settings, shared by every configuration that asks for the same
-        devices — which is why changing only n_rays or n_points costs no
-        simulation at all, and why every cell of a sweep sees the SAME
-        devices under the SAME split.
+        """Where this configuration's devices live.
+
+        A pure function of the settings, shared by every configuration that
+        asks for the same devices — which is why changing only n_rays or
+        n_points costs no simulation, and why every cell of a sweep sees the
+        same devices under the same split.
         """
         if self.split_mode == "interval":
-            # Two pools, each named after its OWN half of the space.  The
-            # fingerprint in the name differs between them, so a lower-band
-            # device can never be reused as an upper-band one.
+            # Two pools, each fingerprinted by its own half of the space, so a
+            # lower-band device can never be reused as an upper-band one.
             n = self.n_train if side == "train" else self.n_test
             return os.path.join(
                 paths.data_path(POOLS_DIRNAME),
@@ -318,8 +236,6 @@ class StudyConfig:
             paths.data_path(POOLS_DIRNAME),
             device_factory.pool_name(self.n_devices, self.resolution,
                                      self.capacitance_config()))
-
-    # ── persistence ──────────────────────────────────────────────────────
 
     def to_dict(self) -> Dict:
         d = asdict(self)
@@ -347,9 +263,9 @@ class StudyConfig:
         d.pop("name", None)
         fields = {f for f in cls.__dataclass_fields__}
         cfg = cls(**{k: v for k, v in d.items() if k in fields})
-        # A configuration keeps the folder it was found in — run_0 puts its
-        # cells under results/<sweep>/, and the later stages must write back
-        # into that same folder, not into a fresh one beside it.
+        # A configuration keeps the folder it was found in: run_0 puts its
+        # cells under results/<sweep>/ and the later stages must write back
+        # into that same folder.
         cfg._dir = os.path.abspath(folder)
         return cfg
 
@@ -357,6 +273,12 @@ class StudyConfig:
         """Settings on which two configurations disagree — for the warnings."""
         a, b = self.to_dict(), other.to_dict()
         return {k: (a[k], b[k]) for k in a if a[k] != b.get(k)}
+
+    def _split_line(self) -> str:
+        if self.split_mode == "interval":
+            return (f"DISJOINT INTERVALS — all 14 capacitance ranges cut in "
+                    f"half, {100 * self.interval_gap:.0f}% dead zone")
+        return f"by device ID, seed {self.split_seed}"
 
     def describe(self) -> str:
         return (f"{self.name}\n"
@@ -367,26 +289,13 @@ class StudyConfig:
                 f"  folder      : {os.path.abspath(self.dir)}")
 
 
-def _split_line_impl(self) -> str:
-    if self.split_mode == "interval":
-        return (f"DISJOINT INTERVALS — all 14 capacitance ranges cut in "
-                f"half, {100 * self.interval_gap:.0f}% dead zone")
-    return f"by device ID, seed {self.split_seed}"
-
-
-StudyConfig._split_line = _split_line_impl
-
-
 def _candidate_folders() -> List[str]:
-    """
-    Every folder that holds a config.json, sorted by name.
+    """Every folder holding a config.json, sorted by name.
 
-    Looked for in the current CONFIG_ROOT, in data/ and in results/,
-    and one level down inside each — because run_0 gives every run its own
-    folder (results/4-7-8_rays_40_points_150_samples/) with the configuration
-    folders inside it, while the hand-run programs write straight into
-    data/.  Both are found, so the later stages work on a sweep's cells
-    without being told where the sweep put them.
+    Looked for in CONFIG_ROOT, data/ and results/, and one level down inside
+    each, because run_0 gives every sweep its own folder with the
+    configuration folders inside it while the hand-run programs write
+    straight into data/.
     """
     roots, found = [paths.CONFIG_ROOT, paths.DATA_ROOT, paths.RESULTS], []
     for root in roots:
@@ -399,14 +308,13 @@ def _candidate_folders() -> List[str]:
             if os.path.isfile(os.path.join(folder, CONFIG_JSON)):
                 found.append(os.path.abspath(folder))
                 continue
-            # one level down: the run folder of a sweep
             for sub in sorted(os.listdir(folder)):
                 inner = os.path.join(folder, sub)
                 if os.path.isfile(os.path.join(inner, CONFIG_JSON)):
                     found.append(os.path.abspath(inner))
-    # One folder per NAME: a budget left over in data/ from an
-    # earlier hand run must not become a second row for the same
-    # configuration.  The current CONFIG_ROOT is searched first and wins.
+    # One folder per name, CONFIG_ROOT first: a budget left over in data/ from
+    # an earlier hand run must not become a second row for the same
+    # configuration.
     out, names = [], set()
     for folder in found:
         name = os.path.basename(folder)
@@ -417,19 +325,12 @@ def _candidate_folders() -> List[str]:
 
 
 def existing_configs(every_sampling: bool = False) -> list:
-    """
-    Every configuration folder under data/, oldest name first.
+    """Every configuration folder under data/, oldest name first.
 
-    A folder counts only if it has a config.json, so the shared device pool
-    and anything else living in data/ is never mistaken for one.
-
-    DISCOVERY IGNORES THE SAMPLING ARMS.  A 'grid' or 'random' arm is an
-    ordinary configuration folder at the SAME budget as the ray arm beside
-    it — so "compare everything" would put two different measurements on
-    the same point of the budget figure and quietly average them.  Nothing
-    writes such folders now that the geometry ablation is gone, but one may
-    still be on disk.  They are found only when asked for by name, or with
-    every_sampling=True.
+    Discovery ignores the sampling arms: a 'grid' or 'random' arm sits at the
+    same budget as the ray arm beside it, so including it would put two
+    different measurements on the same point of the budget figure.  They are
+    found only by name, or with every_sampling=True.
     """
     out, seen = [], set()
     for folder in _candidate_folders():
@@ -446,45 +347,23 @@ def existing_configs(every_sampling: bool = False) -> list:
     return out
 
 
-def find_config(name: Optional[str] = None) -> Optional[StudyConfig]:
-    """A configuration by folder name; None picks the only one, if there is one."""
-    configs = existing_configs()
-    if name:
-        for c in configs:
-            if c.name == name:
-                return c
-        return None
-    return configs[0] if len(configs) == 1 else None
-
-
-# The word every run_* program accepts in place of a list.
 ALL = "ALL"
 
 
 def resolve_configs(names) -> List[StudyConfig]:
-    """
-    Turn a settings-block entry into a list of configurations.
+    """Turn a settings-block entry into a list of configurations.
 
-    names may be
-        "ALL" (or None)          every configuration folder under
-                                 data/, oldest name first
-        ["a", "b"]               those folders, IN THE ORDER GIVEN — so the
-                                 comparison table and figures come out in the
-                                 order you listed them, not alphabetically
-        "a"                      a single folder, same as ["a"]
-
-    Raises with the available names listed if one is missing, rather than
-    quietly skipping it: a comparison silently missing a configuration is a
-    comparison that says something untrue.
+    "ALL" or None gives every budget of the study; a list gives those folders
+    in the order written, which is the order the tables and figures come out
+    in.  A missing name raises with the available names listed, rather than
+    being skipped: a comparison silently missing a configuration says
+    something untrue.
     """
     if names is None or (isinstance(names, str) and names.strip().upper() == ALL):
-        # "ALL" means every budget of the study — not any sampling arm,
-        # which is a different measurement at the same budget.
         return existing_configs()
     if isinstance(names, str):
         names = [names]
-    # Named explicitly, a sampling arm resolves like any other folder: asking
-    # for it by name is unambiguous in a way that discovery is not.
+    # Named explicitly, a sampling arm resolves like any other folder.
     by_name = {c.name: c for c in existing_configs(every_sampling=True)}
     picked, missing = [], []
     for name in names:

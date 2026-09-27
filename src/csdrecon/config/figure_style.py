@@ -1,38 +1,22 @@
 """
 figure_style.py — one place that decides how big every saved figure is.
 
-For a paper the images have to be directly comparable, which means three
-things must be identical from figure to figure:
+For a paper the images must be directly comparable, which needs three things
+identical from figure to figure: the canvas size in inches and the dpi, the
+position of the plotting box inside it, and the data-to-inches scale (equal
+aspect plus the same voltage limits, so 1 mV is the same number of millimetres
+everywhere).
 
-  1. the canvas size in inches and the dpi  -> every file has the same
-     physical size and the same pixel dimensions;
-  2. the position of the plotting box inside that canvas -> the data area
-     lands in the same place in every image, so figures can be stacked or
-     placed side by side and the axes line up;
-  3. the data-to-inches scale -> equal aspect plus the same voltage limits
-     means 1 mV is the same number of millimetres on paper everywhere.
-
-Previously each module picked its own figsize ((8,6), (10,8), (10,10),
-(12,12), (14,6) …) and most saved with ``bbox_inches="tight"``, which crops
-the canvas to whatever the labels happened to need — so no two images came
-out the same size.  Nothing here uses "tight": the figure is saved exactly
-as declared, and the fixed axes rectangle leaves room for the labels.
-
-Usage
------
-    from ..config.figure_style import new_map_figure, save_figure
+Nothing here saves with bbox_inches="tight", which crops the canvas to
+whatever the labels needed and is why no two images used to come out the same
+size; the fixed axes rectangle leaves the room instead.
 
     fig, ax, cax = new_map_figure(with_colorbar=True)
-    im = ax.imshow(...)
-    fig.colorbar(im, cax=cax, label="Sensor Signal")
     save_figure(fig, out_path)
 
-Multi-panel figures use ``new_figure(ncols=2)``: the canvas widens so each
-panel keeps the same physical size as a single-panel figure.
-
-Set the size ONCE at the start of the program — scripts/run_simulation.py
-passes figure_width_in / figure_height_in / plot_dpi to DatasetPipeline,
-which calls :func:`set_figure_style`.
+Multi-panel figures use new_figure(ncols=2), which widens the canvas so each
+panel keeps its physical size.  Set the size once per program with
+set_figure_style().
 """
 import os
 from dataclasses import dataclass
@@ -50,17 +34,11 @@ DEFAULT_WIDTH_IN = 12.0
 DEFAULT_HEIGHT_IN = 12.0
 DEFAULT_DPI = 300
 
-# Plotting box inside the canvas, as (left, bottom, width, height) fractions.
-# Identical in every figure, so the data area is always in the same place.
-# The right-hand strip is reserved for a colorbar whether or not one is drawn,
-# so a figure with a colorbar and one without still share the same axes box.
-#
+# Plotting box inside the canvas, as (left, bottom, width, height) fractions,
+# identical in every figure.  The right-hand strip is reserved for a colorbar
+# whether or not one is drawn, so figures with and without one share the box.
 # Width and height are equal, so on a square canvas the box is square in
-# INCHES: with equal aspect and equal vx / vy ranges the x axis and the y
-# axis then have the same physical length.  (imshow's default aspect="auto"
-# is what used to stretch the stability diagram into a wide rectangle.)
-# The box is as large as the old default-plus-tight-crop layout, so the data
-# fills the same fraction of the image as it did before.
+# inches and 1 mV is the same length on both axes.
 AXES_RECT = (0.100, 0.100, 0.750, 0.750)
 CBAR_RECT = (0.870, 0.100, 0.025, 0.750)
 
@@ -69,14 +47,10 @@ CBAR_RECT = (0.870, 0.100, 0.025, 0.750)
 # The one house style, taken from summary.png
 # ----------------------------------------------------------------------
 #
-# Every figure that draws the binary transition map (the double-dot stability
-# diagram, the per-peak binary_*.png, summary_total.png, summary.png) uses
-# these, so they are all the same picture in the same clothes: white
-# background, black transition cells, a visible black cell grid.
-#
-# Sensor-signal figures keep the "hot" colormap — they show a continuous
-# measurement, not a binary map — but they draw the SAME cell grid and use the
-# SAME marker styles, so the family still reads as one set.
+# Every figure drawing the binary transition map uses these: white background,
+# black transition cells, a visible black cell grid.  Sensor-signal figures
+# keep the "hot" colormap, being a continuous measurement, but share the cell
+# grid and the marker styles, so the family reads as one set.
 GT_CMAP = "gray_r"                 # 0 -> white, 1 -> black
 GT_EDGECOLOR = "k"
 GT_LINEWIDTH = 0.5
@@ -95,18 +69,6 @@ def draw_ground_truth_map(ax, x_edges, y_edges, binary) -> None:
     ax.pcolormesh(x_edges, y_edges, binary, cmap=GT_CMAP,
                   edgecolors=GT_EDGECOLOR, linewidth=GT_LINEWIDTH,
                   vmin=0, vmax=1)
-
-
-def draw_cell_grid(ax, x_edges, y_edges) -> None:
-    """
-    Overlay the voltage-grid cell boundaries on a figure that is NOT a
-    pcolormesh — e.g. a "hot" sensor heatmap drawn with imshow — so it shows
-    the same cells as the ground-truth figures.
-    """
-    ax.vlines(x_edges, y_edges[0], y_edges[-1],
-              colors=GT_EDGECOLOR, linewidth=GT_LINEWIDTH)
-    ax.hlines(y_edges, x_edges[0], x_edges[-1],
-              colors=GT_EDGECOLOR, linewidth=GT_LINEWIDTH)
 
 
 @dataclass
@@ -202,11 +164,9 @@ def apply_voltage_axes(ax, vxmin, vxmax, vymin, vymax) -> None:
 # Legend-free copies
 # ----------------------------------------------------------------------
 #
-# For the paper the legends are drawn by hand, so every sample-level figure
-# is ALSO saved without its legend into <sample>/figures_no_legend/.  The
-# normal figure keeps its legend and is untouched; only a second copy is made.
-#
-# DatasetPipeline sets the directory once per sample; None disables copying.
+# The paper's legends are drawn by hand, so every sample-level figure is also
+# saved without its legend into <sample>/figures_no_legend/; the normal figure
+# is untouched.  DatasetPipeline sets the directory; None disables copying.
 _NO_LEGEND_DIR: Optional[str] = None
 
 NO_LEGEND_DIRNAME = "figures_no_legend"
@@ -222,11 +182,6 @@ def set_no_legend_dir(path: Optional[str]) -> None:
     """
     global _NO_LEGEND_DIR
     _NO_LEGEND_DIR = path
-
-
-def get_no_legend_dir() -> Optional[str]:
-    """Where legend-free copies are being written, or None."""
-    return _NO_LEGEND_DIR
 
 
 def _no_legend_path(path: str) -> Optional[str]:
@@ -268,17 +223,14 @@ def _strip_legends(fig) -> int:
 
 
 def save_figure(fig, path: str, dpi: Optional[int] = None) -> None:
-    """
-    Save at the shared dpi, WITHOUT ``bbox_inches="tight"``.
+    """Save at the shared dpi, without bbox_inches="tight".
 
-    Cropping to the ink is exactly what made the old images different sizes;
-    the fixed axes rectangle already leaves room for the labels.
+    Cropping to the ink is what made the old images different sizes; the fixed
+    axes rectangle already leaves room for the labels.
 
-    Sample-level figures WITH a legend are saved a second time, legend
-    removed, into the directory given to :func:`set_no_legend_dir`.  The
-    legend is stripped only after the normal figure has been written, so the
-    original is unaffected.  Figures without a legend get no copy — it would
-    be an identical duplicate.
+    Sample-level figures with a legend are saved a second time, legend
+    removed, into set_no_legend_dir()'s directory — after the normal figure,
+    so the original is unaffected.  Figures without a legend get no copy.
     """
     dpi = dpi or _ACTIVE.dpi
     fig.savefig(path, dpi=dpi)

@@ -1,14 +1,12 @@
 """
 ray_peaks.py — the measurement, reproduced offline at any budget.
 
-One "measurement" of a sample is: fire R rays across the stability diagram
-and sample P points along each.  Those R x P raw signal values (placed at the
-pixels where they were measured, plus the visited mask) are the ONLY thing
-the 2-D reconstruction model is allowed to see.  Peaks are still detected,
-but only for the figures.
+One measurement is R rays across the stability diagram, sampled at P points
+each.  Those R x P raw values, placed at the pixels where they were measured
+plus the visited mask, are the only thing the model sees; peaks are still
+detected, but only for the figures.
 
-The ray geometry copies RayProcessor._measure_ray exactly, so a measurement
-produced here is the measurement the pipeline makes:
+The geometry copies RayProcessor._measure_ray exactly:
 
     angles     linspace(0, 90, R + 2)[1:-1]  degrees
     origin     the (max Vx, max Vy) corner of the voltage window
@@ -16,8 +14,7 @@ produced here is the measurement the pipeline makes:
     peaks      scipy.signal.find_peaks on the sampled trace
 
 Everything is re-cut from grids the simulator already saved, so sweeping
-(R, P) over samples that are already on disk costs no new simulation — the
-whole budget study runs on data/ as it stands.
+(R, P) over samples on disk costs no new simulation.
 """
 import os
 from dataclasses import dataclass
@@ -198,24 +195,17 @@ def measure(sample_dir: str,
 
 
 def to_channels(m: Measurement, shape: Tuple[int, int]) -> np.ndarray:
-    """
-    Measurement -> (3, H, W) float32.  The NETWORK sees only the first two.
+    """Measurement -> (3, H, W) float32.  The network sees only the first two.
 
-    ch0 CH_SIGNAL  : the raw sensor signal at every pixel a ray visited —
-                     all n_rays x n_points measured values, each placed at
-                     the pixel where it was measured
+    ch0 CH_SIGNAL  : the raw sensor signal at every pixel a ray visited
     ch1 CH_VISITED : 1 where any ray passed
-    ch2 CH_PEAKS   : 1 where find_peaks fired — NOT network input; kept for
+    ch2 CH_PEAKS   : 1 where find_peaks fired — not network input, kept for
                      the measurement figures
 
-    The visited channel is what separates "measured here, signal ~0" from
-    "never looked here".  Without it a zero in ch0 is ambiguous everywhere
-    and the network cannot tell absence of evidence from evidence of absence.
-
-    Crucially the shape is (3, H, W) for EVERY budget: n_rays and n_points
-    change how sparse this input is, never how big it is.  One architecture,
-    one parameter count, across the whole sweep — so a difference in accuracy
-    is a difference in measurement budget and nothing else.
+    ch1 separates "measured here, signal ~0" from "never looked here"; without
+    it a zero in ch0 is ambiguous everywhere.  The shape is (3, H, W) for
+    every budget — the budget changes how sparse this input is, never how big
+    — so one architecture and one parameter count serve the whole sweep.
     """
     x = np.zeros((3, *shape), dtype=np.float32)
     if len(m.visited_rc):

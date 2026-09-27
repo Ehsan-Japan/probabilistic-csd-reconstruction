@@ -2,36 +2,20 @@
 model_figures.py — the comparison gallery: every way of putting the trained
 models beside each other.
 
-run_4 (and run_3's COMPARE_AFTER) writes all of these into
+run_4 writes these into results/<sweep>/figures/ and run_10 re-renders them a
+bundle at a time.  They come from three sources: comparison.csv (one row per
+model), <cfg>/evaluation/per_device.csv (the spread behind each mean) and
+<cfg>/model/history.json (how each model trained).
 
-    results/<sweep>/figures/
+These are diagnostics, for reading a sweep rather than showing one; the paper
+and slide figures are built separately in paper_figures/.
 
-and run_10 re-renders them one bundle at a time, a few models per plot.
-
-They come from three sources, in increasing order of how much they tell you:
-
-    comparison.csv          one row per model — the headline numbers
-    <cfg>/evaluation/       per_device.csv, one row per held-out device —
-                            the SPREAD behind each mean
-    <cfg>/model/            history.json — how each model trained
-
-These are DIAGNOSTICS: they are for reading a sweep, not for showing one.
-The figures that go in the paper and on slides are built separately, in
-paper_figures/, one point per panel.
-
-DESIGN RULES THIS FILE FOLLOWS
-Colour identifies the MODEL and nothing else, assigned in a fixed order and
-held across every figure — so the 3-ray model is the same blue everywhere,
-and adding a 6-ray run never repaints it.  One measured quantity per axis;
-never two y-scales.  Sequential (magnitude) encodings use one hue, light to
-dark; the diverging ones use blue-to-red through a neutral grey.  Marks are
-thin, grids are hairlines a shade off the surface, and a legend is always
-present when there is more than one model.
-
-The categorical palette is the validated reference set, used unchanged and in
-its documented order.  Scatter-type figures, where every pair of colours has
-to be separable at once, are capped at three models or drawn as small
-multiples in a single hue instead.
+Design rules: colour identifies the model and nothing else, assigned in a
+fixed order and held across every figure, so adding a 6-ray run never repaints
+the 3-ray one.  One measured quantity per axis, never two y-scales.
+Sequential encodings use one hue light to dark, diverging ones blue-to-red
+through neutral grey.  Scatter-type figures, where every pair of colours must
+be separable at once, are capped at three models or drawn as small multiples.
 """
 import json
 import os
@@ -45,8 +29,6 @@ import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
 from ..config import log
 from matplotlib.colors import LinearSegmentedColormap
-from matplotlib.patches import PathPatch
-from matplotlib.path import Path as MplPath
 
 # ── palette ───────────────────────────────────────────────────────────────
 # Categorical: identity.  Fixed order, never cycled, never assigned by rank.
@@ -147,10 +129,6 @@ class Model:
     @property
     def label(self) -> str:
         return f"{self.n_rays} rays x {self.n_points} pts"
-
-    @property
-    def long_label(self) -> str:
-        return f"{self.n_rays} rays x {self.n_points} pts, {self.n_train} train"
 
     def get(self, key: str, default=np.nan) -> float:
         v = self.row.get(key, default)
@@ -263,14 +241,10 @@ def fig_train_size(models, out_dir):
 # ══════════════════════════════════════════════════════════════════════════
 #  B. Tolerance — how accuracy shifts with tau, model by model
 #
-#  tau is not a knob on the model.  The network outputs a probability map,
-#  the threshold turns it into a picture, and tau only decides which pixels
-#  of that FIXED picture count as correct: a predicted line pixel scores if a
-#  true one lies within tau pixels.  So a curve that climbs steeply from
-#  tau = 0 to 1 means the lines are in the right place but a pixel off; a
-#  curve that stays flat and low means they are simply not there.  Comparing
-#  the SHAPE of that curve between models is the cleanest way to separate
-#  "draws the lines slightly wrong" from "misses the lines".
+#  tau is not a knob on the model: it only decides which pixels of a fixed
+#  picture count as correct.  A curve climbing steeply from tau = 0 to 1 means
+#  the lines are in the right place but a pixel off; one that stays flat and
+#  low means they are not there.
 # ══════════════════════════════════════════════════════════════════════════
 
 TAU_METRICS = (("f1", "F1"), ("precision", "precision"),
@@ -315,26 +289,17 @@ def fig_tau_all_metrics(models, out_dir):
 
 
 def fig_f1_and_coverage(models, out_dir):
-    """
-    The score on the left axis, the area it is read over on the right.
+    """The score on the left axis, the area it is read over on the right.
 
-    40a_tau_f1 shows F1 climbing with tau and stops there, which flatters
-    the result: F1 climbs partly because the tolerance keeps widening the
-    strip of plane a predicted pixel is allowed to stand for.  coverage@tau
-    is that strip -- the fraction of the diagram within tau pixels of
-    something the rays actually touched -- and it belongs in the same
-    picture.
+    F1 climbing with tau flatters the result, because the tolerance keeps
+    widening the strip of plane a predicted pixel stands for; coverage@tau is
+    that strip and belongs in the same picture.
 
-    TWO SCALES, so each curve fills its own axis and the shapes can be
-    compared.  The cost is that the VERTICAL GAP between a solid line and
-    its dashed partner no longer means anything: the right axis can be
-    stretched or squashed independently, so only the SHAPES are comparable
-    here, not the distance between them.  41b draws the same two quantities
-    on one shared 0-1 axis, where the gap is a real distance; read that one
-    when the question is "how much of the score is just a wider ruler".
-
-    Left axis, solid:  F1@tau.
-    Right axis, dashed: coverage@tau, as a percentage of the plane.
+    Two scales, so each curve fills its own axis and the shapes can be
+    compared — at the cost that the vertical gap between a solid line and its
+    dashed partner means nothing here.  41b draws both on one shared 0-1 axis,
+    where the gap is a real distance; read that one when the question is how
+    much of the score is just a wider ruler.
     """
     if not all(np.isfinite([m.get(f"coverage@{t}") for t in TAUS]).all()
                for m in models):

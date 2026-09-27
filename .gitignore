@@ -36,3 +36,20 @@ CLAUDE.local.md
 /literature/
 /citations/
 /illustrator/
+
+# --- Manuscript drafts: machinery, history and hand-edited copies ---
+# The parts under paper_figures/method_docs/ are rebuilt from
+# make_method_docs.py; what a run leaves behind to protect a hand edit is
+# working state, not the manuscript.
+paper_figures/method_docs/.build/
+paper_figures/method_docs/.build_state.json
+paper_figures/method_docs/*/backups/
+paper_figures/method_docs/*/*_rebuilt.docx
+~$*.docx
+
+# Papers dropped in to cite from -- publisher PDFs, never ours to publish.
+# The folder and its note stay; the PDFs do not.
+paper_figures/method_docs/*/*_citations/*
+!paper_figures/method_docs/*/*_citations/README.txt
+# superseded documents moved aside, not deleted (2026-09-26)
+paper_figures/method_docs/_trash/

@@ -1,47 +1,16 @@
 """
-device_figures.py — the per-device pictures, back, and under your control.
+device_figures.py — the per-device pictures, re-rendered from the stored
+arrays into data/<config>/figures/<split>/sample_<i>/.
 
-The bulk generator keeps only the arrays: 2500 devices times a dozen figures
-is gigabytes nothing reads.  But the arrays ARE the figures — everything a
-per-device picture shows can be re-rendered from them at any time, at any
-dpi, for whichever devices you actually want.  That is what this module does.
+Which figures are drawn, and for which devices, is decided by the settings in
+run_1 (re-runnable with run_5); turn everything off and the study runs the
+same.  All of them use the one house style from config/figure_style.py, so
+they can sit beside the pipeline's own figures in a paper.
 
-    data/<config>/figures/
-        train/sample_3/charge_sensor.png
-                       charge_sensor_gradient.png
-                       stability_diagram.png
-                       rays.png
-                       rays_on_truth.png
-                       measurement.png
-                       ray_traces.png
-                       panel.png
-                       all_rays_peaks_overlay.png
-                       ml_measurement.png
-                       summary_total.png
-                       summary_total_all_crosses.png
-        test/sample_1/...
-
-Every figure is drawn in the ONE house style from csdrecon.config.figure_style —
-white background, black cell grid, black ground-truth cells, voltage axes in
-mV, the same canvas and the same axes rectangle — so these panels and the
-pipeline's own figures are the same pictures in the same clothes and can be
-placed side by side in a paper.
-
-WHICH figures get drawn, and for WHICH devices, is decided entirely by the
-settings in scripts/run_1_generate_dataset.py (and re-runnable at any time
-with scripts/run_5_render_device_figures.py).  Nothing here is mandatory:
-turn everything off and the study runs exactly as before.
-
-Note which figures depend on the measurement budget and which do not:
-
-    charge_sensor, charge_sensor_gradient, stability_diagram
-        properties of the DEVICE — identical in every configuration
-    rays, rays_on_truth, measurement, ray_traces,
-    all_rays_peaks_overlay, ml_measurement, summary_total,
-    summary_total_all_crosses
-        properties of the MEASUREMENT — they change with rays and points,
-        which is why they live in the configuration folder and not in the
-        shared device pool
+charge_sensor, charge_sensor_gradient and stability_diagram are properties of
+the DEVICE and identical in every configuration; the rest are properties of
+the MEASUREMENT, which is why they live in the configuration folder rather
+than in the shared device pool.
 """
 import os
 from typing import Dict, List, Optional, Sequence, Tuple
@@ -77,8 +46,7 @@ from ..ml.ray_peaks import (
     voltage_to_pixel,
 )
 
-# Every figure this module can draw, with the one-line description that is
-# printed by run_5 so you can see the menu without opening the source.
+# Printed by run_5, so the menu is readable without opening the source.
 FIGURE_KINDS: List[Tuple[str, str]] = [
     ("charge_sensor",
      "the coloured charge-sensor image — the raw simulated measurement"),
@@ -96,10 +64,9 @@ FIGURE_KINDS: List[Tuple[str, str]] = [
      "the 1-D signal along each ray, with the detected peaks marked"),
     ("panel",
      "sensor / stability diagram / rays / measurement, side by side"),
-    # The four the original pipeline drew into runs/<...>/sample_<i>/.  They
-    # show the same measurement as the four above; what differs is that the
-    # peaks are kept SEPARATE PER RAY, which is what you want when the
-    # question is "which ray found which line", not "how much was measured".
+    # The original pipeline's four.  Same measurement as above, but with the
+    # peaks kept separate per ray: "which ray found which line", not "how
+    # much was measured".
     ("all_rays_peaks_overlay",
      "sensor image with each ray's peaks in its own colour"),
     ("ml_measurement",
@@ -110,15 +77,12 @@ FIGURE_KINDS: List[Tuple[str, str]] = [
      "the same, with every peak as one big magenta X (publication figure)"),
 ]
 
-# The default menu: on for the three you asked for plus the overlay, off for
-# the rest.  scripts/run_1_generate_dataset.py overrides it.
+# run_1_generate_dataset.py overrides this.
 DEFAULT_DEVICE_FIGURES: Dict[str, bool] = {
     "charge_sensor": True,
-    # On by default, and worth keeping on: the raw sensor signal carries a
-    # large smooth background from the direct gate-to-sensor cross-talk, and
-    # the charge steps ride on top of it.  In the raw image the honeycomb is
-    # therefore faint; in the gradient it is obvious.  Real experiments
-    # subtract the same background for the same reason.
+    # Worth keeping on: the raw signal carries a large smooth gate-to-sensor
+    # background with the charge steps riding on it, so the honeycomb is
+    # faint in the raw image and obvious in the gradient.
     "charge_sensor_gradient": True,
     "stability_diagram": True,
     "rays": True,
@@ -142,12 +106,10 @@ PEAK_ON_SENSOR = dict(marker="x", s=90, color="red", linewidths=1.6, zorder=4)
 # ── loading ───────────────────────────────────────────────────────────────
 
 def load_device(sample_dir: str):
-    """
-    (ux, uy, Z_raw, ground_truth) for one device.
+    """(ux, uy, Z_raw, ground_truth) for one device.
 
-    Z is the RAW sensor signal, not the min-max normalised copy the network
-    is fed: a figure with a colorbar should show the quantity that was
-    simulated, in the units it was simulated in.
+    Z is the raw sensor signal, not the normalised copy the network is fed: a
+    figure with a colorbar should show the quantity that was simulated.
     """
     path = os.path.join(sample_dir, "numpy", "simulation",
                         "charge_sensing_data.npy")
@@ -162,16 +124,11 @@ def _extent(ux, uy):
 
 
 def draw_truth(ax, x_edges, y_edges, gt, cell_grid: bool = True) -> None:
-    """
-    The binary transition map in the house style, with the cell grid thinned
-    to suit the resolution.
+    """The binary transition map in the house style.
 
-    The house style draws every voltage-grid cell boundary.  At the 50 x 50
-    grids that style was set for, that is a light lattice behind the lines; at
-    100 x 100 and above the same linewidth puts more ink on the page than the
-    transition lines do and the diagram becomes unreadable.  The grid is
-    therefore thinned in proportion, so it stays visible without competing
-    with the thing the figure is about.
+    The cell grid is thinned in proportion to the resolution: the style was
+    set for 50 x 50, where it is a light lattice, and at 100 x 100 the same
+    linewidth puts more ink on the page than the transition lines do.
     """
     res = max(gt.shape)
     lw = GT_LINEWIDTH * min(1.0, 50.0 / max(res, 1)) if cell_grid else 0.0
@@ -189,14 +146,10 @@ def _edges(ux, uy):
 
 
 def ray_geometry(sample_dir: str, ux, uy, n_rays: int, n_points: int):
-    """
-    (polylines, peak voltages) for one device at one budget.
-
-    polylines : list of (n_points, 2) arrays, one per ray, in VOLTAGE
-    peaks     : (n_peaks, 2) array of voltages where a peak was detected
+    """(polylines, peak voltages, measurement) for one device at one budget.
 
     The geometry is ray_peaks.ray_polyline's own, so a figure drawn here is
-    the measurement the study actually used, not a redrawing of it.
+    the measurement the study used, not a redrawing of it.
     """
     polylines = [ray_polyline(a, n_points, ux, uy)
                  for a in fan_angles(n_rays)]
@@ -227,11 +180,7 @@ def fig_charge_sensor(ux, uy, Z, out_path: str, title: str,
 
 def fig_stability_diagram(ux, uy, gt, out_path: str, title: str,
                           cell_grid: bool = True) -> None:
-    """
-    The binary DQD stability diagram: every charge-transition line, black on
-    white, with the voltage-grid cells visible — the same picture the
-    simulator's own double_dot_stability_diagram.jpg showed.
-    """
+    """Every charge-transition line, black on white, cells visible."""
     x_edges, y_edges = _edges(ux, uy)
     fig, ax, _ = new_map_figure()
     draw_truth(ax, x_edges, y_edges, gt, cell_grid)
@@ -260,11 +209,10 @@ def fig_rays(ux, uy, Z, polylines, peaks, out_path: str, title: str) -> None:
 
 def fig_rays_on_truth(ux, uy, gt, polylines, peaks, out_path: str,
                       title: str, cell_grid: bool = True) -> None:
-    """
-    The same rays over the binary stability diagram.
+    """The same rays over the binary stability diagram.
 
-    This is the figure that shows what the measurement can and cannot see:
-    where a ray crosses a transition line, and which lines no ray went near.
+    Shows what the measurement can and cannot see: where a ray crosses a
+    transition line, and which lines no ray went near.
     """
     x_edges, y_edges = _edges(ux, uy)
     fig, ax, _ = new_map_figure()
@@ -281,12 +229,10 @@ def fig_rays_on_truth(ux, uy, gt, polylines, peaks, out_path: str,
 
 
 def fig_measurement(ux, uy, m, out_path: str, title: str) -> None:
-    """
-    ONLY the measured pixels — the network's input, with nothing filled in.
+    """Only the measured pixels — the network's input, nothing filled in.
 
-    Unmeasured pixels are left white rather than black: at a few percent
-    coverage a raw array plot is a black square with a faint fan in it, which
-    shows nothing.
+    Unmeasured pixels are white, not black: at a few percent coverage a raw
+    array plot is a black square with a faint fan in it.
     """
     grid = np.full((len(uy), len(ux)), np.nan)
     if len(m.visited_rc):
@@ -331,16 +277,11 @@ def fig_ray_traces(m, out_path: str, title: str) -> None:
 
 
 # ── the original pipeline's four ──────────────────────────────────────────
-#
-# These reproduce runs/<timestamp>_experiment/sample_<i>/*.png from the
-# pipeline this study grew out of.  The only thing they need that the four
-# figures above do not is the peaks kept SEPARATE PER RAY: measure() dedups
-# them into one array, because that is what the network is fed, but a picture
-# that colours ray 18° differently from ray 36° has to know which is which.
+# These need the peaks kept separate per ray, which measure() does not give:
+# it dedups them into one array, because that is what the network is fed.
 
-# One big single-colour cross for the publication figure: every one of them
-# means the same thing, so they are drawn identically, large enough to read
-# at print size, rather than reading as a dozen different categories.
+# One cross for every peak in the publication figure: they all mean the same
+# thing, so they are drawn identically rather than as a dozen categories.
 UNIFORM_CROSS = dict(marker="X", s=180, linewidths=2.0, facecolors="magenta",
                      edgecolors="black", zorder=7)
 UNIFORM_CROSS_LABEL = "Directional Sweep Start Points"
@@ -348,13 +289,12 @@ LABEL_TRUTH = "Transition Lines (Ground Truth)"
 
 
 def peaks_per_ray(ux, uy, polylines, m) -> List[np.ndarray]:
-    """
-    [(n_peaks_k, 2) voltages] — one array per ray, in ray order.
+    """[(n_peaks_k, 2) voltages] — one array per ray, in ray order.
 
     Recomputed from m.traces with the same find_peaks call measure() makes,
-    so these are exactly the peaks the study used; grouping them by ray is
-    the one thing the deduplicated Measurement.peak_rc cannot tell you.
-    Peaks are snapped to cell centres, as the pipeline's figures drew them.
+    so these are the peaks the study used; grouping them by ray is the one
+    thing the deduplicated Measurement.peak_rc cannot give.  Snapped to cell
+    centres, as the pipeline's figures drew them.
     """
     from scipy.signal import find_peaks
 
@@ -382,12 +322,10 @@ def _ray_colors(n: int):
 
 def fig_all_rays_peaks_overlay(ux, uy, Z, per_ray, out_path: str,
                                title: str) -> None:
-    """
-    The sensor image with each ray's peaks in its own colour.
+    """The sensor image with each ray's peaks in its own colour.
 
-    The rays themselves are NOT drawn: with the peaks colour-coded the
-    interesting thing is where along each direction the signal turned over,
-    and the scanned points would bury it.
+    The rays themselves are not drawn: the scanned points would bury the
+    colour coding.
     """
     fig, ax, cax = new_map_figure(with_colorbar=True)
     im = ax.imshow(Z, extent=_extent(ux, uy), origin="lower", aspect="auto",
@@ -409,17 +347,14 @@ def fig_all_rays_peaks_overlay(ux, uy, Z, per_ray, out_path: str,
 
 
 def fig_ml_measurement(ux, uy, m, peaks, out_path: str, title: str) -> None:
-    """
-    The measured points and their peaks on the bare cell grid.
+    """The measured points and their peaks on the bare cell grid.
 
-    Neither the sensor image nor the ground truth is shown: this is the
-    measurement on its own, so how little of the plane it touches is the
-    only thing the figure says.
+    Neither the sensor image nor the truth is shown, so how little of the
+    plane the measurement touches is all the figure says.
     """
     x_edges, y_edges = _edges(ux, uy)
     fig, ax, _ = new_map_figure()
-    # An all-zero map is the house style's white cells with their black
-    # boundaries — the grid, and nothing else on it.
+    # An all-zero map is the grid and nothing else on it.
     draw_truth(ax, x_edges, y_edges, np.zeros((len(uy), len(ux))))
     seen = _visited_voltages(ux, uy, m)
     if len(seen):
@@ -436,15 +371,11 @@ def fig_ml_measurement(ux, uy, m, peaks, out_path: str, title: str) -> None:
 def fig_summary_total(ux, uy, gt, m, peaks, per_ray, out_path: str,
                       title: str, cell_grid: bool = True,
                       uniform: bool = False) -> None:
-    """
-    Ground truth, measured points and the peaks, all in one picture.
+    """Ground truth, measured points and the peaks, in one picture.
 
-    uniform=False  each ray's peaks in its own tab10 colour, out of the
-                   legend — summary_total.png
-    uniform=True   every peak as one big magenta X and no legend at all —
-                   summary_total_all_crosses.png, the publication figure,
-                   where the crosses all mean the same thing and a legend
-                   would only cover the diagram
+    uniform=False  each ray's peaks in its own tab10 colour (summary_total)
+    uniform=True   every peak as one magenta X, no legend — the publication
+                   figure, where a legend would only cover the diagram
     """
     x_edges, y_edges = _edges(ux, uy)
     fig, ax, _ = new_map_figure()
@@ -456,7 +387,8 @@ def fig_summary_total(ux, uy, gt, m, peaks, per_ray, out_path: str,
                    **MARKER_SCANNED)
 
     if uniform:
-        allpk = np.concatenate([p for p in per_ray if len(p)])             if any(len(p) for p in per_ray) else np.empty((0, 2))
+        allpk = (np.concatenate([p for p in per_ray if len(p)])
+                 if any(len(p) for p in per_ray) else np.empty((0, 2)))
         if len(allpk):
             ax.scatter(allpk[:, 0], allpk[:, 1], label=UNIFORM_CROSS_LABEL,
                        **UNIFORM_CROSS)
@@ -539,8 +471,7 @@ def render_device(sample_dir: str, out_dir: str, n_rays: int, n_points: int,
         polylines, peaks, m = ray_geometry(sample_dir, ux, uy, n_rays,
                                            n_points)
 
-    # Only the per-ray figures need the peaks split by ray, and splitting
-    # them means running find_peaks again — so do it only if one is wanted.
+    # Splitting the peaks by ray means running find_peaks again.
     per_ray = None
     if any(wanted.get(k) for k in ("all_rays_peaks_overlay", "summary_total",
                                    "summary_total_all_crosses")):
@@ -597,7 +528,6 @@ def render_device(sample_dir: str, out_dir: str, n_rays: int, n_points: int,
     return written
 
 
-# Words accepted in place of a list of device numbers.
 ALL = "ALL"
 NONE = "NONE"
 _ALL_WORDS = {"ALL", "*", "EVERY"}
@@ -605,16 +535,9 @@ _NONE_WORDS = {"NONE", "", "-"}
 
 
 def normalise_devices(which):
-    """
-    Turn a figure_devices entry into either None (every device) or a list.
+    """Turn a figure_devices entry into None (every device) or a list.
 
-        "ALL"      -> None, meaning every device in the split
-        "NONE"     -> [], meaning draw nothing for this split
-        [1, 2, 5]  -> [1, 2, 5]
-        None       -> None (every device), kept for backwards compatibility
-
-    "ALL" is what you want when checking that every stability diagram really
-    is a DQD: it draws the whole split without writing the numbers out.
+    "ALL" and None -> None, "NONE" -> [], [1, 2, 5] -> [1, 2, 5].
     """
     if which is None:
         return None
@@ -634,13 +557,7 @@ def normalise_devices(which):
 
 def _selection(sample_dirs: Sequence[str],
                which) -> List[Tuple[int, str]]:
-    """
-    [(device number, folder)] for the requested devices.
-
-    which : "ALL" / None -> every device
-            "NONE" / []  -> none
-            [1, 3]       -> devices 1 and 3 (1-based, matching sample_<i>)
-    """
+    """[(device number, folder)] for the requested devices, 1-based."""
     which = normalise_devices(which)
     if which is None:
         return list(enumerate(sample_dirs, 1))
@@ -659,12 +576,7 @@ def render_split(sample_dirs: Sequence[str], out_root: str, split: str,
                  which: Optional[Sequence[int]] = None,
                  dpi: int = 200, size_in: float = 8.0,
                  cell_grid: bool = True) -> int:
-    """
-    Draw the requested figures for the requested devices of one split.
-
-    Returns how many files were written.  Nothing here is required by the
-    study: it only ever adds .png files next to the data.
-    """
+    """Draw the requested figures for one split; returns the file count."""
     if not any(wanted.values()):
         return 0
     picked = _selection(sample_dirs, which)
@@ -680,8 +592,8 @@ def render_split(sample_dirs: Sequence[str], out_root: str, split: str,
     n_files = len(picked) * len(kinds)
     log.detail(f"  {split}: {len(picked)} device(s) x {len(kinds)} figure(s) "
                f"= {n_files} files -> {', '.join(kinds)}")
-    # Drawing a whole 500-device split is minutes of work and hundreds of
-    # megabytes; say so before starting rather than appearing to hang.
+    # A whole 500-device split is minutes of work and hundreds of megabytes;
+    # say so rather than appearing to hang.
     if n_files >= 200:
         log.detail(f"    (this is a lot of figures — roughly "
                    f"{n_files * 0.4 / 60:.0f} min.  Use a list like [1, 2, 3] "
@@ -702,11 +614,10 @@ def render_split(sample_dirs: Sequence[str], out_root: str, split: str,
 
 
 def render_config(cfg, splits: Optional[Sequence[str]] = None) -> int:
-    """
-    Draw every per-device figure this configuration asks for.
+    """Draw every per-device figure this configuration asks for.
 
-    Reads the sample folders straight out of the configuration's train.npz /
-    test.npz, so the devices pictured are exactly the devices used.
+    Reads the sample folders out of train.npz / test.npz, so the devices
+    pictured are the devices used.
     """
     from .dataset import load_split
 

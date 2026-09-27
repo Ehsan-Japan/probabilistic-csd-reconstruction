@@ -1,34 +1,23 @@
 """
 grid_metrics.py — how close is a predicted transition-line map to the truth.
 
-Transition lines are one pixel wide and cover only a few percent of the
-diagram, which breaks the obvious metrics:
+Transition lines are one pixel wide and a few percent of the diagram, which
+breaks the obvious metrics: pixel accuracy is useless (predicting "no line
+anywhere" already scores ~97%), and strict pixel F1 is unfairly harsh (a
+perfectly recovered line one pixel to the left scores zero).
 
-  * pixel accuracy is useless — predicting "no line anywhere" already scores
-    ~97%, so it is reported only to be dismissed;
-  * strict pixel F1 is unfairly harsh — a perfectly recovered line drawn one
-    pixel to the left scores ZERO, even though for a physicist it is right.
+The headline is therefore tolerant F1 at tau pixels: a predicted pixel counts
+as correct if a true one lies within tau, and a true pixel as found if a
+predicted one lies within tau.  tau = 0 is strict pixel F1; reporting 0 to 3
+shows how much of the error is sub-pixel misalignment.
 
-So the headline number is tolerant F1 at a tolerance of tau pixels: a
-predicted line pixel counts as correct if a true line pixel lies within tau,
-and a true line pixel counts as found if a predicted one lies within tau.
-tau = 0 is strict pixel F1; report a small range (0, 1, 2, 3) so a reader can
-see how much of the error is pure sub-pixel misalignment.
-
-Implemented with a distance transform, so it costs one EDT per map rather
-than a comparison of every pixel pair.
+Implemented with a distance transform: one EDT per map, not a comparison of
+every pixel pair.
 """
 from typing import Dict, Sequence
 
 import numpy as np
 from scipy.ndimage import distance_transform_edt
-
-
-def _f1(tp: float, fp: float, fn: float) -> Dict[str, float]:
-    p = tp / (tp + fp) if (tp + fp) else 0.0
-    r = tp / (tp + fn) if (tp + fn) else 0.0
-    f = 2 * p * r / (p + r) if (p + r) else 0.0
-    return {"precision": p, "recall": r, "f1": f}
 
 
 def tolerant_f1(pred: np.ndarray, true: np.ndarray, tau: float) -> Dict[str, float]:
@@ -60,19 +49,14 @@ def tolerant_f1(pred: np.ndarray, true: np.ndarray, tau: float) -> Dict[str, flo
 
 
 def coverage_at_tau(visited: np.ndarray, tau: float) -> float:
-    """
-    The fraction of the diagram that lies within tau pixels of a MEASURED
-    pixel — the reach of the measurement at the tolerance the score is read
-    at.
+    """The fraction of the diagram within tau pixels of a MEASURED pixel —
+    the reach of the measurement at the tolerance the score is read at.
 
-    At tau = 0 this is the plain coverage: the fraction of pixels the rays
-    actually touched.  At tau > 0 it is the area a reader should compare the
-    tolerant score against, because a predicted pixel within tau of a
-    measured one is a pixel the measurement could have decided by itself.
-    The gap between coverage@tau and 100% is the part of the plane the
-    network has to infer rather than interpolate.
-
-    Euclidean distance, the same convention tolerant_f1 uses.
+    At tau = 0 this is plain coverage.  Above it, it is the area a reader
+    should compare the tolerant score against, because a predicted pixel
+    within tau of a measured one is a pixel the measurement could have decided
+    by itself; the gap to 100% is what the network has to infer rather than
+    interpolate.  Euclidean, as in tolerant_f1.
     """
     visited = visited > 0.5
     if not visited.any():
@@ -83,24 +67,15 @@ def coverage_at_tau(visited: np.ndarray, tau: float) -> float:
 
 
 def claimed_at_tau(pred: np.ndarray, tau: float) -> float:
-    """
-    The fraction of the diagram the PREDICTION claims once tau slack is
+    """The fraction of the diagram the PREDICTION claims once tau slack is
     allowed: pixels within tau of a predicted line pixel.
 
-    This is the price of the tolerance, and it is the companion every F1@tau
-    has to be read against.  Scoring at tau credits a predicted pixel for a
-    whole disc of radius tau around it, so the model is in effect asserting
-    "a line passes somewhere in here" for every pixel of that disc.  When the
-    discs swallow half the plane, a high F1@tau says very little: almost
-    anywhere a true line could run, some prediction is already within tau of
-    it.
-
-    Distinct from coverage_at_tau, which dilates the VISITED MASK and so
-    describes the measurement geometry alone -- the same number whatever the
-    model predicts.  This one depends on the model, which is what makes it
-    the price of the score rather than of the experiment.
-
-    Euclidean distance, the same convention tolerant_f1 uses.
+    Scoring at tau credits a predicted pixel for a whole disc of radius tau,
+    so the model is asserting "a line passes somewhere in here" for every
+    pixel of it.  When the discs swallow half the plane, a high F1@tau says
+    very little.  This is the price of the score; coverage_at_tau dilates the
+    visited mask instead and is the price of the experiment, the same number
+    whatever the model predicts.  Euclidean, as in tolerant_f1.
     """
     pred = pred > 0.5
     if not pred.any():

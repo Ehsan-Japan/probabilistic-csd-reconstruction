@@ -1,35 +1,18 @@
 """
-evaluation.py — stage 3: score the checkpoint on the held-out devices and
-draw what it actually predicts.
+evaluation.py — stage 3: score the checkpoint on the held-out devices and draw
+what it predicts.
 
-Writes into <config>/evaluation/:
+Writes into <config>/evaluation/: metrics.json, per_device.csv (one row per
+test device — the spread, not just the mean), results.txt, and figures/ with
+f1_vs_tolerance.png, probability.png and one sample_<i>/ folder per test
+device named in run_1's figure_devices["test"].
 
-    metrics.json          the headline numbers, machine-readable
-    per_device.csv        one row per test device — the spread, not just the
-                          mean, which is what a referee asks for
-    results.txt           the same, as a page you can read
-    figures/
-        f1_vs_tolerance.png   how much of the error is sub-pixel
-        probability.png       what the network outputs before thresholding,
-                              and where the threshold sits
-        sample_1/             one folder per test device you asked for, in
-        sample_2/             run_1's figure_devices["test"] setting, each
-        sample_3/             panel its own file:
-                                  measurement.png
-                                  ground_truth.png
-                                  prediction.png
+Why the metrics are what they are: transition lines are one pixel wide and a
+few percent of the diagram, so pixel accuracy is useless (predicting no line
+anywhere already scores ~96%) and strict pixel F1 is unfairly harsh.  The
+headline is tolerant F1 at tau = 1, reported beside tau = 0, 2, 3.
 
-WHY THE METRICS ARE WHAT THEY ARE
-Transition lines are one pixel wide and cover a few percent of the diagram,
-which breaks the obvious metrics.  Pixel accuracy is useless — predicting "no
-line anywhere" already scores ~96% — so it is reported only to be dismissed.
-Strict pixel F1 is unfairly harsh: a perfectly recovered line drawn one pixel
-to the left scores zero, though for a physicist it is right.  The headline
-number is therefore tolerant F1 at tolerance tau = 1 pixel, reported
-alongside tau = 0, 2, 3 so a reader can see how much of the remaining error
-is pure sub-pixel misalignment rather than a missing line.
-
-The binarisation threshold is NOT chosen here.  It was picked on the
+The binarisation threshold is not chosen here.  It was picked on the
 validation split during training and stored in the checkpoint, so nothing on
 this page was tuned on the test devices.
 """
@@ -217,22 +200,17 @@ def _panel(out_path: str, draw, title: str, extent=None):
 
 def render_device_panels(X, Y, pred, prob, rows, sample_dirs, cfg,
                          fig_dir: str) -> int:
-    """
-    One FOLDER per chosen test device, each panel its own file.
-
-    Which devices is the figure_devices["test"] setting from run_1 — the same
-    list that decides which devices get their stability-diagram pictures — so
-    the same devices are followed all the way through the study instead of a
-    different automatic selection at every stage.
+    """One folder per chosen test device, each panel its own file.
 
         evaluation/figures/sample_1/
             measurement.png     what the network was given
             ground_truth.png    what it should draw
             prediction.png      what it drew
 
-    Devices are matched BY NAME, not by position: index i in the arrays is
-    whatever the dataset was built with, and only the folder name identifies
-    the device itself.
+    Which devices is run_1's figure_devices["test"], the same list that
+    decides the stability-diagram pictures, so one set of devices is followed
+    through the whole study.  Devices are matched by name, not by position:
+    only the folder name identifies the device.
     """
     from .device_figures import normalise_devices
 

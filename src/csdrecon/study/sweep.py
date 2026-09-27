@@ -37,15 +37,12 @@ def configs(template, rays, points, n_train, n_test, epochs, figure_devices):
 
 
 def run_dir(cfgs):
-    """
-    The one folder this sweep owns, under results/ :
+    """The one folder this sweep owns, under results/.
 
         results/4-7-8_rays_40_points_150_samples/
 
-    Named by the same rule the comparison table uses, so the folder holding
-    the run and the folder holding its table are the same folder.  Everything
-    the run produces - the datasets, the models, the evaluations, the
-    comparison and the model/hyperparameter report - goes inside it.
+    Named by the rule the comparison table uses, so the run and its table are
+    in the same folder, and everything the run produces goes inside it.
     """
     rows = [{"configuration": c.name, "n_rays": c.n_rays,
              "n_points": c.n_points, "n_train": c.n_train,
@@ -77,15 +74,11 @@ def wipe(results=True, device_pools=False):
 
 def _describe_run(out_dir, template, cfgs, rays, points, n_train, n_test,
                   epochs):
-    """
-    Write, into the run folder, what the model IS and what it was run with:
+    """Write into the run folder what the model is and what it was run with:
+    model_structure.yaml/.json and hyperparameters.yaml.
 
-        model_structure.yaml / .json   the network, layer by layer
-        hyperparameters.yaml           every setting of this run
-
-    The network is fully convolutional and therefore identical in every cell
-    of the sweep, so one report describes all of them - which is also what
-    makes the cells comparable.
+    The network is fully convolutional and identical in every cell, so one
+    report describes all of them — which is also what makes them comparable.
     """
     os.makedirs(out_dir, exist_ok=True)
     # The swept knobs are listed once, under "sweep", with their real values;

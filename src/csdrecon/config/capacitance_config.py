@@ -2,55 +2,33 @@
 capacitance_config.py — the capacitance parameter space every device is drawn
 from.
 
-An interval specification is either
+An interval is either [lo, hi] or a union [[lo1, hi1], [lo2, hi2], ...].  The
+union form supports a provably non-overlapping train/test split (train from
+the odd bands, test from the even), which the study no longer uses: the split
+is made on device IDs (study/device_split.py).
 
-    [lo, hi]                       one band
-    [[lo1, hi1], [lo2, hi2], ...]  a UNION of disjoint bands
+WHY THESE RANGES.  The honeycomb only appears when each dot is driven mainly
+by its own plunger gate —
 
-The second form is what makes a provably non-overlapping train/test split
-possible without also making it an extrapolation test: train draws from the
-odd bands of a parameter, test from the even ones, and neither can ever
-produce the other's value.  Not used by the study any more: the
-train/test split is made on device IDs (study/device_split.py).
+    dot-1 lines   slope dV2/dV1 = -d1g1 / d1g2   (steep)
+    dot-2 lines   slope dV2/dV1 = -d2g1 / d2g2   (shallow)
 
-WHY THESE RANGES
-────────────────
-The honeycomb of a double dot only appears when each dot is driven mainly by
-its OWN plunger gate:
+— so the two families stay distinct while max(cross) < min(primary), i.e.
+0.60 < 0.80.  That holds for every band here, but nothing enforces it.
 
-    dot-1 transition lines   slope dV2/dV1 = -d1g1 / d1g2   (steep)
-    dot-2 transition lines   slope dV2/dV1 = -d2g1 / d2g2   (shallow)
+WHY THEY ARE WIDE.  Narrower ranges gave a training set whose members all
+looked alike.  These widen the three quantities that change what a diagram
+looks like:
 
-so the two line families are distinct as long as
+    d1g1, d2g2   0.8 - 6.0   honeycomb period      ~1.6 to ~12 cells/window
+    d1g2, d2g1   0.05 - 0.6  line slope            ~0.5 to ~37 deg from axis
+    d1d2         0.2 - 2.0   interdot anticrossing
 
-    max(cross) < min(primary)      i.e.  0.60 < 0.80        (*)
-
-which holds for every band of every split, in both directions.  Nothing
-enforces it: the ranges below simply happen to satisfy it.  No draw is
-checked, filtered or redrawn — whatever the intervals produce is a device.
-
-WHY THEY ARE WIDE
-─────────────────
-The previous ranges produced a training set whose members all looked alike:
-the primary gate capacitances spanned only 1 -> 4, so every diagram had
-between 2 and 8 honeycomb cells across the window, and the cross couplings
-were so small that every dot-1 line was near-vertical and every dot-2 line
-near-horizontal.  The ranges below widen the three quantities that actually
-change what a diagram looks like:
-
-    d1g1, d2g2   0.8 - 6.0   honeycomb PERIOD   ~1.6 to ~12 cells per window
-    d1g2, d2g1   0.05 - 0.6  line SLOPE         ~0.5 deg to ~37 deg from axis
-    d1d2         0.2 - 2.0   interdot ANTICROSSING, from barely split triple
-                             points to a long interdot segment
-
-Nothing is filtered.  A draw that lands somewhere unusual (the two dots
-merging into one, lines too dense to resolve on the pixel grid, no charge
-transition at all in the window) is kept like any other: the pool is a plain
-uniform sample of this box.
+No draw is checked, filtered or redrawn: the pool is a plain uniform sample of
+this box, unusual draws included.
 """
 from typing import Dict, Iterable, List, Sequence, Tuple, Union
 
-from . import log
 
 # One band, [lo, hi], or a union of them.
 IntervalSpec = Union[Sequence[float], Sequence[Sequence[float]]]
@@ -59,7 +37,7 @@ IntervalSpec = Union[Sequence[float], Sequence[Sequence[float]]]
 # ── The parameter space ───────────────────────────────────────────────────
 #
 # Every entry is drawn independently and uniformly per device, so a device is
-# a point in this 13-dimensional box, not a perturbation of a template.
+# a point in this 14-dimensional box, not a perturbation of a template.
 
 DEFAULT_INTERVALS: Dict[str, Dict[str, IntervalSpec]] = {
     "Cdd": {
@@ -185,15 +163,12 @@ def overlaps(a: IntervalSpec, b: IntervalSpec, atol: float = 0.0) -> bool:
 
 def split_band(spec: IntervalSpec, gap: float = 0.10
                ) -> Tuple[List[List[float]], List[List[float]]]:
-    """
-    Cut ONE parameter's range into a lower (train) and an upper (test) band,
-    separated by a dead zone `gap` wide, as a fraction of the full range.
+    """Cut one parameter's range into a lower (train) and upper (test) band,
+    separated by a dead zone `gap` wide as a fraction of the full range.
 
-        [0.80, 6.00], gap=0.10  ->  train [0.80, 3.14]   test [3.66, 6.00]
-                                          |<- 45% ->|gap|<- 45% ->|
+        [0.80, 6.00], gap=0.10  ->  train [0.80, 3.14]  test [3.66, 6.00]
 
-    The two bands cannot produce the same value: not "unlikely to", cannot.
-    That is the whole point of the mode — see :func:`split_by_interval`.
+    The two bands cannot produce the same value — not "unlikely to", cannot.
     """
     if not 0.0 <= gap < 1.0:
         raise ValueError(f"gap must be in [0, 1), got {gap}")
@@ -207,19 +182,14 @@ def split_by_interval(intervals: Dict[str, Dict[str, IntervalSpec]],
                       gap: float = 0.10
                       ) -> Tuple[Dict[str, Dict[str, IntervalSpec]],
                                  Dict[str, Dict[str, IntervalSpec]]]:
-    """
-    (train space, test space) with EVERY parameter cut in two.
+    """(train space, test space) with every parameter cut in two.
 
-    Train devices are drawn from the lower band of all 14 capacitances, test
-    devices from the upper band of all 14.  No parameter interval intersects
-    its counterpart, so a test device is not merely a different device — it
-    is made of values the training set never contained.  A model that scores
-    on it has EXTRAPOLATED, which is a strictly stronger claim than the
-    device-ID split makes (and a strictly harder one to satisfy).
-
-    Condition (*) happens to survive the cut in both directions, because the
-    cross-gate bands stay inside [0.05, 0.60] and the primary-gate bands
-    inside [0.80, 6.00].  Nothing checks it.
+    Train draws from the lower band of all 14 capacitances, test from the
+    upper, so a test device is made of values the training set never
+    contained: a model that scores on it has extrapolated.  Condition (*)
+    happens to survive the cut in both directions, since the cross-gate bands
+    stay inside [0.05, 0.60] and the primary-gate bands inside [0.80, 6.00].
+    Nothing checks it.
     """
     train: Dict[str, Dict[str, IntervalSpec]] = {}
     test: Dict[str, Dict[str, IntervalSpec]] = {}
@@ -314,7 +284,3 @@ class CapacitanceConfig:
         """[(matrix, key, formatted spec)] — for tables and reports."""
         return [(m, k, format_spec(s)) for m, k, s in _flatten(self.intervals)]
 
-    def print_summary(self) -> None:
-        log.say(f"\ncapacitance space '{self.name}'  (fingerprint {self.fingerprint})")
-        for matrix, key, text in self.rows():
-            log.say(f"  {matrix}.{key:<5s} {text}")

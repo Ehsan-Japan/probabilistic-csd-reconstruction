@@ -1,23 +1,17 @@
 """
 training.py — stage 2: train the U-Net on one configuration.
 
-Reads the configuration's train.npz and writes into <config>/model/:
-
-    unet.pt            the checkpoint, which remembers the budget it was
-                       trained for, so stage 3 cannot score it on a
-                       measurement it never saw
-    model_info.json    the architecture and every training hyperparameter
-    training_curve.png training loss and validation F1 against epoch
-    history.json       the same two curves as numbers
+Reads train.npz and writes into <config>/model/: unet.pt (which remembers the
+budget it was trained for, so stage 3 cannot score it on a measurement it
+never saw), model_info.json, training_curve.png and history.json.
 
 The test set never enters this file.  The validation slice used to pick the
-epoch and the binarisation threshold is carved out of the TRAINING devices,
-so the held-out devices stay untouched until stage 3 — which is what makes
-stage 3's number an honest held-out result.
+epoch and the binarisation threshold is carved out of the training devices, so
+the held-out devices stay untouched until stage 3.
 
 Nothing about the architecture, the learning rate, the batch size or the
-validation fraction is a knob here.  They are constants in csdrecon/ml/, identical
-in every configuration, because a comparison between measurement budgets only
+validation fraction is a knob here: they are constants in csdrecon/ml/,
+identical in every configuration, because a comparison between budgets only
 means something if everything except the measurement is held fixed.
 """
 import json
@@ -72,17 +66,13 @@ def plot_training_curve(history: Dict, out_path: str, title: str) -> None:
 
 
 def train(cfg: StudyConfig) -> Tuple[str, Dict]:
-    """
-    Train one configuration.  -> (checkpoint path, summary dict).
+    """Train one configuration.  -> (checkpoint path, summary dict).
 
-    Re-running overwrites this configuration's model and nothing else: every
-    other budget keeps its own folder and its own checkpoint.
-
-    cfg.train_seed is the random initialisation.  It changes only where the
-    optimisation lands, never the data, and it changes the model/ and
-    evaluation/ folder names — so the same arm can be trained at five seeds
-    and all five results survive, which is what turns one number into a
-    number with a spread.
+    Re-running overwrites this configuration's model and nothing else.
+    cfg.train_seed changes only where the optimisation lands, never the data,
+    and it changes the model/ and evaluation/ folder names — so one arm can be
+    trained at five seeds and all five results survive, which is what turns
+    one number into a number with a spread.
     """
     X, Y, samples = load_split(cfg.train_npz)
     os.makedirs(cfg.model_dir, exist_ok=True)

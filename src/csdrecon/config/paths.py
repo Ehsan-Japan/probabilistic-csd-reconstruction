@@ -1,19 +1,14 @@
 """
 paths.py — the project's directory layout, in one place.
 
-Everything the code writes or reads lives INSIDE the project folder, and
-every path here is anchored to this file, not to the current working
-directory.  A program therefore behaves the same whether it is started from
-the project root, from scripts/, or from anywhere else:
+Every path is anchored to this file, not to the working directory, so a
+program behaves the same wherever it is started from.
 
     probabilistic-csd-reconstruction/    PROJECT_ROOT
       src/csdrecon/                      the library
       scripts/                           the programs you run
-      data/                              DATA_ROOT — the simulated device pools
+      data/                              DATA_ROOT — simulated device pools
       results/                           RESULTS   — one folder per run
-
-Use these constants instead of writing "../data": a relative path means a
-different folder for every caller.
 """
 import os
 
@@ -29,17 +24,11 @@ DATA_ROOT = os.path.join(PROJECT_ROOT, "data")
 RESULTS = os.path.join(PROJECT_ROOT, "results")
 
 
-# Where the CONFIGURATION folders (one per measurement budget) are written.
-# Overridable, because run_0 gives each sweep its own folder under results/ so
-# that one run of the program is one self-contained folder:
-#
-#     results/4-7-8_rays_40_points_150_samples/
-#         4_rays_40_points_150_samples/     <- a configuration folder
-#         7_rays_40_points_150_samples/
-#         comparison.csv, figures/, model_structure.yaml, hyperparameters.yaml
-#
-# The DEVICE POOLS are deliberately NOT moved: they are the expensive part,
-# they do not depend on the budget, and they stay shared in data/.
+# Where the configuration folders (one per budget) are written.  Overridable,
+# because run_0 gives each sweep its own folder under results/ with the
+# configuration folders inside it.  The device pools are deliberately not
+# moved: they are the expensive part, do not depend on the budget, and stay
+# shared in data/.
 CONFIG_ROOT = DATA_ROOT
 
 

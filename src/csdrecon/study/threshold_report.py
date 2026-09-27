@@ -2,50 +2,31 @@
 threshold_report.py — what the network really outputs, and what the
 binarisation threshold does to it.
 
-The network's last layer is a sigmoid, so a prediction is a PROBABILITY MAP:
-one number in [0, 1] per pixel, "how likely is a transition line here".  Every
-number in results.txt is computed on a BINARY map instead, obtained by cutting
-that probability map at a threshold.  The threshold is therefore part of the
-result, and a reader is entitled to see it rather than take it on trust.
+The last layer is a sigmoid, so a prediction is a probability map, while every
+number in results.txt is computed on a binary map cut from it at a threshold.
+The threshold is part of the result, so it is shown rather than taken on trust.
 
-WHERE THE THRESHOLD COMES FROM (it is not 0.5, and it is not tuned here)
-    ml/grid_train.py  THRESHOLDS = (0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.95, 0.99)
+Where it comes from — not 0.5, and not tuned here.  During training, 15% of
+the training devices are held back (VAL_FRACTION); after the best epoch is
+restored, every candidate in grid_train.THRESHOLDS is applied to the
+validation maps and the one with the highest tolerant F1@1 is written into the
+checkpoint.  The test devices are therefore cut at a number fixed before they
+were seen, which is why this page re-scans the threshold on the test set only
+to show what was left on the table, never to replace it.
 
-    During training, 15% of the TRAINING devices are held back as a validation
-    split (VAL_FRACTION).  After the best epoch is restored, every candidate
-    in THRESHOLDS is applied to the validation probability maps and the one
-    with the highest tolerant F1@1 wins.  It is written into the checkpoint
-    next to the weights, and run_3 reads it back out.
-
-    So the threshold is chosen on training-side devices only.  The test
-    devices are cut at a number that was fixed before they were ever seen —
-    which is the point, and is why this page RE-scans the threshold on the
-    test set only to show what was left on the table, never to replace it.
-
-A fixed 0.5 would be the wrong default here: the loss weights the positive
-class (line pixels are a few percent of the diagram), which deliberately
+A fixed 0.5 would be wrong here: the loss weights the positive class, which
 pushes probabilities up, and the best operating point moves with how sparse
 the measurement is.
 
-WHAT THIS WRITES  ->  results/threshold_report/<configuration>/
-    README.txt                      the above, with this run's numbers
-    threshold_scan.csv              precision/recall/F1@1/IoU vs threshold
-    00_threshold_choice.png         those curves, with the chosen cut marked
-    01_probability_separation.png   pooled probability histogram, line pixels
-                                    against background, and where the cut sits
-    sample_<i>/
-        overview.png                measurement | probability | truth |
-                                    prediction at the chosen threshold
-        threshold_strip.png         the same device binarised at a ladder of
-                                    thresholds, so the cost of the choice is
-                                    visible rather than argued
-        probability_vs_truth.png    this device's histogram and its own
-                                    F1@1-vs-threshold curve
-        threshold_scan.csv          this device's numbers
+Writes results/threshold_report/<configuration>/: README.txt with this run's
+numbers, threshold_scan.csv, 00_threshold_choice.png,
+01_probability_separation.png, and per device an overview.png, a
+threshold_strip.png at a ladder of thresholds, probability_vs_truth.png and
+its own threshold_scan.csv.
 """
 import csv
 import os
-from typing import Dict, List, Optional, Sequence, Tuple
+from typing import Dict, List, Optional, Sequence
 
 import numpy as np
 from scipy.ndimage import distance_transform_edt
@@ -447,15 +428,12 @@ def _readme(cfg: StudyConfig, chosen: float, rows: List[Dict],
 
 def run(cfg: StudyConfig, devices: Optional[Sequence[int]] = None,
         max_scan_devices: int = 60, out_root: Optional[str] = None) -> str:
-    """
-    Write the threshold report for one configuration.
+    """Write the threshold report for one configuration.
 
     devices           which test devices get their own folder; None uses the
-                      configuration's own figure_devices["test"] list, so the
-                      same devices are followed through the whole study
-    max_scan_devices  how many test devices the aggregate curves are scanned
-                      over — every threshold costs a distance transform per
-                      device, so the full set is slow and adds nothing
+                      configuration's figure_devices["test"]
+    max_scan_devices  how many devices the aggregate curves are scanned over —
+                      every threshold costs a distance transform per device
     """
     if not os.path.isfile(cfg.checkpoint):
         raise FileNotFoundError(

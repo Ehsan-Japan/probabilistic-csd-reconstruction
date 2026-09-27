@@ -1,17 +1,10 @@
 """
 grid_train.py — training and checkpointing for RayToLinesNet.  LIBRARY ONLY.
 
-There is no command line here on purpose.  The main programs live in
-scripts/ and each does one job:
-
-    scripts/generate_ml_data.py   make devices          (no model involved)
-    scripts/train_model.py        train one budget      (writes a checkpoint)
-    scripts/evaluate_model.py     score a checkpoint    (trains nothing)
-    scripts/run_budget_sweep.py   the rays x points table
-
-Keeping generation, training and evaluation in separate programs means a
-checkpoint is scored by code that cannot accidentally have seen the test
-data, and a re-score never silently retrains.
+There is no command line here on purpose: generation, training and evaluation
+are separate programs in scripts/, so a checkpoint is scored by code that
+cannot accidentally have seen the test data and a re-score never silently
+retrains.
 
 Line pixels are a few percent of the diagram, so the loss is BCE with the
 positive class weighted by its true rarity.  Without that the network
@@ -44,10 +37,8 @@ THRESHOLDS = (0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.95, 0.99)
 # the collapse.
 MAX_POS_WEIGHT = 8.0
 
-# Optimiser settings.  Defaults that work; they live here, once, instead of
-# in every script's settings block.  Nothing in scripts/ needs to know them,
-# and the budget study does not depend on them as long as they are the same
-# in every cell of the sweep — which, being constants, they are.
+# Optimiser settings.  Here, once, instead of in every script's settings
+# block: the budget study only needs them identical in every cell.
 BATCH_SIZE = 16
 LEARNING_RATE = 1e-3
 VAL_FRACTION = 0.15      # of the TRAINING devices, never of the test set
@@ -78,11 +69,6 @@ def training_description(seed: int = SEED) -> Dict:
                             "threshold picked on the validation split, "
                             "carved out of the training set"),
     }
-
-
-def checkpoint_name(n_rays: int, n_points: int) -> str:
-    """One canonical filename per budget, so the scripts always agree."""
-    return f"rays{n_rays}_points{n_points}.pt"
 
 
 def _soft_dice(logits: torch.Tensor, target: torch.Tensor,
@@ -145,28 +131,20 @@ def best_threshold(prob: np.ndarray, Y: np.ndarray, tau: float = 1.0):
 def train(X: np.ndarray, Y: np.ndarray, epochs: int = 40,
           verbose: bool = True,
           seed: int = SEED) -> Tuple[RayToLinesNet, float, Dict]:
-    """
-    Fit the network on ONE budget's (X, Y) and return
-    (net, threshold, history).
+    """Fit the network on one budget's (X, Y) -> (net, threshold, history).
 
-    history holds one value per epoch — {"train_loss": [...], "val_f1": [...]}
-    — exactly the numbers printed during training, so the loss curves of
-    different budgets can be compared after the fact (make_figures.py's
-    save_loss_report).
+    history is one value per epoch, {"train_loss": [...], "val_f1": [...]}, so
+    the curves of different budgets can be compared afterwards.
 
-    Test data never enters this function.  The validation slice used to pick
-    the epoch and the threshold is carved out of the training set, so the
-    held-out samples stay untouched for evaluate_model.py.
+    Test data never enters this function: the validation slice that picks the
+    epoch and the threshold is carved out of the training set.
 
-    `seed` is the TRAINING dice: the random initial weights and the order the
-    batches are drawn in.  Two runs that differ only in this seed see exactly
-    the same data and land in slightly different places, and the size of that
-    spread is what says whether a gap between two arms is a result or a roll
-    of the dice.  Repeat an arm at several seeds before believing a margin.
-
-    The validation slice is deliberately NOT drawn from it: it stays pinned to
-    SEED, so every seed of an arm is scored against the same validation
-    devices and the only thing that moves is the training itself.
+    `seed` is the training dice — the initial weights and the batch order.
+    Two runs differing only in it see the same data and land in slightly
+    different places, and that spread is what says whether a gap between two
+    arms is a result.  The validation slice is deliberately not drawn from it:
+    it stays pinned to SEED, so every seed of an arm is scored against the
+    same validation devices.
     """
     torch.manual_seed(seed)
     rng = np.random.default_rng(SEED)      # the val slice, fixed across seeds

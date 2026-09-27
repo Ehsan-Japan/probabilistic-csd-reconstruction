@@ -8,7 +8,7 @@ nothing is added to the sensor output afterwards.
 import os
 import numpy as np
 import matplotlib.pyplot as plt
-from typing import Dict, Optional
+from typing import Dict
 
 from qarray import ChargeSensedDotArray, DotArray, NoNoise
 
@@ -46,15 +46,10 @@ def _charge_state_changes(n: np.ndarray) -> np.ndarray:
 # ---------------------------------------------------------------------------
 
 class DQDSimulator:
-    """
-    Runs a full DQD charge-sensing simulation.
+    """Runs a full DQD charge-sensing simulation.
 
-    Parameters
-    ----------
-    params : dict
-        Must contain:
-          save_dir, capacitance, model_params, xlabel, ylabel,
-          voltage_sweep, plot_options
+    params must contain save_dir, capacitance, model_params, xlabel, ylabel,
+    voltage_sweep and plot_options.
     """
 
     def __init__(self, params: Dict):
@@ -203,10 +198,9 @@ class DQDSimulator:
         np.save(os.path.join(out_dir, "charge_states.npy"),
                 np.rint(n_open).astype(np.int8))
 
-        # Build the full-size double-dot array first: it is the array everything
-        # else calls "ground truth" (double_dot_data.npy -> ground_truth_labels
-        # .npy -> summary.png, summary_total.png, the per-peak binary_*.png), so
-        # the stability diagram must plot exactly it, not the unpadded z_open.
+        # The full-size double-dot array is what everything downstream calls
+        # ground truth, so the stability diagram must plot exactly it, not the
+        # unpadded z_open.
         x = np.linspace(x_min, x_max, x_res)
         y = np.linspace(y_min, y_max, y_res)
         xv, yv = np.meshgrid(x, y)

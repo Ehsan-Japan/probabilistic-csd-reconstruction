@@ -1,39 +1,23 @@
 """
 figure_bundles.py — the comparison gallery, split into readable bundles.
 
-A gallery that draws every budget on every plot stops being readable long
-before it stops being correct.  For a 2-D sweep that is fifteen labelled
-series per axes: the palette runs out, the lines overlap, the point labels
-collide, and a trend that IS there cannot be seen.
+A 2-D sweep drawn on one plot is fifteen labelled series per axes: the palette
+runs out, the lines overlap and a trend that is there cannot be seen.  So the
+gallery is rendered once per bundle — a slice in which only one thing varies —
+each in its own folder, with no combined copy:
 
-So the gallery is not drawn that way.  It is rendered once per BUNDLE — a
-slice of the sweep in which only one thing varies — each in its own folder,
-and there is no combined copy:
+    results/<sweep>/figures/40_points_per_ray/   4x40 5x40 6x40 7x40 8x40
+                            50_points_per_ray/   ...
 
-    results/<sweep>/figures/
-                    40_points_per_ray/       4x40  5x40  6x40  7x40  8x40
-                    50_points_per_ray/       4x50  5x50  6x50  7x50  8x50
-                    60_points_per_ray/       4x60  5x60  6x60  7x60  8x60
+Five series per plot instead of fifteen.  Each folder also carries the
+comparison.csv for just those budgets and a README.txt naming them, including
+any whose training did not converge.  A sweep with only one bundle goes
+straight into figures/, since a folder named after what every budget shares
+would claim a distinction the sweep does not make.
 
-Five series per plot instead of fifteen, and inside a bundle the only thing
-that changes is the ray count — so every figure answers one question.  Each
-folder also carries the comparison.csv for just those budgets and a
-README.txt naming them, including any whose training did not converge.
-
-A sweep with only ONE bundle goes straight into figures/: there is nothing
-to separate, and a folder named after the thing every budget shares would
-claim a distinction the sweep does not make.
-
-Nothing is recomputed: this reads the metrics.json each configuration
-already has.  comparison.run() calls it, so run_4 produces the bundles
-directly; run_10 is for re-rendering them afterwards, or grouping the other
-way with by="rays".
-
-Group the other way with by="rays" (4 rays at 40, 50 and 60 points, ...),
-which isolates ray resolution instead of ray count.
-
-    from csdrecon.study import figure_bundles
-    figure_bundles.bundle(by="points")
+Nothing is recomputed: this reads the metrics.json each configuration already
+has.  comparison.run() calls it; run_10 re-renders afterwards, and by="rays"
+groups the other way, isolating ray resolution instead of ray count.
 """
 import csv
 import json
@@ -108,7 +92,9 @@ def configs_in(sweep_dir: str,
 
 def best_val_f1(cfg: StudyConfig) -> Optional[float]:
     """The training's best validation F1@1, or None if it was not recorded."""
-    path = os.path.join(cfg.path(), "model", "training_summary.json")
+    # model_dir, not "model": a cell retrained at another train_seed keeps
+    # its summary in model_seed<k>/
+    path = os.path.join(cfg.model_dir, "training_summary.json")
     try:
         with open(path) as fh:
             return float(json.load(fh)["best_val_f1"])
@@ -214,27 +200,18 @@ def bundle(sweep_dir: Optional[str] = None,
            by: str = "points",
            configs: Optional[Sequence[StudyConfig]] = None,
            rows: Optional[Sequence[Dict]] = None) -> List[str]:
-    """
-    Render the gallery, one folder per bundle of *sweep_dir*.
+    """Render the gallery, one folder per bundle of *sweep_dir*.
 
     Returns the folders written.  With no sweep_dir, every sweep under
-    results/ that has a comparison.csv is done.  Pass *rows* to reuse a
-    comparison that has already been collected (comparison.run does).
-
-    A sweep with only ONE bundle is rendered flat into figures/ instead:
-    there is nothing to separate, and a folder called 40_points_per_ray that
-    held the entire sweep would claim a distinction the sweep does not make.
+    results/ with a comparison.csv is done; pass *rows* to reuse a comparison
+    already collected.  A sweep with only one bundle is rendered flat into
+    figures/, since a folder holding the entire sweep would claim a
+    distinction the sweep does not make.
     """
-    # Both imported here rather than at module scope: comparison imports
-    # this module, so a top-level import of it would close the cycle, and
-    # model_figures is only needed to DRAW -- group(), configs_in() and
-    # best_val_f1() above are pure bookkeeping and should stay importable
-    # without it.
-    #
-    # This does NOT make the module matplotlib-free: csdrecon.config.__init__
-    # imports figure_style, which imports pyplot, so `from ..config import
-    # log` at the top pulls it in regardless.  Worth knowing before trimming
-    # the CI install list.
+    # Imported here, not at module scope: comparison imports this module, so
+    # a top-level import would close the cycle, and the bookkeeping above
+    # should stay importable without matplotlib.  (The module is not
+    # matplotlib-free regardless: config.__init__ imports figure_style.)
     from . import comparison, model_figures
     targets = [sweep_dir] if sweep_dir else sweep_dirs()
     if not targets:
@@ -248,10 +225,9 @@ def bundle(sweep_dir: Optional[str] = None,
         sweep = os.path.abspath(sweep)
         if rows is not None and configs is not None:
             # The caller has already decided what belongs together, and the
-            # output folder need not physically contain the configuration
-            # folders -- comparison.run() names it after the sweep, which for
-            # a comparison spanning two runs is a third folder entirely.
-            # Filtering by path here would silently drop every one of them.
+            # output folder need not contain the configuration folders — for a
+            # comparison spanning two runs it is a third folder entirely, and
+            # filtering by path would silently drop every one of them.
             mine = list(configs)
         else:
             mine = configs_in(sweep, configs)

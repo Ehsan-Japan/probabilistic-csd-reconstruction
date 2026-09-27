@@ -1,36 +1,27 @@
 """
-dataset.py — stage 1: build one configuration's dataset, and the evidence
-that it is what the paper says it is.
+dataset.py — stage 1: build one configuration's dataset, and the evidence that
+it is what the paper says it is.
 
-    ONE pool of devices  ->  split by device ID  ->  measure each side
-                                                     train.npz / test.npz
-                                                     dataset_summary.json/.txt
+    ONE pool of devices -> split by device ID -> measure each side
+                                                 train.npz / test.npz
+                                                 dataset_summary.json/.txt
 
-THE SPLIT IS ON THE DEVICE, NOT THE IMAGE
-Capacitance configurations are drawn first, from ONE distribution, and each
-gets an ID.  The IDs are split once and stored with the pool.  Only then is
-anything generated, and every image, measurement budget and augmentation
-inherits the ID of the device it came from — so a device's images all land on
-one side, never both.  See study/device_split.py.
+The split is on the device, not the image: capacitance configurations are
+drawn first from one distribution, each gets an ID, the IDs are split once and
+stored with the pool, and every image and budget inherits the ID of the device
+it came from.  The sweep reuses one cached pool across every (rays, points)
+cell, which is why the split must be stored with the pool rather than
+recomputed — otherwise device 37 could train in one cell and be held out in
+another (study/device_split.py).
 
-The sweep reuses one cached pool across every (rays, points) cell, which is
-exactly why the split has to be decided once and stored WITH the pool rather
-than recomputed per cell: otherwise device 37 could train in the 3-ray cell
-and be held out in the 5-ray cell, and the comparison across cells would stop
-being like for like.
-
-WHAT THIS MODULE ASSERTS, WITH NUMBERS
-    1. every diagram is an unfiltered capacitance draw
-       — there is no acceptance test anywhere: the capacitances are drawn at
-         random and whatever the simulator returns enters the pool.
-    2. no device contributes to both sets
-       — guaranteed by construction (the IDs are disjoint) and re-checked
-         here on the generated data, by ID and by capacitance hash.
-    3. no test device is a near-duplicate of a training one
-       — the minimum Euclidean distance between any train and any test
-         configuration vector in normalised parameter space, reported
-         alongside the same statistic computed WITHIN the training set as a
-         yardstick.
+What this module asserts, with numbers:
+    1. every diagram is an unfiltered capacitance draw — there is no
+       acceptance test anywhere;
+    2. no device contributes to both sets — disjoint by construction and
+       re-checked here by ID and by capacitance hash;
+    3. no test device is a near-duplicate of a training one — the minimum
+       Euclidean distance between train and test in normalised parameter
+       space, reported beside the same statistic within the training set.
 """
 import hashlib
 import json
@@ -70,18 +61,13 @@ def make_devices(cfg: StudyConfig) -> Tuple[str, Dict]:
 
 
 def make_devices_interval(cfg: StudyConfig) -> Tuple[str, str, Dict, Dict]:
-    """
-    Simulate TWO pools, one per half of the cut parameter space.
+    """Simulate two pools, one per half of the cut parameter space.
 
-    This is the interval split: the training devices are drawn only from the
-    lower band of all 14 capacitances and the test devices only from the
-    upper band, with a dead zone between.  There is nothing to split
-    afterwards — a device's side is fixed by the space it came from, and the
-    two spaces cannot produce the same value.
-
-    The pools have different capacitance fingerprints, so their folder names
-    differ and a lower-band device can never be silently reused as an
-    upper-band one.
+    The training devices come only from the lower band of all 14 capacitances
+    and the test devices only from the upper, with a dead zone between, so
+    there is nothing to split afterwards.  The pools have different
+    capacitance fingerprints, so a lower-band device cannot be silently reused
+    as an upper-band one.
     """
     dirs, logs = {}, {}
     for side, n in (("train", cfg.n_train), ("test", cfg.n_test)):
@@ -150,21 +136,16 @@ def records_for(pool_dir: str, ids: Sequence[int]) -> List[Dict]:
 
 def measure_split(cfg: StudyConfig, sample_dirs: Sequence[str], out_npz: str,
                   tag: str) -> Tuple[np.ndarray, np.ndarray]:
-    """
-    Fire the rays at the given devices and save (X, Y) to out_npz.
+    """Fire the rays at the given devices and save (X, Y) to out_npz.
 
-    X : (N, 3, H, W)  ch0 signal along the rays, ch1 visited mask,
-                      ch2 detected peaks (figures only — the network is shown
-                      ch0 and ch1 and nothing else)
-    Y : (N, H, W)     the exact transition-line map, INDEPENDENT of the budget
+    X : (N, 3, H, W)  ch0 signal along the rays, ch1 visited mask, ch2 peaks
+                      (figures only — the network is shown ch0 and ch1)
+    Y : (N, H, W)     the exact transition-line map, independent of the budget
 
-    Y not depending on the budget is the whole experiment: only X gets
-    sparser as rays or points are removed, so a change in accuracy is a
-    change in the measurement and nothing else.
-
-    WHERE those points go is cfg.sampling — "rays" for the whole budget
-    study, which study/sampling.py delegates straight back to
-    grid_dataset.build, so this is the dataset it has always built.
+    Y not depending on the budget is the experiment: only X gets sparser, so a
+    change in accuracy is a change in the measurement.  Where the points go is
+    cfg.sampling — "rays" for the whole budget study, which sampling.py
+    delegates straight back to grid_dataset.build.
     """
     if not sample_dirs:
         raise RuntimeError(f"no usable devices for the {tag} split")

@@ -34,15 +34,9 @@ class CapacitanceMatrixGenerator:
         size: int,
         labels: List[List[str]],
     ) -> List[List[float]]:
-        """
-        Generate a symmetric square matrix whose entries are drawn uniformly
-        from the given intervals.
-
-        Parameters
-        ----------
-        intervals : dict  {label: [min, max]}
-        size      : int   side length of the square matrix
-        labels    : list  size×size label grid (upper triangle mirrors lower)
+        """Symmetric square matrix with entries drawn uniformly from `intervals`
+        ({label: [min, max]}), side `size`, labelled by the size x size
+        `labels` grid whose upper triangle mirrors the lower.
         """
         rng = self._rng
         matrix = [[0.0] * size for _ in range(size)]
@@ -116,25 +110,3 @@ class CapacitanceMatrixGenerator:
         for i, row in enumerate(matrix):
             row_strs = [f"{labels[i][j]}={matrix[i][j]}" for j in range(len(row))]
             log.detail("[ " + ", ".join(row_strs) + " ]")
-
-# =====================================================================
-# HOW IT WORKS:
-# 1. RANDOM SAMPLING VIA SEED: The generator class can accept a 'seed' 
-#    integer. This guarantees that the "random" physics values generated 
-#    can be identically reproduced on any machine during testing.
-#
-# 2. TWO MATRIX STRATEGIES:
-#      - Symmetric Generation: Used for things like dot-to-dot interactions 
-#        (Cdd) where the effect of Dot 1 on Dot 2 is identical to Dot 2 on 
-#        Dot 1. It only generates the upper half and mirrors it to the lower half.
-#      - General Generation: Used for standard grids (like gates-to-dots) 
-#        where dimensions are non-square and values are fully independent.
-#
-# 3. RANGE READING: It loops through the row/column layout, looks up the 
-#    text label (e.g., 'd1g1') in the configuration file, finds its allowed 
-#    [min, max] range, and picks a uniform random float rounded to 4 decimals.
-#
-# 4. MASTER ENGINE ('generate_all'): This maps directly to the companion config 
-#    file. It passes the specific shapes (e.g., 2x2 for Cdd, 2x3 for Cgd) 
-#    and processes all 4 required physics matrices in a single execution block.
-# =====================================================================

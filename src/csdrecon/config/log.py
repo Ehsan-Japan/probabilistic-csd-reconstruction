@@ -1,26 +1,13 @@
 """
 log.py — how much the programs say while they run.
 
-Two levels, one switch:
-
-    say(...)     the headline.  Always printed.  One line per stage, so a
-                 four-cell sweep is a dozen lines you can actually read.
+    say(...)     the headline, always printed: one line per stage.
     detail(...)  the working — per-device counts, paths, full reports.
                  Printed only when VERBOSE is on.
 
-Nothing is lost by staying quiet: every report printed at detail level is
-ALSO written to a file (dataset_summary.txt, results.txt, comparison.txt),
-which is where you read it afterwards anyway.  The terminal is for watching
-progress, not for archiving evidence.
-
-Turn the working back on for one run without editing anything:
-
-    DQD_VERBOSE=1 python scripts/run_0_full_sweep.py
-
-or from a program, before it starts:
-
-    from csdrecon.config import log
-    log.VERBOSE = True
+Nothing is lost by staying quiet: every report printed at detail level is also
+written to a file (dataset_summary.txt, results.txt, comparison.txt).  Turn the
+working on with DQD_VERBOSE=1, or log.VERBOSE = True before the program starts.
 """
 import os
 import sys

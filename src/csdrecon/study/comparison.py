@@ -2,35 +2,23 @@
 comparison.py — stage 4: every configuration side by side.
 
 Reads the metrics.json each configuration's stage 3 wrote and answers the
-question the whole study exists for:
+question the study exists for: how many rays, at what ray resolution, does it
+take to recover the transition lines?  Writes into a folder named after the
+sweep —
 
-    how many rays, at what ray resolution, does it take to recover the
-    transition lines?
+    results/<sweep>/comparison.csv     one row per configuration
+                    comparison.txt     the same as a readable table
+                    figures/<bundle>/  the gallery (figure_bundles.py)
 
-Writes into a folder named after the sweep, so different setups never
-overwrite each other:
+The name is a pure function of the sweep, so re-running one updates its folder
+and two different sweeps can never land in the same place.
 
-    results/3-4-5_rays_50_points_500_samples/       a ray sweep
-    results/5-7-8_rays_20-50_points_500_samples/    rays and points
-    results/3_rays_50_points_100-500_samples/       a data-size sweep
-        comparison.csv        one row per configuration
-        comparison.txt        the same as a readable table
-        figures/<bundle>/     the gallery, a few models per
-                              plot — see figure_bundles.py
-
-The name is a pure function of the sweep, so re-running the same one updates
-its folder rather than piling up copies, and two different sweeps can never
-land in the same place.
-
-Nothing is retrained and nothing existing is touched: this reads finished
-results and adds a folder.  Configurations that have not been evaluated yet
-are listed as missing rather than silently dropped, so a half-finished sweep
-cannot quietly become a complete-looking figure.
-
-Two configurations are only comparable if everything except the budget is
-the same.  The table therefore carries the split mode, the resolution and
-the training-set size in every row, and the comparison warns when they are
-not constant across the rows being plotted.
+Nothing is retrained: this reads finished results and adds a folder.
+Configurations not yet evaluated are listed as missing rather than dropped, so
+a half-finished sweep cannot look complete.  Two configurations are comparable
+only if everything but the budget matches, so every row carries the split
+mode, the resolution and the training-set size, and the comparison warns when
+they are not constant.
 """
 import csv
 import json
@@ -114,19 +102,15 @@ def _part(values: Sequence[int], max_list: int = 5) -> Tuple[str, bool]:
 
 
 def sweep_name(rows: Sequence[Dict]) -> str:
-    """
-    A folder name that says which sweep this is, in the same convention as
-    the dataset folders:
+    """A folder name that says which sweep this is.
 
         one setup           5_rays_50_points_500_samples
         a ray sweep         3-4-5_rays_50_points_500_samples
         rays and points     5-7-8_rays_20-50_points_500_samples
-        a data-size sweep   3_rays_50_points_100-500_samples
 
-    Deterministic, so re-running the same sweep updates its folder instead of
-    piling up new ones, and two different sweeps can never land in the same
-    place.  A sweep with more values than fit in a name is collapsed to a
-    range and given a short hash, so the guarantee survives the shortening.
+    Deterministic, so re-running a sweep updates its folder and two sweeps
+    cannot land in the same place.  More values than fit in a name collapse to
+    a range plus a short hash, so the guarantee survives the shortening.
     """
     def values(key):
         return sorted({int(r[key]) for r in rows})
@@ -257,16 +241,11 @@ def run(out_dir: Optional[str] = None,
            lambda p: open(p, "w", encoding="utf-8").write(full))
     log.detail("\n" + full)
 
-    # The figure gallery lives in model_figures.py — every way of putting the
-    # models beside each other, in one house style.  A figure the sweep
-    # cannot support (the learning curve, without a second training-set size)
-    # is reported as skipped rather than drawn empty.
-    #
-    # It is rendered ONE BUNDLE AT A TIME — figures/40_points_per_ray/ and so
-    # on — rather than once with every budget on every axes.  Fifteen
-    # labelled series per plot exhausts the palette and the labels collide,
-    # so the combined version was unreadable long before it was wrong.  A
-    # sweep with only one bundle still goes straight into figures/.
+    # The gallery lives in model_figures.py.  A figure the sweep cannot
+    # support (the learning curve, without a second training-set size) is
+    # reported as skipped rather than drawn empty.  It is rendered one bundle
+    # at a time, since fifteen labelled series per plot exhausts the palette
+    # and the labels collide; a one-bundle sweep goes straight into figures/.
     log.detail()
     figure_bundles.bundle(sweep_dir=out,
                           configs=configs_in_order(configs, rows),

@@ -1,25 +1,16 @@
 """
-model_report.py — what the network IS, as a printable table and as files.
+model_report.py — what the network is, as a printable table and as files.
 
-Every run folder should explain its own model without anyone opening the
-source, so :func:`save_model_report` writes into <run>/models/ :
+save_model_report() writes model_structure.yaml and .json into <run>/models/,
+so a run folder explains its own model without anyone opening the source;
+format_text() renders the layer table printed during a run.
 
-    model_structure.yaml    the architecture, layer by layer, plus the
-                            training hyperparameters (human-readable)
-    model_structure.json    the same data, for programs
-
-and :func:`format_text` renders the layer table that is printed during a run.
-
-The layer table comes from a real forward pass on a dummy input, with hooks
-on every leaf module — so the output shapes are what the network actually
-produces, not what the source suggests it should.
-
-The architecture is identical in every cell of a budget sweep (the network
-is fully convolutional: no flatten, no fixed-size layer), which is exactly
-what makes the sweep a fair comparison.  One report per run therefore
-describes every checkpoint in it.
+The layer table comes from a real forward pass with hooks on every leaf
+module, so the shapes are what the network produces, not what the source
+suggests.  The architecture is identical in every cell of a sweep (the network
+is fully convolutional), so one report describes every checkpoint in it.
 """
-from typing import Dict, List, Optional, Sequence, Tuple
+from typing import Dict, List, Optional, Tuple
 
 import torch
 
