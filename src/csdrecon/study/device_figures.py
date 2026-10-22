@@ -619,8 +619,6 @@ def render_config(cfg, splits: Optional[Sequence[str]] = None) -> int:
     Reads the sample folders out of train.npz / test.npz, so the devices
     pictured are the devices used.
     """
-    from .dataset import load_split
-
     if not cfg.save_device_figures:
         log.detail("per-device figures are switched off "
                    "(save_device_figures=False)")
@@ -636,7 +634,10 @@ def render_config(cfg, splits: Optional[Sequence[str]] = None) -> int:
     for split, npz in (("train", cfg.train_npz), ("test", cfg.test_npz)):
         if splits and split not in splits:
             continue
-        _, _, sample_dirs = load_split(npz)
+        # Only the device list is read, so a split cut under an older
+        # normalisation still names the right devices.
+        with np.load(npz, allow_pickle=True) as d:
+            sample_dirs = [str(x) for x in d["samples"]]
         which = cfg.figure_devices.get(split, None)
         total += render_split(sample_dirs, cfg.figures_dir, split,
                               cfg.n_rays, cfg.n_points, wanted, which,

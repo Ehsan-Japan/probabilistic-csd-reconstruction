@@ -31,6 +31,7 @@ from typing import Dict, List, Sequence, Tuple
 import numpy as np
 
 from ..config import log
+from ..ml.ray_peaks import NORMALISATION
 from ..simulation import device_factory
 from . import device_figures, device_split, sampling
 from .config import SUMMARY_JSON, SUMMARY_TXT, StudyConfig
@@ -158,19 +159,43 @@ def measure_split(cfg: StudyConfig, sample_dirs: Sequence[str], out_npz: str,
     np.savez_compressed(out_npz, X=X, Y=Y,
                         samples=np.array(sample_dirs),
                         n_rays=cfg.n_rays, n_points=cfg.n_points,
-                        sampling=cfg.sampling)
+                        sampling=cfg.sampling,
+                        normalisation=NORMALISATION)
     log.detail(f"  {os.path.abspath(out_npz)}   X{X.shape}   "
                f"{100 * X[:, 1].mean():.2f}% of pixels measured, "
                f"{100 * Y.mean():.2f}% are transition lines")
     return X, Y
 
 
+def normalisation_of(npz_path: str) -> str:
+    """The channel-0 scaling rule a saved split was cut with.
+
+    Splits saved before the rule was recorded were scaled by the full dense
+    diagram, so a missing tag means exactly that.
+    """
+    with np.load(npz_path, allow_pickle=True) as d:
+        return (str(d["normalisation"]) if "normalisation" in d.files
+                else "full_diagram_minmax")
+
+
 def load_split(npz_path: str) -> Tuple[np.ndarray, np.ndarray, List[str]]:
-    """(X, Y, sample dirs) back out of a train.npz / test.npz."""
+    """(X, Y, sample dirs) back out of a train.npz / test.npz.
+
+    Refuses a split scaled by any rule other than NORMALISATION: a model
+    trained or scored on one would be reading information the measurement
+    never had.
+    """
     if not os.path.isfile(npz_path):
         raise FileNotFoundError(
             f"{os.path.abspath(npz_path)} is missing — run "
             f"run_1_generate_dataset.py for this configuration first")
+    rule = normalisation_of(npz_path)
+    if rule != NORMALISATION:
+        raise ValueError(
+            f"{os.path.abspath(npz_path)} was scaled by '{rule}', not "
+            f"'{NORMALISATION}': channel 0 carries the min and max of the "
+            f"full diagram.  Re-run run_1_generate_dataset.py for this "
+            f"configuration; it rebuilds the split.")
     d = np.load(npz_path, allow_pickle=True)
     return d["X"], d["Y"], [str(s) for s in d["samples"]]
 
@@ -333,7 +358,12 @@ def build(cfg: StudyConfig, rebuild: bool = False) -> Dict:
 
     for npz, dirs, tag in ((cfg.train_npz, train_dirs, "train"),
                            (cfg.test_npz, test_dirs, "test")):
-        if rebuild or not os.path.isfile(npz):
+        stale = (os.path.isfile(npz)
+                 and normalisation_of(npz) != NORMALISATION)
+        if stale:
+            log.detail(f"\n{os.path.abspath(npz)} was cut under the old "
+                       f"full-diagram scaling — rebuilding")
+        if rebuild or stale or not os.path.isfile(npz):
             measure_split(cfg, dirs, npz, tag)
         else:
             log.detail(f"\nreusing {os.path.abspath(npz)}")

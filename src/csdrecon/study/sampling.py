@@ -30,7 +30,8 @@ import numpy as np
 
 from ..ml.grid_dataset import build as build_rays
 from ..config import log
-from ..ml.ray_peaks import Measurement, load_grid, load_ground_truth
+from ..ml.ray_peaks import (Measurement, load_grid, load_ground_truth,
+                            normalise_measured)
 from ..ml.ray_peaks import measure as measure_rays
 from ..ml.ray_peaks import to_channels
 
@@ -102,10 +103,10 @@ def _scattered(sample_dir: str, n_rays: int, n_points: int, strategy: str,
     """
     One device measured at N = n_rays x n_points scattered points.
 
-    The signal is read out of the same normalised sensor grid the rays read,
-    at the same nearest-cell resolution, so the numbers going into channel 0
-    are the numbers the rays would have got had they passed through those
-    pixels.
+    The signal is read out of the same raw sensor grid the rays read, at the
+    same nearest-cell resolution, and scaled by the min and max of these N
+    points alone — the rule the rays follow, so no arm is shown anything it
+    did not measure.
     """
     _, _, Z = load_grid(sample_dir)
     n = budget(n_rays, n_points)
@@ -115,7 +116,7 @@ def _scattered(sample_dir: str, n_rays: int, n_points: int, strategy: str,
         rc = random_rc(n, Z.shape, rng)
     else:                                     # unreachable: validated upstream
         raise KeyError(strategy)
-    values = Z[rc[:, 0], rc[:, 1]].astype(np.float32)
+    values, = normalise_measured(Z[rc[:, 0], rc[:, 1]])
     return Measurement(peak_rc=np.empty((0, 2), dtype=int),
                        visited_rc=rc, visited_val=values,
                        traces=values.reshape(1, -1),
@@ -257,7 +258,8 @@ def _lines(sample_dir: str, n_rays: int, n_points: int, strategy: str,
     visited = np.unique(np.concatenate(seen), axis=0)
     peak_rc = (np.unique(np.concatenate(peaks), axis=0) if peaks
                else np.empty((0, 2), dtype=int))
-    values = Z[visited[:, 0], visited[:, 1]].astype(np.float32)
+    values, traces = normalise_measured(
+        Z[visited[:, 0], visited[:, 1]], traces)
     return Measurement(peak_rc=peak_rc, visited_rc=visited,
                        visited_val=values, traces=traces,
                        n_rays=n_rays, n_points=n_points)

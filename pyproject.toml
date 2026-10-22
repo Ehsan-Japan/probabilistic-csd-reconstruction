@@ -23,6 +23,7 @@ dependencies = [
   "torch>=2.0",
   "qarray>=1.6",
   "PyYAML>=6.0",
+  "scikit-image>=0.22",
 ]
 
 [project.urls]
