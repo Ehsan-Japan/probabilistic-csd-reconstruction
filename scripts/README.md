@@ -50,6 +50,7 @@ costs one training run.
 | `run_9_update_readme.py` | rewrite the results section of README.md from the run's comparison.csv, and copy its figures into docs/figures/ — run it after every study run |
 | `run_10_bundle_figures.py` | re-render the comparison gallery, or group it the other way (`BY = "rays"`). `run_4` already writes it one bundle per folder — `figures/40_points_per_ray/` holds 4×40…8×40 — so a plot carries five series instead of fifteen |
 | `run_12_slope_study.py` | can the two loading-line slopes a virtual-gate matrix needs be measured from the rays? One line fit (probabilistic Hough + total least squares) on four point sets — the network's lines, Canny on the full dense scan, the true map, and the raw ray steps — scored against the slopes the capacitances give. Knobs chosen on the validation devices; writes `<cell>/slopes/` |
+| `run_13_virtual_gates.py` | build the virtual-gate matrix from each method's run_12 slopes, re-draw the true diagram in those gates, and report the residual crosstalk and how much of the plane each method measured; writes `<run>/virtual_gates/` with a README section, tables, and a before/after image per method per device |
 
 `_common.py` is shared boilerplate (import path, headless plotting, the
 "resolve names → do a thing to each → report" loop). It holds no settings.
