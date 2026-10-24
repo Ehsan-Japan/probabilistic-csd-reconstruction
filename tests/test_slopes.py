@@ -115,3 +115,21 @@ def test_summary_counts_failures_as_misses():
     s = S.summarise([0.2, 0.8, float("nan"), 3.0])
     assert s["n_failed"] == 1
     assert s["within_1deg"] == pytest.approx(0.5)
+
+
+def test_true_virtual_gates_leave_no_crosstalk():
+    L2 = S.lever_arms(CDD, CGD)[:, :2]
+    alpha = (L2[0, 1] / L2[0, 0], L2[1, 0] / L2[1, 1])
+    r12, r21 = S.residual_crosstalk(L2, alpha)
+    assert abs(r12) < 1e-12 and abs(r21) < 1e-12
+    b12, b21 = S.residual_crosstalk(L2, None)
+    assert b12 == pytest.approx(alpha[0]) and b21 == pytest.approx(alpha[1])
+
+
+def test_alphas_from_the_true_angles_are_the_true_alphas():
+    L2 = S.lever_arms(CDD, CGD)[:, :2]
+    t = S.true_slopes(CDD, CGD)
+    a = S.alphas_from_angles(S.slope_to_angle(t["dot1"]),
+                             S.slope_to_angle(t["dot2"]))
+    assert a[0] == pytest.approx(L2[0, 1] / L2[0, 0])
+    assert a[1] == pytest.approx(L2[1, 0] / L2[1, 1])

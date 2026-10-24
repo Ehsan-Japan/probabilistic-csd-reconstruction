@@ -43,6 +43,64 @@ $word.Quit()
 """
 
 
+def _docx_pictures(docx_path):
+    """The pictures of a .docx, in the order the body shows them."""
+    import re
+    import zipfile
+    z = zipfile.ZipFile(docx_path)
+    rels = z.read("word/_rels/document.xml.rels").decode("utf-8")
+    target = dict(re.findall(r'Id="([^"]+)"[^>]*Target="([^"]+)"', rels))
+    target.update({k: v for v, k in
+                   re.findall(r'Target="([^"]+)"[^>]*Id="([^"]+)"', rels)})
+    body = z.read("word/document.xml").decode("utf-8")
+    out = []
+    for rid in re.findall(r'r:embed="([^"]+)"', body):
+        name = "word/" + target[rid].lstrip("/").replace("word/", "", 1)
+        out.append(z.read(name))
+    return out
+
+
+def restore_full_resolution(docx_path):
+    """Put the .docx's own pictures back into the PDF Word exported.
+
+    Word's PDF writer downsamples every picture to 200 dpi, whatever the
+    document's compression settings say (tested 2026-09-30: the 3420-px
+    Fig. 13 came out at 1219 px with doNotAutoCompressPictures, and with
+    defaultImageDpi 0 or 600).  The .docx holds the full image, so each
+    picture of the PDF is replaced by the one it was made from: the two are
+    walked in order and paired only when their aspect ratios agree.
+    Returns (replaced, pictures in the PDF)."""
+    import io
+    import pymupdf
+    from PIL import Image
+    pdf_path = os.path.splitext(docx_path)[0] + ".pdf"
+    blobs = _docx_pictures(docx_path)
+    aspects = [(lambda im: im.size[0] / im.size[1])(Image.open(io.BytesIO(b)))
+               for b in blobs]
+    doc = pymupdf.open(pdf_path)
+    seen, k, done, total = set(), 0, 0, 0
+    for page in doc:
+        infos = sorted((i for i in page.get_image_info(xrefs=True)
+                        if i["xref"] and i["xref"] not in seen),
+                       key=lambda i: (i["bbox"][1], i["bbox"][0]))
+        for info in infos:
+            seen.add(info["xref"])
+            total += 1
+            a = info["width"] / info["height"]
+            j = k
+            while j < len(blobs) and abs(aspects[j] / a - 1) > 0.02:
+                j += 1
+            if j == len(blobs):
+                continue
+            page.replace_image(info["xref"], stream=blobs[j])
+            k, done = j + 1, done + 1
+    tmp = pdf_path + ".tmp"
+    doc.save(tmp, garbage=3, deflate=True)
+    doc.close()
+    os.replace(tmp, pdf_path)
+    return done, total
+
+
 def stale(docx_path):
     """True if the PDF is missing or older than the Word file."""
     pdf = os.path.splitext(docx_path)[0] + ".pdf"
@@ -102,7 +160,10 @@ def main():
             continue
         tag, name, info = (line.split("\t") + ["", ""])[:3]
         if tag == "OK":
-            print("  %-46s %s pages" % (name, info))
+            src = next(p for p in todo if os.path.basename(p) == name)
+            n_ok, n_all = restore_full_resolution(src)
+            print("  %-46s %s pages   %d/%d pictures at full resolution"
+                  % (name, info, n_ok, n_all))
             done.append(name)
         else:
             skipped.append((name, info))

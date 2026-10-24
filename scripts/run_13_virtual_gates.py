@@ -66,23 +66,12 @@ WRONG = "#e34948"
 
 # ── the physics ───────────────────────────────────────────────────────────
 
-def alphas_from_angles(a1, a2):
-    """(a12, a21) from the two fitted line angles in degrees, or None."""
-    if a1 is None or a2 is None:
-        return None
-    return (S.cross_coupling("dot1", np.tan(np.radians(a1))),
-            S.cross_coupling("dot2", np.tan(np.radians(a2))))
+alphas_from_angles = S.alphas_from_angles
+residual_crosstalk = S.residual_crosstalk
 
 
 def vg_matrix(a12, a21):
     return np.array([[1.0, a12], [a21, 1.0]])
-
-
-def residual_crosstalk(L2, alpha):
-    """(r12, r21) left after virtualising with alpha; alpha None = no gates."""
-    A = np.eye(2) if alpha is None else vg_matrix(*alpha)
-    Lv = L2 @ np.linalg.inv(A)
-    return float(Lv[0, 1] / Lv[0, 0]), float(Lv[1, 0] / Lv[1, 1])
 
 
 def residual_tilt(L2, alpha):

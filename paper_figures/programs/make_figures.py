@@ -1781,6 +1781,12 @@ def main():
 LADDER_POINTS = int(os.environ.get("CSD_LADDER_POINTS", 40))
 
 
+# Ray-count labels set top left of their point instead of the series'
+# default, where the default collides with another line (your call,
+# 2026-09-27): 6 on the 60-points line, 8 on the 50-points line.
+LABEL_TOP_LEFT = {(6, 60), (8, 50)}
+
+
 def fig_budget_ladder():
     ok = _run.converged()
     rows = {(int(r["n_rays"]), int(r["n_points"])): r
@@ -1822,7 +1828,12 @@ def fig_budget_ladder():
                     linewidth=1.3 if gap else 1.8,
                     linestyle=(0, (4, 3)) if gap else "-",
                     alpha=0.8 if gap else 1.0, zorder=3)
-        for (n, _p), x, y in zip(ladder, xs, ys):
+        for (n, p), x, y in zip(ladder, xs, ys):
+            if (n, p) in LABEL_TOP_LEFT:
+                ax.annotate("%d" % n, (x, y), textcoords="offset points",
+                            xytext=(-5, 5), ha="right", va="bottom",
+                            fontsize=7.5, color=colour, zorder=5)
+                continue
             ax.annotate("%d" % n, (x, y), textcoords="offset points",
                         xytext=off, ha="center" if off[0] == 0 else "left",
                         va=va, fontsize=7.5, color=colour, zorder=5)
@@ -1839,9 +1850,10 @@ def fig_budget_ladder():
             markeredgecolor=J_PRED, markeredgewidth=1.4, zorder=5)
     ax.annotate("best:  %d × %d\nF1@1 %.3f at %.1f %%"
                 % (bn, bp, by, bx), xy=(bx, by),
-                # to the right of the ring (2026-09-27), level with it
-                xytext=(bx + 0.14, by), fontsize=8.5,
-                color=J_PRED, fontweight="bold", ha="left", va="center")
+                # top left of the ring (your call, 2026-09-27): to its
+                # right it ran into the rest of the plot
+                textcoords="offset points", xytext=(-9, 9), fontsize=8.5,
+                color=J_PRED, fontweight="bold", ha="right", va="bottom")
 
     # The same-coverage open marker (4 x 60), its arrow and note were
     # removed (your call, 2026-09-27); the finding is stated in the text.
@@ -1851,7 +1863,7 @@ def fig_budget_ladder():
     ax.set_ylabel("F1@1 on %d held-out devices" % N_TEST, fontsize=9.5,
                   color=INK)
     ax.set_xlim(1.3, 5.0)          # room for the best-budget label
-    ax.set_ylim(0.62, 0.86)
+    ax.set_ylim(0.62, 0.87)
     ax.grid(True, linestyle=":", linewidth=0.7, color="#d0d0d0", zorder=0)
     ax.set_axisbelow(True)
     ax.tick_params(labelsize=8.5, colors=INK, length=3)

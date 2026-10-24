@@ -63,9 +63,12 @@ def main():
     # the document's own title is the section heading
     if sections and sections[0][0] == MS.METHOD_HEADING:
         sections = sections[1:]
+    # read on its own, the section ends with the entries it cites, under
+    # the paper's numbers (2026-09-28)
     path, edited = M.build(None, "methods", MS.METHOD_HEADING, None,
                            sections, figures, fig_offset=base[0],
-                           tbl_offset=base[1], out=OUT)
+                           tbl_offset=base[1], out=OUT,
+                           references=M.cited_references(sections))
     n_tables = sum(1 for _h, ps in sections for p in ps
                    if isinstance(p, tuple))
     print("  %-40s %d headings, Fig. %d-%d, %d tables"

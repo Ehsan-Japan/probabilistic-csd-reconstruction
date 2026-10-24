@@ -53,6 +53,8 @@ FAMILIES = ("dot1", "dot2")                 # steep, shallow
 THETA = np.linspace(-np.pi / 2, np.pi / 2, 1800, endpoint=False)  # 0.1 deg
 REFINE_PX = 1.0             # points within this of a segment refine its angle
 ONE_FAMILY_DEG = 8.0        # two groups closer than this are one family
+TRIM_DEG = 5.0      # segments this far from a family's median leave its fit
+JOINT = True        # family angle = one shared TLS direction, not a median
 MIN_FAMILY_PX = 15          # a family with fewer true line pixels is absent
 
 # The Hough knobs every arm is scanned over on the validation devices.
@@ -136,13 +138,14 @@ def rasterise(xy: np.ndarray, shape: Tuple[int, int]) -> np.ndarray:
 
 def segments(xy: np.ndarray, shape: Tuple[int, int], threshold: int,
              line_length: int, line_gap: int, seed: int = 0
-             ) -> List[Tuple[float, float]]:
-    """[(angle_deg, length_px)] of the straight segments in a point set.
+             ) -> List[Tuple[float, float, np.ndarray]]:
+    """[(angle_deg, length_px, points)] of the straight segments in a set.
 
     Angles are of the line, from the +V1 axis, in (-90, 90].  Each Hough
     segment's angle is replaced by the total-least-squares direction of the
     points within REFINE_PX of it, so a segment drawn between integer pixel
-    ends does not carry the lattice's rounding.
+    ends does not carry the lattice's rounding.  `points` are those points
+    (or the two segment ends when fewer than two lie near it).
     """
     if len(xy) < 2:
         return []
@@ -168,11 +171,13 @@ def segments(xy: np.ndarray, shape: Tuple[int, int], threshold: int,
             c = near - near.mean(axis=0)
             _, _, vt = np.linalg.svd(c, full_matrices=False)
             u = vt[0]
+        else:
+            near = np.stack([p0, p1])
         ang = float(np.degrees(np.arctan2(u[1], u[0])))
         ang = (ang + 90.0) % 180.0 - 90.0           # -> [-90, 90)
         if ang == -90.0:
             ang = 90.0
-        out.append((ang, length))
+        out.append((ang, length, near))
     return out
 
 
@@ -183,7 +188,30 @@ def _weighted_median(values: np.ndarray, weights: np.ndarray) -> float:
     return float(v[np.searchsorted(cw, 0.5 * cw[-1])])
 
 
-def assign_families(segs: Sequence[Tuple[float, float]]
+def joint_angle(segs: Sequence[Tuple[float, float, np.ndarray]],
+                centre: float) -> float:
+    """One direction shared by every segment of a family.
+
+    The family's lines are parallel, so its slope is fitted once from all of
+    them: each segment's points are centred on their own mean (its own
+    offset) and the stacked residuals give the common direction by total
+    least squares.  Segments more than TRIM_DEG from the family's median
+    angle are left out, so one stray segment does not tilt the rest.  Long
+    segments carry more points and weigh more, as they should.
+    """
+    # segments given as (angle, length) alone carry no points to fit
+    use = [s for s in segs if len(s) > 2 and abs(s[0] - centre) <= TRIM_DEG]
+    if not use:
+        return centre
+    c = np.concatenate([s[2] - s[2].mean(axis=0) for s in use])
+    _, _, vt = np.linalg.svd(c, full_matrices=False)
+    ang = float(np.degrees(np.arctan2(vt[0][1], vt[0][0])))
+    # a line's angle is defined mod 180: take the copy nearest the median,
+    # so a near-vertical family is not split between -90 and +90
+    return min((ang - 180.0, ang, ang + 180.0), key=lambda a: abs(a - centre))
+
+
+def assign_families(segs: Sequence[Tuple[float, float, np.ndarray]]
                     ) -> Dict[str, Optional[float]]:
     """{family: angle in degrees, or None} from a list of segments.
 
@@ -194,15 +222,17 @@ def assign_families(segs: Sequence[Tuple[float, float]]
     ONE_FAMILY_DEG) the single group goes to dot1 if it is steeper than the
     diagonal and to dot2 otherwise.
     """
-    a = np.array([(-90.0 if s[0] >= 89.95 else s[0]) for s in segs])
+    segs = [((-90.0 if s[0] >= 89.95 else s[0]),) + tuple(s[1:])
+            for s in segs]
+    segs = [s for s in segs if s[0] < 0]
+    a = np.array([s[0] for s in segs])
     w = np.array([s[1] for s in segs])
-    keep = a < 0
-    a, w = a[keep], w[keep]
     out: Dict[str, Optional[float]] = {f: None for f in FAMILIES}
     if not len(a):
         return out
     order = np.argsort(a)
     a, w = a[order], w[order]
+    segs = [segs[i] for i in order]
     best_k, best_var = None, -1.0
     for k in range(1, len(a)):
         w0, w1 = w[:k].sum(), w[k:].sum()
@@ -215,10 +245,13 @@ def assign_families(segs: Sequence[Tuple[float, float]]
         steep = _weighted_median(a[:best_k], w[:best_k])
         shallow = _weighted_median(a[best_k:], w[best_k:])
         if shallow - steep >= ONE_FAMILY_DEG:
-            out["dot1"], out["dot2"] = steep, shallow
+            out["dot1"] = joint_angle(segs[:best_k], steep) if JOINT else steep
+            out["dot2"] = (joint_angle(segs[best_k:], shallow) if JOINT
+                           else shallow)
             return out
     one = _weighted_median(a, w)
-    out["dot1" if one < -45.0 else "dot2"] = one
+    out["dot1" if one < -45.0 else "dot2"] = (joint_angle(segs, one) if JOINT
+                                              else one)
     return out
 
 
@@ -432,3 +465,29 @@ def choose(candidates: Dict[str, Sequence[np.ndarray]],
             if best is None or s < best["score"]:
                 best = {"knob": label, "hough": dict(hough), "score": s}
     return best
+
+
+# ── what the slopes are for: virtual gates ────────────────────────────────
+
+def alphas_from_angles(a1: Optional[float], a2: Optional[float]
+                       ) -> Optional[Tuple[float, float]]:
+    """(a12, a21) from the fitted dot-1 and dot-2 line angles, or None."""
+    if a1 is None or a2 is None:
+        return None
+    return (cross_coupling("dot1", np.tan(np.radians(a1))),
+            cross_coupling("dot2", np.tan(np.radians(a2))))
+
+
+def residual_crosstalk(L2: np.ndarray, alpha: Optional[Tuple[float, float]]
+                       ) -> Tuple[float, float]:
+    """(r12, r21) still left after virtual gates built from `alpha`.
+
+    U1 = P1 + a12 P2, U2 = a21 P1 + P2, i.e. U = A P.  The dots see the
+    virtual gates through L A^-1; its off-diagonal over its diagonal is how
+    much each gate still moves the other dot.  alpha = None is no virtual
+    gates at all (A = 1): the residual is then the true a12, a21.
+    """
+    A = np.eye(2) if alpha is None else np.array([[1.0, alpha[0]],
+                                                 [alpha[1], 1.0]])
+    Lv = L2 @ np.linalg.inv(A)
+    return float(Lv[0, 1] / Lv[0, 0]), float(Lv[1, 0] / Lv[1, 1])

@@ -78,6 +78,8 @@ LAYOUT = {
     "dqd_model_full.png": P1,
     "dqd_model_full_bigb.png": P1,
     "dqd_model_full_bigb_v2.png": P1,
+    "pixel_labelling.png": P1,
+    "pixel_quantisation.png": P1,
     "panel_charge_sensor.png": P1,
     "fig_inputs.png": P1,
     "panel_charge_sensor_big_b.png": P1,
@@ -123,6 +125,7 @@ LAYOUT = {
     # ── part 5 ───────────────────────────────────────────────────────────
     "results_budget_ladder.png": P5,
     "fig_tau_metrics.png": P5,
+    "pipeline_comparison_ref12.png": P5,
     "prob_map_stats.json": P5,
     "results_f1_vs_coverage.png": P5,
 }
@@ -156,6 +159,21 @@ STATIC = {
                                             "dqd_model_full_bigb.png"),
     "dqd_model_full_bigb_v2.png": os.path.join(
         "docs", "figures", "dqd_model_full_bigb_v2.png"),
+    # Drawn in Illustrator by programs/make_pixel_labelling_ai.py
+    # (2026-09-30); used in Sec. 3.1.1.
+    "pixel_labelling.png": os.path.join(
+        "paper_figures", "deck_figures", "pixel_labelling",
+        "pixel_labelling.png"),
+    # make_pixel_quantisation_ai.py (2026-09-30): one real device, true
+    # lines and its labels on two grids; Sec. 3.1.1.
+    "pixel_quantisation.png": os.path.join(
+        "paper_figures", "deck_figures", "pixel_quantisation",
+        "pixel_quantisation.png"),
+    # make_pipeline_comparison_ai.py --ref12 (2026-09-30); row (a) holds
+    # images from Hernandes et al., Fig. 3.  Results and Discussion.
+    "pipeline_comparison_ref12.png": os.path.join(
+        "paper_figures", "deck_figures", "pipeline_comparison",
+        "pipeline_comparison_ref12.png"),
 }
 
 

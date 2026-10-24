@@ -60,3 +60,7 @@ paper_figures/method_docs/_trash/
 /QArray_A_physics-informed_GPU-accelerated_simulato.pdf
 /qdarts.pdf
 /Qdsim.pdf
+
+# --- Manuscript and journal templates: kept locally, never pushed (2026-10-24) ---
+/paper_figures/method_docs/
+/paper_figures/templates/

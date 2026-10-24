@@ -1,0 +1,27 @@
+
+Takafumi Fujita
+Attachments
+Wed, Oct 21, 9:59 AM (20 hours ago)
+to me, Akira
+
+Dear Ehsan,
+
+I understand your proposed two-step approach, but I still have concerns about the central scientific contribution.
+
+Obtaining transition-line labels directly from simulations does not require edge detection in the first place.
+The important question is what your method offers compared with conventional image reconstruction followed by line detection.
+
+The previous approach also preserves transition features.
+You need to explain what is gained or lost by predicting the lines directly, and why the results are useful for subsequent analysis.
+The proposed experimental verification step has not been tested and cannot yet support this claim.
+
+I also find the distinction between simulated charge configurations, simulated sensor signals, and experimental measurements unclear in parts of the manuscript.
+
+My concern is that reviewers will not understand the scientific contribution and reject the paper before its potential value is assessed.
+This cannot be resolved by correcting individual statements alone.
+
+I have attached my comments on the earlier version, mainly covering the Abstract and Introduction.
+Most remain relevant.
+
+Before another full revision, please reconsider the central claim and send me an independent outline of what has actually been demonstrated, why it matters, and which results support it.
+I would like you to develop this argument yourself before we proceed with further detailed review.
