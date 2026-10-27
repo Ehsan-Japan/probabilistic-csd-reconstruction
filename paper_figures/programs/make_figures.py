@@ -1216,7 +1216,7 @@ def _zoom_window(truth, size=40):
     return r, c
 
 
-def fig_threshold_panels():
+def fig_threshold_panels(row=False):
     """Choosing and applying the threshold, as ONE figure (2026-09-26).
 
     (a) the U-Net's probability map for the held-out device, (b) the
@@ -1227,7 +1227,9 @@ def fig_threshold_panels():
     over the truth (black) with NO tolerance band -- tau is only defined
     in the next subsection.  The curve is read from
     threshold_validation.json, which make_threshold_figure.py writes from
-    the real validation split."""
+    the real validation split.  row=True: the four panels in one row at
+    text width (user, 2026-10-26)."""
+    fs = 7 if row else 9                     # label size
     with open(_figures.find("threshold_validation.json"),
               encoding="utf-8") as fh:
         tv = json.load(fh)
@@ -1237,7 +1239,11 @@ def fig_threshold_panels():
     ext = [ux.min(), ux.max(), uy.min(), uy.max()]
     lo, hi = ladder()
 
-    fig, axs = plt.subplots(2, 2, figsize=(6.4, 5.6))
+    if row:
+        fig, axs = plt.subplots(1, 4, figsize=(15.49 / 2.54, 1.75))
+        axs = (axs[:2], axs[2:])
+    else:
+        fig, axs = plt.subplots(2, 2, figsize=(6.4, 5.6))
     # (a) the continuous map first, then (b) the curve the cut is
     # chosen on, then (c), (d) the cuts -- the order of the processing
     # (swapped 2026-09-26).  `a` is still the curve and `b` the map.
@@ -1248,13 +1254,14 @@ def fig_threshold_panels():
     best = int(np.argmin(np.abs(cand - tv["threshold"])))
     a.plot(cand, f1, "-o", color=INK, linewidth=1.6, markersize=3.6,
            zorder=3)
-    a.plot([cand[best]], [f1[best]], "o", color=J_PRED, markersize=11,
+    a.plot([cand[best]], [f1[best]], "o", color=J_PRED,
+           markersize=8 if row else 11,
            markerfacecolor="none", markeredgewidth=1.8, zorder=4)
     a.annotate("%.1f" % cand[best], (cand[best], f1[best]),
                textcoords="offset points", xytext=(0, -16), ha="center",
-               fontsize=9, color=J_PRED, fontweight="bold")
-    a.set_xlabel("threshold on $P$", fontsize=9, color=INK)
-    a.set_ylabel("F1@1, validation", fontsize=9, color=INK)
+               fontsize=fs, color=J_PRED, fontweight="bold")
+    a.set_xlabel("threshold on $P$", fontsize=fs, color=INK)
+    a.set_ylabel("F1@1, validation", fontsize=fs, color=INK)
     a.set_ylim(-0.02, 1.0)
     a.grid(True, color=J_GRID, linewidth=0.5, linestyle=(0, (1, 3)),
            alpha=0.85)
@@ -1263,9 +1270,18 @@ def fig_threshold_panels():
     # (b) the probability map
     im = b.imshow(p, origin="lower", cmap=J_CMAP, vmin=0, vmax=1,
                   extent=ext, aspect="auto", interpolation="nearest")
-    cb = fig.colorbar(im, ax=b, fraction=0.046, pad=0.03)
-    cb.set_label("$P$(transition line)", fontsize=8.5)
-    cb.ax.tick_params(labelsize=7.5)
+    if row:
+        # fixed positions (figure fraction): tight_layout would give every
+        # gap the width of the widest one; (d) has no axis labels
+        w, y0, h = 0.15, 0.24, 0.72
+        for ax, x in zip((b, a, c, d), (0.07, 0.375, 0.625, 0.795)):
+            ax.set_position([x, y0, w, h])
+        cb = fig.colorbar(im, cax=fig.add_axes([0.07 + w + 0.008, y0,
+                                                0.012, h]))
+    else:
+        cb = fig.colorbar(im, ax=b, fraction=0.046, pad=0.03)
+    cb.set_label("$P$(transition line)", fontsize=fs - 0.5)
+    cb.ax.tick_params(labelsize=fs - 1.5)
 
     # (c), (d) the map cut at the stored threshold and too high
     def cut(ax, t):
@@ -1276,21 +1292,29 @@ def fig_threshold_panels():
                   interpolation="nearest")
     cut(c, lo if abs(lo - THRESHOLD) < 1e-9 else hi)
     cut(d, hi if abs(lo - THRESHOLD) < 1e-9 else lo)
-    for ax in (a, c, d):                     # same width as (b)
+    if row:
+        cb.set_ticks([0, 0.5, 1])
+    for ax in () if row else (a, c, d):      # same width as (b)
         fig.colorbar(im, ax=ax, fraction=0.046,
                      pad=0.03).ax.set_visible(False)
 
     for ax in (b, c, d):
-        ax.set_xlabel("$V_1$ (mV)", fontsize=9, color=INK)
-        ax.set_ylabel("$V_2$ (mV)", fontsize=9, color=INK)
+        ax.set_xlabel("$V_1$ (mV)", fontsize=fs, color=INK)
+        ax.set_ylabel("$V_2$ (mV)", fontsize=fs, color=INK)
     for ax, letter in zip((b, a, c, d), "abcd"):
-        ax.tick_params(labelsize=7.5, colors=INK)
+        ax.tick_params(labelsize=fs - 1.5, colors=INK)
         for sp in ax.spines.values():
             sp.set_color("#444444")
             sp.set_linewidth(0.8)
         # top right: empty in all four panels
         _panel_letter(ax, letter)
-    fig.tight_layout()
+        if row:
+            ax.texts[-1].set_fontsize(8)
+    if row:                                  # (d) shares the axes of (c)
+        d.set_ylabel("")
+        d.tick_params(labelleft=False)
+    if not row:
+        fig.tight_layout()
     save(fig, "fig_threshold_panels")
 
 
@@ -1670,7 +1694,11 @@ def _three_budgets():
     return [(int(r["n_rays"]), int(r["n_points"])) for r in pick]
 
 
-def fig_tau_metrics(budgets=None):
+def fig_tau_metrics(budgets=None, row=False):
+    """row=True (2026-10-26, manuscript ver5): the four panels in one row
+    at text width, the metric as a title above each panel and one key."""
+    if row:
+        return _fig_tau_metrics_row(budgets)
     budgets = budgets or _three_budgets()
     rows = {(int(r["n_rays"]), int(r["n_points"])): r
             for r in _run.comparison_rows()}
@@ -1743,6 +1771,60 @@ def fig_tau_metrics(budgets=None):
     print("  budgets: " + ", ".join("%d x %d" % b for b in budgets))
 
 
+def _fig_tau_metrics_row(budgets=None):
+    budgets = budgets or _three_budgets()
+    rows = {(int(r["n_rays"]), int(r["n_points"])): r
+            for r in _run.comparison_rows()}
+    metrics = (("accuracy", "pixel accuracy"), ("precision", "precision"),
+               ("recall", "recall"), ("f1", "F1"))
+    best = max(budgets, key=lambda b: float(rows[b]["coverage"]))
+    fig, axes = plt.subplots(1, 4, figsize=(15.49 / 2.54, 1.85),
+                             sharey=True)
+    lo = 1.0
+    for ax, (key, label), letter in zip(axes, metrics, "abcd"):
+        for budget in budgets:
+            r = rows[budget]
+            y = [float(r["%s@%d" % (key, t)]) for t in TAUS]
+            lo = min(lo, min(y))
+            colour, marker = STYLE[budget[0]]
+            is_best = budget == best
+            ax.plot(TAUS, y, marker=marker, linestyle="-", color=colour,
+                    linewidth=1.5 if is_best else 1.1,
+                    markersize=4.0 if is_best else 3.3,
+                    markeredgecolor="white" if is_best else colour,
+                    markeredgewidth=0.6 if is_best else 0.5,
+                    zorder=4 if is_best else 2,
+                    label="%d × %d" % budget)
+        ax.set_title(label, fontsize=7.5, color=INK, pad=3)
+        ax.set_xlabel("tolerance τ (pixels)", fontsize=7, color=INK)
+        ax.set_xticks(list(TAUS))
+        ax.tick_params(labelsize=6.5, colors=INK, length=2.5)
+        ax.text(0.04, 0.04, "(%s)" % letter, transform=ax.transAxes,
+                ha="left", va="bottom", fontsize=7.5, fontweight="bold",
+                zorder=10, bbox=dict(boxstyle="round,pad=0.15", fc="white",
+                                     ec="#999999", lw=0.5))
+        ax.grid(True, color=J_GRID, linewidth=0.4, linestyle=(0, (1, 3)),
+                alpha=0.85)
+        ax.set_axisbelow(True)
+        for sp in ("top", "right"):
+            ax.spines[sp].set_visible(False)
+        for sp in ("left", "bottom"):
+            ax.spines[sp].set_color("#444444")
+            ax.spines[sp].set_linewidth(0.6)
+    axes[0].set_ylabel("score on %d test devices" % N_TEST, fontsize=7,
+                       color=INK)
+    # one key, in the empty lower right of (a)
+    axes[0].legend(fontsize=5.8, frameon=True, framealpha=0.92,
+                   edgecolor="#cccccc", handlelength=1.4,
+                   labelspacing=0.2, borderpad=0.25,
+                   title="rays × points", title_fontsize=5.8,
+                   loc="lower right")
+    axes[0].set_ylim(min(0.0, lo - 0.06), 1.02)
+    fig.tight_layout(pad=0.3, w_pad=0.6)
+    save(fig, "fig_tau_metrics")
+    print("  budgets: " + ", ".join("%d x %d" % b for b in budgets))
+
+
 def main():
     print("run:     ", os.path.basename(RUN_DIR))
     print("budget:  ", CONFIG)
@@ -1779,6 +1861,12 @@ def main():
 # budget overall marked, and ONE same-coverage pair that demonstrates "more
 # rays beat more points per ray" instead of asserting it.  Seven marks.
 LADDER_POINTS = int(os.environ.get("CSD_LADDER_POINTS", 40))
+
+
+# Ray-count labels set top left of their point instead of the series'
+# default, where the default collides with another line (your call,
+# 2026-09-27): 6 on the 60-points line, 8 on the 50-points line.
+LABEL_TOP_LEFT = {(6, 60), (8, 50)}
 
 
 def fig_budget_ladder():
@@ -1822,7 +1910,12 @@ def fig_budget_ladder():
                     linewidth=1.3 if gap else 1.8,
                     linestyle=(0, (4, 3)) if gap else "-",
                     alpha=0.8 if gap else 1.0, zorder=3)
-        for (n, _p), x, y in zip(ladder, xs, ys):
+        for (n, p), x, y in zip(ladder, xs, ys):
+            if (n, p) in LABEL_TOP_LEFT:
+                ax.annotate("%d" % n, (x, y), textcoords="offset points",
+                            xytext=(-5, 5), ha="right", va="bottom",
+                            fontsize=7.5, color=colour, zorder=5)
+                continue
             ax.annotate("%d" % n, (x, y), textcoords="offset points",
                         xytext=off, ha="center" if off[0] == 0 else "left",
                         va=va, fontsize=7.5, color=colour, zorder=5)
@@ -1839,9 +1932,10 @@ def fig_budget_ladder():
             markeredgecolor=J_PRED, markeredgewidth=1.4, zorder=5)
     ax.annotate("best:  %d × %d\nF1@1 %.3f at %.1f %%"
                 % (bn, bp, by, bx), xy=(bx, by),
-                # to the right of the ring (2026-09-27), level with it
-                xytext=(bx + 0.14, by), fontsize=8.5,
-                color=J_PRED, fontweight="bold", ha="left", va="center")
+                # top left of the ring (your call, 2026-09-27): to its
+                # right it ran into the rest of the plot
+                textcoords="offset points", xytext=(-9, 9), fontsize=8.5,
+                color=J_PRED, fontweight="bold", ha="right", va="bottom")
 
     # The same-coverage open marker (4 x 60), its arrow and note were
     # removed (your call, 2026-09-27); the finding is stated in the text.
@@ -1851,7 +1945,7 @@ def fig_budget_ladder():
     ax.set_ylabel("F1@1 on %d held-out devices" % N_TEST, fontsize=9.5,
                   color=INK)
     ax.set_xlim(1.3, 5.0)          # room for the best-budget label
-    ax.set_ylim(0.62, 0.86)
+    ax.set_ylim(0.62, 0.87)
     ax.grid(True, linestyle=":", linewidth=0.7, color="#d0d0d0", zorder=0)
     ax.set_axisbelow(True)
     ax.tick_params(labelsize=8.5, colors=INK, length=3)

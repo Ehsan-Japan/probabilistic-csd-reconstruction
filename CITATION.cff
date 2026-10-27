@@ -2,9 +2,12 @@ cff-version: 1.2.0
 message: "If you use this software, please cite the paper below."
 title: "probabilistic-csd-reconstruction"
 abstract: >-
-  Probabilistic reconstruction of the charge-transition lines of a double
-  quantum dot from a few percent of the gate-voltage plane, measured along
-  rays.
+  Code for "Separating Where to Measure from What is Measured: Charge
+  Stability Diagram Reconstruction in Double Quantum Dots". A U-Net trained
+  on simulated devices predicts the charge-transition lines of a double
+  quantum dot from a few one-dimensional ray sweeps (Step 1); short local
+  sweeps around the prediction keep a line only where the charge-sensor
+  signal steps (Step 2).
 authors:
   - family-names: "Alizadeh Kashtiban"
     given-names: "Ehsan"

@@ -42,6 +42,14 @@ MAX_POS_WEIGHT = 8.0
 BATCH_SIZE = 16
 LEARNING_RATE = 1e-3
 VAL_FRACTION = 0.15      # of the TRAINING devices, never of the test set
+# Largest gradient norm one step may apply; None = no clipping.
+# Added 2026-10-23.  Without it a single bad step sometimes threw a run back
+# onto the early plateau (loss ~1.7, validation F1@1 ~0.42), where it stayed
+# for the remaining epochs -- the "collapsed" cells of the 2026-09 sweep, and
+# eight of the first nine runs of the 4-24-ray sweep.  On 8 x 40 and 4 x 40
+# it took 12 runs of 12 to convergence, with validation F1@1 spread over
+# seeds of 0.003 and 0.007, against roughly half collapsing without it.
+GRAD_CLIP = 1.0
 SEED = 0
 
 
@@ -64,6 +72,7 @@ def training_description(seed: int = SEED) -> Dict:
         "loss": ("BCEWithLogits (positive class weighted by its rarity, "
                  f"capped at {MAX_POS_WEIGHT}) + soft Dice"),
         "max_pos_weight": MAX_POS_WEIGHT,
+        "grad_clip_norm": GRAD_CLIP,
         "threshold_scan": list(THRESHOLDS),
         "model_selection": ("epoch with best validation F1@1; binarisation "
                             "threshold picked on the validation split, "
@@ -185,6 +194,8 @@ def train(X: np.ndarray, Y: np.ndarray, epochs: int = 40,
             opt.zero_grad()
             loss = loss_fn(net(Xt[sl]), Yt[sl])
             loss.backward()
+            if GRAD_CLIP is not None:
+                torch.nn.utils.clip_grad_norm_(net.parameters(), GRAD_CLIP)
             opt.step()
             tot += float(loss.detach()) * len(sl)
         _, f1 = best_threshold(predict(net, Xv), Yv)

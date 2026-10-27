@@ -49,6 +49,17 @@ costs one training run.
 | `run_6_threshold_report.py` | the probability maps, and where the binarisation threshold falls |
 | `run_9_update_readme.py` | rewrite the results section of README.md from the run's comparison.csv, and copy its figures into docs/figures/ — run it after every study run |
 | `run_10_bundle_figures.py` | re-render the comparison gallery, or group it the other way (`BY = "rays"`). `run_4` already writes it one bundle per folder — `figures/40_points_per_ray/` holds 4×40…8×40 — so a plot carries five series instead of fifteen |
+| `run_12_slope_study.py` | can the two loading-line slopes a virtual-gate matrix needs be measured from the rays? One line fit (probabilistic Hough + total least squares) on four point sets — the network's lines, Canny on the full dense scan, the true map, and the raw ray steps — scored against the slopes the capacitances give. Knobs chosen on the validation devices; writes `<cell>/slopes/` |
+| `run_13_virtual_gates.py` | build the virtual-gate matrix from each method's run_12 slopes, re-draw the true diagram in those gates, and report the residual crosstalk and how much of the plane each method measured; writes `<run>/virtual_gates/` with a README section, tables, and a before/after image per method per device |
+| `run_14_budget_slopes.py` | the budget question for virtual gates: for every rays × points cell (default 4–24 rays × 40/60/100 points, 3 training seeds each) the slopes, the virtual gates they give and the residual crosstalk on every held-out device, beside Canny on the dense scan, the fit to the true map and the ray steps without a network. Restartable; writes `<run>/budget_slopes/`. `paper_figures/programs/make_virtual_gate_subsection.py` turns it into Sect. 4.2 of the manuscript |
+| `run_15_virtual_gate_matrices.py` | the virtual-gate matrix of each method against the true one, from what run_14 cached; trains nothing |
+| `run_16_charge_states.py` | charge states (n1, n2) labelled from the full CSD and from every U-Net line map, scored against the simulator's charge states |
+| `run_17_few_electron.py` | the same, scored on the few-electron region only, with an optional straight-line repair of the U-Net maps |
+| `run_18_equal_cost.py` | the conventional route (rays + interpolation, or a coarse raster) at exactly the U-Net's measurement budget |
+| **`run_19_two_step.py`** | **the paper's Step 2**: local sweeps of half-width ±w around the binarized U-Net output (8 × 60), every swept pixel tested by the 3-pixel step detector; compared with the U-Net alone, the full scan and an equal-cost coarse raster. Writes `<run>/two_step/table.csv` |
+| `run_20_centre_line.py`, `run_21_narrow_strip.py` | earlier Step 2 variants (strip around the skeletonized centre line; a narrower strip), kept for comparison |
+| `run_22_equal_sweeps.py` | baseline: the same sweeps along every s-th row and column, without the U-Net (superseded by run_23) |
+| **`run_23_equal_seeds.py`** | **the paper's baseline**: the same local sweeps and detector around a uniform grid of points, without the U-Net, each grid measuring at least as much as the guided sweeps; writes `two_step/equal_seeds.csv` and `fig_f1_vs_measured.png` (run it after run_19) |
 
 `_common.py` is shared boilerplate (import path, headless plotting, the
 "resolve names → do a thing to each → report" loop). It holds no settings.

@@ -1,35 +1,21 @@
-name: tests
-
-# DEACTIVATED on 2026-09-20: this ran on every push and mailed a failure each
-# time.  It is kept, not deleted, so it can be turned back on by restoring the
-# push/pull_request triggers below.
-#
-# WHY IT WAS FAILING: the install list was numpy + scipy + pytest, on the
-# assumption that the suite needs nothing more.  That was never true --
-# csdrecon/config/__init__.py imports figure_style, which imports
-# matplotlib.pyplot, so every test that touches csdrecon.config (all of them
-# except tests/test_metrics.py) needs matplotlib and pillow.  The install list
-# below is now correct, so re-enabling it should give a green run; it still
-# leaves out torch and qarray, which no test needs, and the suite stays a few
-# seconds rather than minutes.
-#
-# To re-enable, uncomment the push/pull_request block:
-#
-#   push:
-#     branches: [main, master]
-#   pull_request:
+﻿name: tests
 
 on:
-  workflow_dispatch:      # manual only — no automatic runs, no failure mail
+  push:
+  pull_request:
 
 jobs:
-  test:
+  pytest:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
-      - run: pip install numpy scipy matplotlib pillow pytest
-      - run: pip install -e . --no-deps
-      - run: pytest -q
+          python-version: "3.10"
+      - name: Install dependencies (CPU torch)
+        run: |
+          python -m pip install --upgrade pip
+          pip install torch --index-url https://download.pytorch.org/whl/cpu
+          pip install -r requirements.txt pytest
+      - name: Run tests
+        run: python -m pytest -q

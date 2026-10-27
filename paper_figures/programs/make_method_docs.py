@@ -37,6 +37,7 @@ make_method_notes.py and never overwritten either: you write in its YOU
 WRITE half, the change and where it was made go back into its THE REPLY
 half.
 """
+import glob
 import json
 import math
 import os
@@ -103,19 +104,19 @@ PAPER_TITLE = ("Probabilistic reconstruction of charge stability diagrams "
 AUTHORS = ("Ehsan Alizadeh Kashtiban{1,2,*}, Takafumi Fujita{2,3,4,5,6}, "
            "and Akira Oiwa{2,4,5,6}")
 AFFILIATIONS = (
-    "{1}Department of Physics, Graduate School of Science, Osaka University, "
+    "{1}Department of Physics, Graduate School of Science, The University of Osaka, "
     "Toyonaka, Osaka, 560-0043, Japan",
-    "{2}SANKEN, Osaka University, Ibaraki, Osaka 567-0047, Japan",
+    "{2}SANKEN, The University of Osaka, Ibaraki, Osaka 567-0047, Japan",
     "{3}Artificial Intelligence Research Center, The Institute of Scientific "
-    "and Industrial Research, Osaka University, 8-1 Mihogaoka, Ibaraki, "
+    "and Industrial Research, The University of Osaka, 8-1 Mihogaoka, Ibaraki, "
     "Osaka 567-0047, Japan",
-    "{4}Center for Quantum Information and Quantum Biology, Osaka "
-    "University, 1-2 Machikaneyama, Toyonaka, Osaka 560-0043, Japan",
+    "{4}Center for Quantum Information and Quantum Biology, The University of "
+    "Osaka, 1-2 Machikaneyama, Toyonaka, Osaka 560-0043, Japan",
     "{5}Center for Spintronics Research Network, Graduate School of "
-    "Engineering Science, Osaka University, 1-3 Machikaneyama, Toyonaka, "
+    "Engineering Science, The University of Osaka, 1-3 Machikaneyama, Toyonaka, "
     "Osaka 560-8531, Japan",
     "{6}Spintronics Research Network Division, Institute for Open "
-    "Transdisciplinary Research (OTRI), Osaka University, Osaka 565-0871, "
+    "Transdisciplinary Research (OTRI), The University of Osaka, Osaka 565-0871, "
     "Japan",
 )
 EMAIL = "*E-mail: alizadeh21@sanken.osaka-u.ac.jp"
@@ -248,6 +249,20 @@ def facts():
 
 F = facts()
 
+# The text calls the quoted configuration "the best-performing configuration
+# (8 × 60)" (your wording, 2026-09-28).  That is a claim about the run, so it
+# is checked: no other budget may have a higher F1@1.
+_BEST = max(_run.comparison_rows(), key=lambda r: float(r["f1@1"]))
+if (int(_BEST["n_rays"]), int(_BEST["n_points"])) != (F["n_rays"],
+                                                        F["n_points"]):
+    raise SystemExit(
+        "the text calls %d x %d the best-performing configuration, but "
+        "%s x %s has the higher F1@1 (%.3f)"
+        % (F["n_rays"], F["n_points"], _BEST["n_rays"], _BEST["n_points"],
+           float(_BEST["f1@1"])))
+BEST_CFG = "the best-performing configuration (%d × %d)" % (F["n_rays"],
+                                                             F["n_points"])
+
 _WORDS = ("zero one two three four five six seven eight nine ten eleven "
           "twelve thirteen fourteen fifteen sixteen seventeen eighteen "
           "nineteen twenty").split()
@@ -277,18 +292,31 @@ def _retrain_sentence():
     budgets = ["%s × %s" % (n.split("_")[0],
                                    n.split("_rays_")[1].split("_")[0])
                for n in names]
-    listed = ", ".join(budgets[:-1]) + ", and " + budgets[-1]
-    return ("For %s of the %s budgets, %s, training did not leave its "
-            "initial plateau: the best validation F1@1 remained between "
-            "%.2f and %.2f over all %d epochs. These budgets were "
-            "retrained from a different random initialisation of the "
-            "weights, with the training data, architecture and training "
-            "procedure unchanged."
-            # "For each, the first retraining ... use the retrained models."
-            # deleted at your request, 2026-09-27; the rule is still the one
-            # run_10 applied (retrain_collapsed.json records it)
-            % (_word(len(names)), _word(F["n_budgets"]), listed, min(old),
-               max(old), F["epochs"]))
+    listed = ", ".join(budgets[:-1]) + " and " + budgets[-1]
+    # the seed-0 best validation F1@1 of every budget that converged
+    others = []
+    for path in glob.glob(os.path.join(_run.RUN_DIR, "*_rays_*_points_*",
+                                       "model", "training_summary.json")):
+        if os.path.basename(os.path.dirname(os.path.dirname(path))) \
+                not in cells:
+            with open(path) as fh:
+                others.append(float(json.load(fh)["best_val_f1"]))
+    # "converged normally": every chosen seed passed run_10's rule
+    assert all(c.get("chosen_seed") for c in cells.values()), cells
+    # YOUR TEXT, word for word, 2026-09-29, in your order.  Checked that
+    # day: 0.4155-0.4380 for the four, 0.6596-0.8126 for the other eleven
+    # (4 x 40 is 0.6596, hence a range and not "at least 0.66").  Every
+    # number here is read from the files, not typed in.
+    return ("For %s of the %s measurement budgets (%s), the first training run did "
+            "not converge: the best validation F1@1 over all %d epochs was "
+            "only %.2f–%.2f, far below the %.2f–%.2f reached by the other "
+            "measurement budgets. These %s measurement budgets were retrained with a different "
+            "random seed, with the training data, architecture and "
+            "training procedure unchanged, and all %s then converged "
+            "normally."
+            % (_word(len(names)), _word(F["n_budgets"]), listed,
+               F["epochs"], min(old), max(old), min(others), max(others),
+               _word(len(names)), _word(len(names))))
 
 
 def _monotonic_sentence():
@@ -316,7 +344,7 @@ def _monotonic_sentence():
 
 def _equal_cov_short():
     ec = F["equal_cov"]
-    return ("At equal coverage, allocating the budget to additional rays "
+    return ("At equal coverage, allocating the measurement budget to additional rays "
             "yields a higher score than allocating it to additional points "
             "per ray in %s of the %s comparable pairs."
             % (_word(ec["wins"]), _word(ec["n"])))
@@ -330,7 +358,7 @@ def _equal_coverage_summary():
     out = ("At equal coverage, additional rays are generally worth more "
            "than additional points per ray: of the %d converged pairs "
            "lying within 0.1 %% of the plane of each other, %d favour the "
-           "budget with more rays." % (ec["n"], ec["wins"]))
+           "measurement budget with more rays." % (ec["n"], ec["wins"]))
     for d in [x for x in ec["pairs"] if not x["more_rays_wins"]]:
         (ra, pa, fa) = d["many_rays"]
         (rb, pb, fb) = d["few_rays"]
@@ -353,7 +381,7 @@ def _equal_coverage_sentence():
            "additional rays generally outperforms allocating it to "
            "additional points per ray, although the trend is not uniform: "
            "of the %d converged pairs lying within 0.1 %% of the plane of "
-           "each other, %d favour the budget with more rays."
+           "each other, %d favour the measurement budget with more rays."
            % (ec["n"], ec["wins"]))
     losses = [d for d in ec["pairs"] if not d["more_rays_wins"]]
     for d in losses:
@@ -459,32 +487,23 @@ def _table_ii_rows():
 # build if a number in it has drifted from comparison.csv.
 # YOUR ABSTRACT, word for word, 2026-09-26.
 ABSTRACT = (
-    # YOUR TEXT, word for word, 2026-09-27.
-    "Spin qubits in gate-defined quantum dots are a leading candidate for "
-    "scalable quantum computation, and operating them requires the charge "
-    "occupation of each dot to be known. This occupation is read from the "
-    "charge stability diagram (CSD), which is conventionally acquired as a "
-    "dense two-dimensional scan whose acquisition time grows quadratically "
-    "with resolution. Recent generative models reconstruct the full sensor "
-    "image from a sparse scan, and the transition lines are then extracted "
-    "from that image with classical edge and ridge detectors. These models "
-    "are trained on measured data whose reference lines come from the same "
-    "detectors and inherit their errors. We instead formulate the task "
-    "directly as the probabilistic reconstruction of the transition lines "
-    "themselves. A U-Net, trained entirely on a constant-capacitance "
-    "simulator whose transition lines are exact by construction, takes a "
-    "few one-dimensional voltage sweeps (rays) through the gate-voltage "
-    "plane and returns, for every pixel, the probability that a transition "
-    "line passes through it. This map is binarised with a threshold "
-    "selected on validation data, and the result is scored with a "
-    "tolerance-based F1 score that does not penalise one-pixel "
-    # 2026-09-27: 3.9 % / 0.80 (8 x 50) -> 4.7 % / 0.82, the headline now
-    # being 8 x 60 after its retraining; _check_abstract() verifies both
-    "displacements of otherwise correct lines. With eight rays sampling "
-    "4.7 % of the voltage plane, the transition lines of 50 held-out "
-    "simulated devices are recovered with F1 = 0.82 at a one-pixel "
-    "tolerance. Application to measured devices remains to be "
-    "demonstrated.")
+    # YOUR TEXT, word for word, 2026-09-28.  4.7 % and 0.82 are the 8 x 60
+    # headline; _check_abstract() verifies both against the run.
+    "Operating spin qubits in gate-defined quantum dots requires knowing "
+    "each dot's charge occupation, which is read from the charge stability "
+    "diagram (CSD). Dense CSD scans are slow, and recent methods "
+    "reconstruct the charge-sensor image from a sparse scan and extract "
+    "transition lines with classical detectors, whose errors also "
+    "contaminate the training labels. Simulators, in contrast, provide the "
+    "transition lines exactly. We therefore train on simulated data and "
+    "reconstruct the lines directly. Because a sparse scan leaves most of "
+    "the voltage plane unobserved, the reconstruction is probabilistic. A "
+    "U-Net trained on a constant-capacitance simulator takes a few "
+    "one-dimensional voltage sweeps (rays) and returns a per-pixel "
+    "probability of a transition line. The map is binarised with a "
+    "validation-selected threshold and scored with a tolerance-based F1. "
+    "With eight rays sampling 4.7 % of the voltage plane, the lines of "
+    "held-out simulated devices are recovered with F1 = 0.82.")
 
 
 def _free_parameters():
@@ -537,6 +556,11 @@ def _check_abstract():
               "F1@1": "F1 =", "held-out": "held-out"}
     claims = [(n, t) for n, t in claims
               if any(k in n and v in ABSTRACT for k, v in stated.items())]
+    # "held-out" alone is not a count (2026-09-28: the abstract says "the
+    # lines of held-out simulated devices"); check it only when a number
+    # stands before it.
+    if not re.search(r"\d+ held-out", ABSTRACT):
+        claims = [(n, t) for n, t in claims if "held-out" not in n]
     missing = [name for name, text in claims if text not in ABSTRACT]
     if missing:
         raise SystemExit(
@@ -680,7 +704,7 @@ def parts():
                  "be over-read. The measurement budget is quoted as the "
                  "fraction of the plane actually measured. The threshold "
                  "that turns the probability map into lines is fitted on a "
-                 "validation split carved out of the training devices and "
+                 "validation dataset carved out of the training devices and "
                  "never on the held-out set. Because transition lines are "
                  "one pixel wide, the score is a tolerant F1 and is always "
                  "given with its tolerance and with the area that tolerance "
@@ -731,66 +755,85 @@ def parts():
              # facts()), so the text cannot outlive a re-run that changes
              # them.
              (None, [
-                 "Spin qubits in gate-defined semiconductor quantum dots "
-                 "are a promising platform for quantum computing, owing to "
+                 # YOUR TEXT, word for word, 2026-09-27: the first three
+                 # paragraphs of the Introduction, with references 4 and 5 new.
+                 "Spin qubits in gate-defined semiconductor quantum dots are"
+                 " a promising platform for quantum computing, owing to "
                  "their potential for scaling and their compatibility with "
-                 "established semiconductor fabrication technology "
-                 "[1\u20133]. In these devices, quantum information is "
-                 "encoded in the spin of electrons confined by "
-                 "electrostatic potentials, and the confinement is defined "
-                 "by the voltages applied to an array of gate electrodes. "
+                 "established semiconductor fabrication technology [1–3]. In"
+                 " these devices, quantum information is encoded in the "
+                 "spins of electrons confined by electrostatic potentials, "
+                 "which are defined by the voltages applied to an array of "
+                 "gate electrodes. Because the charging energy of a quantum "
+                 "dot greatly exceeds the thermal energy at cryogenic "
+                 "temperatures, electron transport through the dot is "
+                 "governed by Coulomb blockade, and the number of electrons "
+                 "it holds is quantized and set by the gate voltages [4]. "
                  "Operating a device therefore requires that these voltages "
-                 "be set such that each dot holds a precisely known number "
-                 "of electrons, typically one electron per dot. As devices "
-                 "scale to larger arrays, the number of gate voltages to be "
-                 "set grows accordingly, and determining the electron "
-                 "occupation efficiently becomes a central experimental "
-                 "challenge.",
+                 "be tuned such that each dot holds a precisely known number"
+                 " of electrons. As devices scale to larger arrays, the "
+                 "number of gate voltages to be set grows accordingly, and "
+                 "determining the electron occupation efficiently becomes a "
+                 "central experimental challenge.",
 
-                 "The electron occupation is determined from the charge "
-                 "stability diagram (CSD) [4]. A CSD is acquired by "
-                 "sweeping two gate voltages while recording the signal of "
-                 "a capacitively coupled charge sensor. Each change in the "
-                 "occupation of a dot shifts the electrostatic potential at "
-                 "the sensor and produces an abrupt change in its signal. "
-                 "The resulting two-dimensional map consists of regions of "
-                 "fixed charge occupation separated by sharp "
-                 "charge-transition lines, which for a double quantum dot "
-                 "form a honeycomb pattern. Two families of lines "
+                 "The elementary building block of such arrays is the double"
+                 " quantum dot (DQD). A DQD consists of two dots coupled to "
+                 "each other through a tunnel barrier and to separate "
+                 "electron reservoirs, with each dot controlled primarily by"
+                 " its own plunger gate [5]. The electron occupation (N₁, "
+                 "N₂) of a DQD is determined from its charge stability "
+                 "diagram (CSD) [5,6]. A CSD is acquired by sweeping the two"
+                 " plunger-gate voltages V₁ and V₂ while recording the "
+                 "signal of a capacitively coupled charge sensor [7]. Each "
+                 "change in the occupation of either dot shifts the "
+                 "electrostatic potential at the charge sensor and produces an "
+                 "abrupt change in its signal. The resulting two-dimensional"
+                 " map consists of regions of fixed charge configuration "
+                 "separated by sharp charge transition lines. Owing to the "
+                 "capacitive coupling between the dots, these lines form a "
+                 "characteristic honeycomb pattern. Two families of lines "
                  "correspond to the loading of an electron from a reservoir "
-                 "into either dot, and short interdot lines to the transfer "
-                 "of an electron between the dots. Because each dot couples "
-                 "more strongly to its own plunger gate than to the other, "
-                 "the loading lines of the two dots have markedly different "
-                 "slopes in the (V\u2081, V\u2082) plane. Identifying these "
-                 "lines, and counting them from the fully depleted (0,0) "
-                 "configuration, establishes the electron occupation "
-                 "(N\u2081, N\u2082) throughout the diagram.",
+                 "into either dot, and short interdot lines correspond to "
+                 "the transfer of an electron between the dots. Because each"
+                 " dot couples more strongly to its own plunger gate than to"
+                 " the other, the loading lines of the two dots have "
+                 "markedly different slopes in the (V₁, V₂) plane. "
+                 "Identifying these lines, and counting them from the fully "
+                 "depleted (0,0) configuration, establishes the charge "
+                 "configuration throughout the diagram.",
 
-                 "Most of the CSD, however, carries no information about "
-                 "where the transitions occur. Within each honeycomb cell "
-                 "the dots are in Coulomb blockade: the charging energy "
-                 "prevents the addition of an electron, so the occupation "
-                 "(N\u2081, N\u2082) is constant throughout the cell and the "
-                 "sensor signal varies only smoothly. The information that "
-                 # No number here (your call, 2026-09-26); the line
-                 # fraction (7.1 %) is stated in Results, where pixel
-                 # accuracy is discussed.
-                 "defines the occupation is concentrated on the transition "
-                 "lines, which occupy only a small fraction of the voltage "
-                 "plane. In practice, however, "
-                 "a CSD is measured point by point on a regular "
-                 "two-dimensional grid: for each value of V\u2082, the gate "
-                 "voltage V\u2081 is swept across its full range, so that "
-                 "every pixel of the voltage plane is measured, including "
-                 "those within Coulomb-blockaded regions. The number of "
-                 "measurements therefore grows quadratically with the "
-                 "resolution, and the large majority of them sample regions "
-                 "whose occupation could be inferred from the surrounding "
-                 "lines.",
+                 "Most of the CSD, however, carries no information about the"
+                 " charge configuration. Within each cell of the honeycomb, "
+                 "the DQD is in Coulomb blockade: the charging energy "
+                 "suppresses changes in the electron number, so the charge "
+                 "configuration (N₁, N₂) remains fixed and the charge-sensor"
+                 " response varies only smoothly with the gate voltages. The"
+                 " charge configuration is therefore determined entirely by "
+                 "the positions of the charge transition lines, which "
+                 "constitute one-dimensional features occupying a small "
+                 "fraction of the two-dimensional (V₁, V₂) plane. "
+                 "Conventional CSD acquisition nevertheless employs dense "
+                 "raster scanning on a uniform grid, in which V₁ is swept "
+                 "over its full range for each value of V₂, so that every "
+                 "pixel is measured irrespective of its information content."
+                 " For an N × N grid, the number of measurements scales as "
+                 # ", whereas the number of pixels intersected by
+                 # transition lines scales only as O(N)" deleted (your
+                 # call, 2026-09-27)
+                 "O(N²). Consequently, the "
+                 "overwhelming majority of acquisition time is spent "
+                 "sampling Coulomb-blockaded regions whose charge "
+                 "configuration is already fixed by the surrounding "
+                 "transition lines. "
+                 # added 2026-09-28 with references 8-11, as you gave it
+                 "Reducing this cost is a central goal of automated device "
+                 "tuning [8]. Machine-learning strategies that choose only "
+                 "the most informative measurements [9] or replace "
+                 "two-dimensional scans by one-dimensional rays [10,11] have "
+                 "been demonstrated.",
 
                  "Hernandes et al. have recently addressed the cost of this "
-                 "acquisition with a generative approach [5]. They trained "
+                 "acquisition with a generative approach [12]. They trained "
                  "a conditional diffusion model on approximately 9000 "
                  "measured CSDs to reconstruct full diagrams from sparse "
                  "measurements. Two sampling strategies were evaluated: a "
@@ -798,7 +841,7 @@ def parts():
                  "were preserved with as little as 4% of the data measured, "
                  "and horizontal and vertical line cuts, evaluated at "
                  "23\u201344% of the data. The model reconstructs the "
-                 "sensor signal over the entire plane, including the "
+                 "charge-sensor signal over the entire plane, including the "
                  "featureless Coulomb-blockaded regions, and its output is "
                  "an image. The positions of the transition lines, which "
                  "are the quantity that determines the electron occupation, "
@@ -806,13 +849,23 @@ def parts():
                  "afterwards, using classical edge- and ridge-detection "
                  "filters. The same filters, applied to the measured "
                  "diagrams, provide the reference lines against which the "
-                 "reconstructions are evaluated [5]. Both the training data "
+                 "reconstructions are evaluated [12]. Both the training data "
                  "and the reference transition lines therefore derive from "
-                 "measurement. The number of available diagrams is bounded "
-                 "by the experimental effort, the dataset had to be curated "
-                 "by manually labelling a subset of diagrams by quality, "
-                 "and the reference lines are only as accurate as the "
-                 "detectors that extract them.",
+                 # your text, word for word, 2026-09-27; checked against
+                 # the Hernandes et al. PDF: Canny edges and Frangi ridges,
+                 # 4000 diagrams labelled clean/noisy to train a classifier
+                 "measurement. The approach is, however, inherently "
+                 "constrained by its reliance on experimental training "
+                 "data. The size of the training set is bounded by the "
+                 "considerable cost of acquiring each diagram, and its "
+                 "construction required expert annotation, in which a "
+                 "subset of diagrams was manually classified by quality to "
+                 "train a filtering classifier. Furthermore, the "
+                 "reconstruction is evaluated against transition lines "
+                 "extracted by conventional edge and ridge detectors (Canny "
+                 "[13] and Frangi [14] filters), so the reference itself is subject "
+                 "to the errors of these algorithms and does not constitute "
+                 "an independent ground truth.",
 
                  "Recent advances in the simulation of quantum-dot "
                  "devices have made training data of this kind inexpensive "
@@ -820,19 +873,21 @@ def parts():
                  "model are now available: QArray computes a 100 \u00d7 100 "
                  "pixel charge stability diagram of a 16-dot array in less "
                  "than a second, and smaller arrays in milliseconds, faster "
-                 "than they could be measured experimentally [6]. Related "
-                 "packages include QDsim [7] and QDarts, which finds charge "
-                 "transitions in the presence of finite tunnel couplings, "
-                 "non-constant charging energies, and sensor dots [8]. Most "
+                 "than they could be measured experimentally [15]. Related "
+                 # [17] moved to right after "QDarts" (your call, 2026-09-27)
+                 "packages include QDsim [16] and QDarts [17], which finds "
+                 "charge transitions in the presence of finite tunnel "
+                 "couplings, non-constant charging energies, and charge-sensor "
+                 "dots. Most "
                  "recently, QArray+ has extended this framework into a "
-                 "physics-informed simulator [9]. It includes the coherent "
+                 "physics-informed simulator [18]. It includes the coherent "
                  "tunnel coupling between neighbouring dots, whose "
                  "strength depends on the gate voltages. Near an interdot "
                  "transition, where two charge configurations are nearly "
                  "degenerate, the ground state becomes a superposition of "
                  "both. The simulated diagrams therefore exhibit the "
                  "avoided crossings and fractional charge occupations "
-                 "observed in tunnel-coupled devices [9].",
+                 "observed in tunnel-coupled devices [18].",
 
                  # "Figure 1 sets out the method." deleted with the
                  # overview figure (your call, 2026-09-27).
@@ -844,22 +899,29 @@ def parts():
                  "device it was not trained on.",
 
                  "We therefore propose to train a neural network entirely "
-                 "on simulated diagrams and to employ it in experiments as "
+                 "on simulated diagrams, as has been done for charge-state "
+                 "recognition [19], and to employ it in experiments as "
                  "a probabilistic model of the transition-line positions. "
                  "Given only a small number of one-dimensional rays "
                  "measured on a device, the network returns, for every "
                  "pixel of the voltage plane, the probability that a "
                  "charge-transition line passes through it. It does so "
-                 "without reconstructing the sensor signal. The rays form a "
-                 "fan of oblique sweeps emitted from one corner of the "
-                 "gate-voltage window, along each of which both gate "
-                 "voltages change simultaneously [10]. A horizontal line cut "
+                 "without reconstructing the charge-sensor signal. "
+                 # your wording, 2026-09-28
+                 "The rays are two-gate sweeps radiating from one corner of "
+                 "the gate-voltage window, in which both gate voltages "
+                 "change simultaneously [10,20]. Unlike the "
+                 "ray-based classifier of Ref. 10, which labels the charge "
+                 "state near one point, the present network reconstructs "
+                 "the transition lines over the whole window. "
+                 "A horizontal line cut "
                  "runs nearly parallel to the loading lines of one dot and "
                  "a vertical cut to those of the other, so that each "
                  "axis-aligned cut predominantly samples a single family of "
-                 "lines. Each oblique ray, in contrast, intersects both "
-                 "families. The network is a U-Net that receives the ray "
-                 "data as two image channels. The first contains the sensor "
+                 # [12] added at your request, 2026-09-30
+                 "lines [12]. Each oblique ray, in contrast, intersects both "
+                 "families. The network is a U-Net [21] that receives the ray "
+                 "data as two image channels. The first contains the charge-sensor "
                  "signal at the sampled pixels. The second is a binary mask "
                  "of the sampled pixels, which allows the network to "
                  "distinguish a sampled pixel within a Coulomb-blockaded "
@@ -874,23 +936,28 @@ def parts():
                  "that converts the probability map into binary transition "
                  "lines is selected on a validation subset drawn from the "
                  "training devices, never on the held-out test devices, and "
-                 "it is reported with each result. Third, because the "
-                 "transition lines are one pixel wide, a strict "
-                 "pixel-overlap metric treats a displacement of a single "
-                 "pixel as a complete miss. We therefore adopt a "
+                 "it is reported with each result. "
+                 # your text, word for word, 2026-09-29
+                 "Third, the transition lines are marked by chains only one "
+                 "pixel thick (Sec. 3.1.1). In a pixel-exact comparison, a "
+                 "predicted line displaced by a single pixel therefore "
+                 "shares few or none of its pixels with the truth, and the "
+                 "score falls sharply, although the line has been located "
+                 "to within one pixel. We therefore adopt a "
                  "tolerance-based F1 score, F1@\u03c4, and report it "
                  "throughout together with the tolerance \u03c4 and with "
                  "the fraction of the plane lying within \u03c4 pixels of a "
-                 "sampled pixel. The strict intersection-over-union is "
-                 "reported alongside it.",
+                 # "The strict intersection-over-union is reported alongside
+                 # it." deleted at your request, 2026-09-29
+                 "sampled pixel.",
 
                  "With %s rays of %d points each, sampling %s%% of the "
                  "voltage plane, the predicted transition lines reach "
-                 "F1@1 = %.2f on %d held-out devices. For reference, %s%% "
-                 "of the plane lies within one pixel of a sampled pixel."
+                 "F1@1 = %.2f on %d held-out devices."
+                 # "For reference, x% of the plane lies within one pixel of
+                 # a sampled pixel." deleted at your request, 2026-09-30
                  % (_spelled(f["n_rays"]), f["n_points"],
-                    _rounded(f["coverage"]), f["f1"][1], f["n_test"],
-                    _rounded(f["coverage1"])),
+                    _rounded(f["coverage"]), f["f1"][1], f["n_test"]),
 
                  "In this study, both training and evaluation are performed "
                  "on devices simulated within the constant-capacitance "
@@ -901,20 +968,21 @@ def parts():
                  "a double quantum dot can be located from rays sampling a "
                  "few percent of the voltage plane. Deployment of the "
                  "trained model on measured devices, whose diagrams are "
-                 "subject to sensor noise, charge switching, and deviations "
+                 "subject to charge-sensor noise, charge switching, and deviations "
                  "from the constant-interaction picture, remains the "
-                 "subject of future work.",
+                 "subject of future work. The code for the simulation, "
+                 "training and evaluation is openly available [22].",
              ]),
          ],
          # The overview figure (method_overview.png) was deleted, your
          # call, 2026-09-27; the introduction has no figure now.
          [],
-         # Numbered as the introduction cites them: 1-4 the platform and
-         # the stability diagram, 5 the diffusion-model reconstruction,
-         # 6-9 the simulators, 10 the ray sampling (SSDM 2026); 11-13
-         # are first cited in the Discussion.  The details of 6 to 9 are NOT invented
-         # here -- each entry carries the title and says what is missing,
-         # and is completed from the paper itself.
+         # Numbered in order of first citation (JJAP).  Renumbered
+         # 2026-09-28 when references 7-11, 13, 14, 19, 21, 23-25, 27 and 30
+         # were added from your list: old 7->12, 8->15, 9->16, 10->17,
+         # 11->18, 12->20, 13->22, 14->26, 15->28, 16->29.  Entries 7, 13,
+         # 14, 21 and 25 were NOT checked against the publisher (the list
+         # said so); check their pages through the DOI before submission.
          {"references": (
              "D. Loss and D. P. DiVincenzo, Phys. Rev. A 57, 120 (1998).",
              "R. Hanson, L. P. Kouwenhoven, J. R. Petta, S. Tarucha, and "
@@ -922,13 +990,43 @@ def parts():
              "F. A. Zwanenburg, A. S. Dzurak, A. Morello, M. Y. Simmons, "
              "L. C. L. Hollenberg, G. Klimeck, S. Rogge, S. N. Coppersmith, "
              "and M. A. Eriksson, Rev. Mod. Phys. 85, 961 (2013).",
+             # 4 and 5 new with your Introduction, 2026-09-27, as you gave them
+             "L. P. Kouwenhoven, C. M. Marcus, P. L. McEuen, S. Tarucha, "
+             "R. M. Westervelt, and N. S. Wingreen, in Mesoscopic Electron "
+             "Transport, ed. L. L. Sohn, L. P. Kouwenhoven, and G. Schön "
+             "(Kluwer, Dordrecht, 1997) NATO ASI Series E, Vol. 345, p. 105.",
+             "W. G. van der Wiel, S. De Franceschi, J. M. Elzerman, "
+             "T. Fujisawa, S. Tarucha, and L. P. Kouwenhoven, Rev. Mod. Phys. "
+             "75, 1 (2002).",
+             # 6 (was 4)
              "J. M. Elzerman, R. Hanson, J. S. Greidanus, L. H. Willems van "
              "Beveren, S. De Franceschi, L. M. K. Vandersypen, S. Tarucha, "
              "and L. P. Kouwenhoven, Phys. Rev. B 67, 161308(R) (2003).",
+             # 7-11 new, 2026-09-28
+             "M. Field, C. G. Smith, M. Pepper, D. A. Ritchie, J. E. F. Frost, "
+             "G. A. C. Jones, and D. G. Hasko, Phys. Rev. Lett. 70, 1311 (1993).",
+             "J. P. Zwolak and J. M. Taylor, Rev. Mod. Phys. 95, 011006 (2023).",
+             "D. T. Lennon, H. Moon, L. C. Camenzind, L. Yu, D. M. Zumbühl, "
+             "G. A. D. Briggs, M. A. Osborne, E. A. Laird, and N. Ares, "
+             "npj Quantum Inf. 5, 79 (2019).",
+             "J. P. Zwolak, T. McJunkin, S. S. Kalantre, S. F. Neyens, "
+             "E. R. MacQuarrie, M. A. Eriksson, and J. M. Taylor, PRX Quantum 2, "
+             "020335 (2021).",
+             "J. Ziegler, F. Luthi, M. Ramsey, F. Borjans, G. Zheng, and "
+             "J. P. Zwolak, Phys. Rev. Appl. 20, 034067 (2023).",
+             # 12 (was 7)
              "V. Hernandes, J. Rogers, R. Koch, T. Spriggs, B. Undseth, "
+             # the published version, as you gave it, 2026-09-28: JJAP
+             # style, no title (DOI 10.1088/2632-2153/ae8070)
              "A. Chatterjee, L. M. K. Vandersypen, and E. Greplova, "
-             "\u201cReconstructing quantum dot charge stability diagrams "
-             "with diffusion models\u201d.",
+             "Mach. Learn.: Sci. Technol. 7, 045009 (2026).",
+             # 13, 14 new: Canny and Frangi
+             "J. Canny, IEEE Trans. Pattern Anal. Mach. Intell. PAMI-8, 679 "
+             "(1986).",
+             "A. F. Frangi, W. J. Niessen, K. L. Vincken, and M. A. Viergever, "
+             "Proc. MICCAI’98, Lecture Notes in Computer Science 1496 "
+             "(Springer, Berlin, 1998) p. 130.",
+             # 15-18 (were 8-11)
              # 6 from csd-materials/citations/Qarray.txt, 2026-09-26
              "B. van Straaten, J. Hickie, L. Schorling, J. Schuff, "
              "F. Fedele, and N. Ares, arXiv:2404.04994.",
@@ -943,26 +1041,50 @@ def parts():
              "P. Vaidhyanathan, B. van Straaten, A. Petrillo, R. Marchand, "
              "E. De Nicolo, M. Veldhorst, B. Khailany, T. L. Patti, and "
              "N. Ares, arXiv:2609.02736.",
+             # 19 new
+             "S. S. Kalantre, J. P. Zwolak, S. Ragole, X. Wu, N. M. Zimmerman, "
+             "M. D. Stewart, and J. M. Taylor, npj Quantum Inf. 5, 6 (2019).",
+             # 20 (was 12)
              # 10 your SSDM 2026 talk, "Ray-Based Sampling for Efficient
              # Extraction of Transition Lines in Double Quantum Dot
              # Stability Diagrams" -- in the format you gave, 2026-09-27
              "E. Alizadeh Kashtiban, T. Fujita, and A. Oiwa, presented at "
              "SSDM 2026, Int. Conf. Solid State Devices and Materials, "
              "2026.",
-             # 11-13 are first cited in the Discussion, in this order, from
-             # csd-materials/citations/*/<title>.txt, 2026-09-27.  Author
-             # lists are taken from each PDF's title page: the .txt files
-             # are Google Scholar exports, which cut Roux et al. at 11 of
-             # 21 authors.
-             # 11 TRACS
+             # 21 new: the U-Net
+             "O. Ronneberger, P. Fischer, and T. Brox, Proc. MICCAI 2015, "
+             "Lecture Notes in Computer Science 9351 (Springer, Cham, 2015) "
+             "p. 234.",
+             # 22 (was 13)
+             # 11 this repository, cited at the end of the Introduction
+             # (your request, 2026-09-27); JJAP style for a web resource
+             # the link only, no authors (your call, 2026-09-27)
+             "https://github.com/Ehsan-Japan/"
+             "probabilistic-csd-reconstruction",
+             # 23-25 new: Dice loss, boundary F1, tunnel-coupled DQD
+             "F. Milletari, N. Navab, and S.-A. Ahmadi, Proc. 4th Int. Conf. 3D "
+             "Vision (3DV), 2016, p. 565.",
+             "D. R. Martin, C. C. Fowlkes, and J. Malik, IEEE Trans. Pattern "
+             "Anal. Mach. Intell. 26, 530 (2004).",
+             "L. DiCarlo, H. J. Lynch, A. C. Johnson, L. I. Childress, "
+             "K. Crockett, C. M. Marcus, M. P. Hanson, and A. C. Gossard, "
+             "Phys. Rev. Lett. 92, 226801 (2004).",
+             # 26 (was 14). Author lists of 26, 28 and 29 are taken from each
+             # PDF's title page, not the Google Scholar exports.
+             # 12 TRACS
              "R. Marchand, L. Schorling, C. Carlsson, J. Schuff, "
              "B. van Straaten, T. L. Patti, F. Fedele, J. Ziegler, "
              "P. Girdhar, P. Vaidhyanathan, and N. Ares, arXiv:2508.15710.",
-             # 12
+             # 27 new: RF readout review
+             "F. Vigneau, F. Fedele, A. Chatterjee, D. Reilly, F. Kuemmeth, "
+             "M. F. Gonzalez-Zalba, E. Laird, and N. Ares, Appl. Phys. Rev. 10, "
+             "021305 (2023).",
+             # 28 (was 15)
              "C. Carlsson, J. Saez-Mollejo, F. Fedele, S. Calcaterra, "
              "D. Chrastina, G. Isella, G. Katsaros, and N. Ares, "
              "arXiv:2506.10834.",
-             # 13 published per the .txt (4 Mar 2026); the volume and page
+             # 29 (was 16)
+             # 14 published per the .txt (4 Mar 2026); the volume and page
              # are in neither the .txt nor the PDF (the arXiv version,
              # 2509.19537), so they are NOT given here.
              "M.-A. Roux, J. Rivard, V. Yon, A. Morel, D. Leclerc, "
@@ -971,6 +1093,11 @@ def parts():
              "D. Wan, K. De Greve, M.-A. Tétrault, D. Drouin, "
              "C. Lupien, M. Pioro-Ladrière, and E. Dupont-Ferrier, "
              "IEEE Trans. Quantum Eng. (2026).",
+             # 30 new: variability after thermal cycling
+             "H. Moon, D. T. Lennon, J. Kirkpatrick, N. M. van Esbroeck, "
+             "L. C. Camenzind, L. Yu, F. Vigneau, D. M. Zumbühl, "
+             "G. A. D. Briggs, M. A. Osborne, D. Sejdinovic, E. A. Laird, and "
+             "N. Ares, Nat. Commun. 11, 4161 (2020).",
          )}),
 
         ("3_1", "device_simulation_and_dataset",
@@ -988,30 +1115,38 @@ def parts():
                  "dot (DQD) capacitively coupled to a single charge "
                  "sensor. It is modelled with the QArray simulator within "
                  "the constant-capacitance approximation, and the "
-                 "equivalent circuit is shown in Fig. 1(a). In this "
+                 "equivalent circuit is shown in Figure 1(a). In this "
                  "approximation the device is treated as a network of "
                  "fixed capacitors. For a given gate-voltage vector "
                  "V_{g}, the ground-state charge configuration "
                  "n = (n_{1}, n_{2}) is the integer occupation that "
                  "minimises the electrostatic energy of the network. "
-                 # your sentence, 2026-09-26, keeping "at which two charge
-                 # configurations are degenerate" as you asked
-                 "The transition lines of the charge stability diagram are "
-                 "the lines in gate-voltage space at which two charge "
-                 "configurations are degenerate; crossing such a line "
-                 "changes the number of carriers on the dots. Across each "
-                 "such line "
-                 "the ground-state occupation changes discretely from one "
-                 "integer configuration to another.",
+                 # YOUR TEXT, word for word, 2026-09-29: holes stated (the
+                 # simulator runs DotArray(charge_carrier="hole")), and the
+                 # transition lines defined here once
+                 # Figure 3(a) cited here at your request, 2026-09-30,
+                 # although Figure 2 is first cited later (your choice)
+                 "The devices are simulated with holes as charge carriers, "
+                 "so the occupation increases towards lower gate voltages "
+                 "(Figure 3(a)). "
+                 "Within the constant-capacitance model this only reverses "
+                 "the sign of the gate voltage at which a carrier is added, "
+                 "and the geometry of the stability diagram is the same as "
+                 "for electrons. The transition lines of the stability "
+                 "diagram are the lines in gate-voltage space at which two "
+                 "charge configurations have equal energy. Crossing such a "
+                 "line changes the number of carriers on one or both dots, "
+                 "and the occupation jumps from one integer configuration "
+                 "to another.",
 
                  # "The parameters of the model can be counted off the
                  # circuit." deleted (your call, 2026-09-26).
                  "Each of the three conducting islands (two "
-                 "dots and the sensor) couples to each of the three "
+                 "dots and the charge sensor) couples to each of the three "
                  "gates, giving %s capacitive branches, and the islands "
                  "couple to one another through c_{d1d2}, c_{s1d1} and "
                  "c_{s1d2}, giving %s more, so %s branches are drawn in "
-                 "total in Fig. 1(a). The two remaining parameters, "
+                 "total in Figure 1(a). The two remaining parameters, "
                  "c_{d1d1} and c_{d2d2}, are self-capacitances and are "
                  "not shown in the drawing, for simplicity, so a device "
                  "is specified by %d capacitances in all."
@@ -1019,16 +1154,16 @@ def parts():
                     _FREE[1]),
 
                  "The same capacitances are collected into the four "
-                 "matrices of Fig. 1(b). The dot\u2013dot matrix "
+                 "matrices of Figure 1(b). The dot\u2013dot matrix "
                  "C_{dd} \u2208 \u211d^{2\u00d72} carries the dot "
                  "self-capacitances c_{d1d1} and c_{d2d2} on its "
                  "diagonal and the interdot mutual capacitance c_{d1d2} "
                  "off it; the dot\u2013gate matrix C_{dg} \u2208 "
                  "\u211d^{2\u00d73} has rows indexed by dot and columns "
                  "by gate, with entries c_{digj} (i = 1, 2; "
-                 "j = 1, 2, 3); the sensor\u2013dot matrix C_{sd} "
+                 "j = 1, 2, 3); the charge-sensor\u2013dot matrix C_{sd} "
                  "\u2208 \u211d^{1\u00d72} has entries (c_{s1d1}, "
-                 "c_{s1d2}); and the sensor\u2013gate matrix C_{sg} "
+                 "c_{s1d2}); and the charge-sensor\u2013gate matrix C_{sg} "
                  "\u2208 \u211d^{1\u00d73} has entries (c_{s1g1}, "
                  "c_{s1g2}, c_{s1g3}). Because mutual capacitance is "
                  "reciprocal, c_{d1d2} = c_{d2d1} and C_{dd} is "
@@ -1038,16 +1173,14 @@ def parts():
                  % ((_FREE[0], _FREE[1])
                     + tuple(_spelled(n) for _name, n in _FREE[2])),
 
-                 "Each device realisation corresponds to a single draw of "
-                 "this %d-dimensional parameter vector from uniform "
-                 "distributions over the ranges listed in Table I."
-                 % _FREE[1],
-
-                 # YOUR TEXT, word for word, 2026-09-27.  Checked: all 550
-                 # device.json records have attempts = 1, accepted = True.
-                 "Each of the %d capacitance entries is drawn independently "
-                 "and uniformly from the intervals in Table I, so that every "
-                 "device corresponds to a point in a %d-dimensional "
+                 # YOUR TEXT, word for word, 2026-09-28: one sentence in
+                 # place of the two paragraphs before it.  Checked
+                 # 2026-09-27: all 550 device.json records have
+                 # attempts = 1, accepted = True.
+                 "Each device realisation is a single draw of the %d "
+                 "capacitance entries, each sampled independently and "
+                 "uniformly from the intervals listed in Table I, so that "
+                 "every device corresponds to a point in a %d-dimensional "
                  # "No draw is rejected, so the acceptance rate of the
                  # device pool is 1.00 by construction." deleted (your
                  # call, 2026-09-27); still true of the pool.
@@ -1065,7 +1198,7 @@ def parts():
                   "intervals and are separated by device identity only.",
                   ["Matrix", "Entry", "Interval"],
                   TABLE_I_ROWS, [0.95, 0.95, 1.25], TABLE_I_RULES),
-                 "The sensor response is computed with the noise model set "
+                 "The charge-sensor response is computed with the noise model set "
                  "to NoNoise and nothing is added afterwards, so the maps "
                  "are noise-free. The Coulomb peak width is %.3g and the "
                  "electron temperature %.0e in simulation units."
@@ -1086,10 +1219,81 @@ def parts():
                  "Figure 2 shows the charge-sensor signal (a) and the "
                  "transition-line map (b) that the simulator returns for one "
                  "device.",
+                 # YOUR TEXT, word for word, 2026-09-29.  Checked against
+                 # dqd_simulator._charge_state_changes: a pixel is 1 where
+                 # its occupation differs from the next pixel along either
+                 # gate axis, so the chain lies on the lower-voltage side.
+                 # one paragraph now, the definition of a transition line
+                 # left to the first paragraph (your text, 2026-09-29)
+                 "The window is divided into a regular grid of "
+                 "%d × %d pixels. "
+                 # added at your request, 2026-09-30: the pixel centres
+                 # are np.linspace points, both window edges included
+                 # "and include both edges of the window" omitted at your
+                 # request, 2026-09-30 (still true: np.linspace)
+                 "The pixel centres are equally spaced, "
+                 "so the %.0f mV width is divided into "
+                 "%d intervals and the pixel spacing is Δ = %.0f mV/%d ≈ "
+                 "%.1f µV. "
+                 "Each pixel is a small square in the "
+                 "(V₁, V₂) plane, represented by the voltage pair at its "
+                 # rewritten at your request, 2026-09-30.  Checked against
+                 # dqd_simulator._run_double_dot: the occupations come from
+                 # DotArray(Cdd, Cgd) alone, the sensor from
+                 # ChargeSensedDotArray with all four matrices.
+                 "centre. At this single point the simulator determines the "
+                 "charge configuration: from the capacitances of the network "
+                 "in Figure 1(a), collected in the dot–dot and dot–gate "
+                 "matrices C_{dd} and C_{dg} of Figure 1(b), it finds the "
+                 "integer occupation (n_{1}, n_{2}) that minimises the "
+                 "electrostatic energy of the network at that pair of gate "
+                 "voltages. The charge-sensor signal is evaluated at the same "
+                 "point, using in addition the charge-sensor matrices C_{sd} and "
+                 "C_{sg}. "
+                 # "Because the charge configuration is determined only at
+                 # the pixel centres, ... depends on its resolution (Figure
+                 # 3)." removed 2026-09-30: your paragraph below says it
+                 "All distances "
+                 "in this work, including the tolerance τ (Sec. 3.4.2), are "
+                 "measured in units of the pixel spacing. "
+                 # YOUR TEXT, word for word, 2026-09-30, in place of the
+                 # zero-width / labelled-pixel sentences and "The labelled
+                 # chain always lies within one pixel spacing of the true
+                 # line."
+                 "In the continuous (V₁, V₂) plane, a charge transition "
+                 "line is a boundary of zero width separating two regions "
+                 "of distinct charge configuration. When the plane is "
+                 "sampled on a discrete grid with spacing Δ, such a "
+                 # ΔV₁, ΔV₂ -> Δ and localizes -> localises, 2026-09-30
+                 "boundary generically passes between adjacent "
+                 "grid points and cannot be represented exactly. We "
+                 "therefore define transition pixels as follows: a pixel is "
+                 "labelled as a transition pixel if its charge "
+                 "configuration differs from that of its nearest neighbour "
+                 "in the positive V₁ or V₂ direction. Under this "
+                 "definition, each labelled pixel is the last pixel "
+                 "preceding a change in charge configuration, and each "
+                 "transition line is represented by a connected chain of "
+                 "pixels of single-pixel width, located on the "
+                 "lower-voltage side of the true boundary. The discrete "
+                 "representation consequently localises the boundary only "
+                 "to within one grid spacing, and the resulting set of "
+                 "labelled pixels depends on the resolution and alignment "
+                 "of the sampling grid as well as on the physical "
+                 "properties of the device. "
+                 "Figure 3 shows the true "
+                 "transition lines of one simulated device in the "
+                 "continuous voltage plane, together with the labels "
+                 "obtained from them on the grid used in this work and on "
+                 "a grid twice as coarse."
+                 % (f["res"], f["res"], f["window_mv"], f["res"] - 1,
+                    f["window_mv"], f["res"] - 1,
+                    1e3 * f["window_mv"] / (f["res"] - 1)),
              ]),
              # 3.1.2 "Ground truth" removed, and this subsection replaced
              # by your text, 2026-09-26.  Every count is read from the run;
-             # "Figure 3" is the LOCAL number, printed as Figure 4.  The
+             # "Figure 4" is the LOCAL number (3 until the pixel figure
+             # went in before it, 2026-09-30).  The
              # near-duplicate check (separation) is no longer in the text.
              ("2. Train/test split", [
                  "A total of %d devices are generated by sampling the "
@@ -1101,7 +1305,7 @@ def parts():
                  "The validation set is used to select the best-performing "
                  "epoch and the binarisation threshold (Section 3.4). The "
                  "test devices are not used for any training or "
-                 "model-selection decision. Figure 3 illustrates this "
+                 "model-selection decision. Figure 4 illustrates this "
                  "partitioning."
                  % (f["n_total"], f["n_train"], f["n_test"], f["val_pct"],
                     f["n_val"], f["n_train"], f["n_fit"]),
@@ -1109,7 +1313,7 @@ def parts():
          ],
          [("dqd_model_full_bigb_v2.png",
            "The constant-capacitance model of the simulated device. (a) The "
-           "capacitor network: two quantum dots QD1 and QD2, a sensor dot "
+           "capacitor network: two quantum dots QD1 and QD2, a charge-sensor dot "
            "QDs, and three gates. (b) The four capacitance matrices "
            "that define a device. A device is one uniform draw of the %d "
            "free parameters of Table I."
@@ -1118,26 +1322,37 @@ def parts():
           # the input channels of the network figure merged into one.
           # Cited from 3.2 by name, {fig:inputs}.
           ("fig_inputs.png",
-           "One held-out device at the headline budget (%d rays × %d "
-           "points). (a) The charge-sensor signal over the gate-voltage "
+           "One held-out device for the best-performing configuration "
+           "(%d × %d). (a) The charge-sensor signal over the gate-voltage "
            "window. (b) The ground-truth transition lines computed by the "
            "simulator: the output the U-Net is trained to reproduce. (c) "
-           "The normalised sensor signal at the pixels sampled by the "
+           "The normalised charge-sensor signal at the pixels sampled by the "
            "rays, grey elsewhere: the first input channel. (d) The binary "
            "sampling mask: the second input channel."
            % (f["n_rays"], f["n_points"])),
-          # Your wording, 2026-09-23.  The five counts are still read
-          # from the run rather than typed in; the split seed is no
-          # longer named here (it is still in S3).
+          # The schematic pixel_labelling.png (make_pixel_labelling_ai.py)
+          # was here; deleted at your request, 2026-09-30.
+          # make_pixel_quantisation_ai.py, 2026-09-30.  sample_1 of the
+          # device pool; the script asserts that (b) is its stored ground
+          # truth.  The spacing is (window)/(res - 1), as np.linspace.
+          ("pixel_quantisation.png",
+           # shortened at your request, 2026-09-30; the panel titles were
+           # then taken out of the figure and said here instead
+           "Transition lines of one simulated device. (a) The continuous "
+           "voltage plane with the true transition lines and the charge "
+           "configuration (n₁, n₂) of each region; the dashed square is "
+           "enlarged in (b) and (c). (b) The grid of this work, spacing "
+           "Δ = %.1f µV. (c) A grid twice as coarse, spacing 2Δ."
+           % (1e3 * f["window_mv"] / (f["res"] - 1))),
+          # Shortened at your request, 2026-09-29: the text of 3.1.2
+          # already explains the split.  The counts are read from the run.
           ("fig_data_split.png",
-           "Partitioning of the dataset. The %d simulated devices are "
-           "divided at the device level into a training set of %d "
-           "devices and an independent test set of %d devices. Before "
-           "training begins, %d%% of the training devices are reserved "
-           "for validation, so the model weights are fitted on the "
-           "remaining %d devices."
-           % (f["n_total"], f["n_train"], f["n_test"],
-              f["val_pct"], f["n_fit"]))]),
+           # "training" is the 500, as the figure labels it; 75 of them
+           # are the validation devices
+           "Partitioning of the %d simulated devices into %d training and "
+           "%d test devices, with %d of the training devices reserved for "
+           "validation."
+           % (f["n_total"], f["n_train"], f["n_test"], f["n_val"]))]),
 
         ("3_2", "ray_based_measurement",
          "Ray-based measurement and network input",
@@ -1233,50 +1448,80 @@ def parts():
                  # crossings have a maximum within one sample.
              ]),
              ("2. Input representation", [
-                 # YOUR TEXT, word for word, 2026-09-26, replacing the two
-                 # paragraphs that said "raw sensor value" (it is min-max
-                 # normalised per device -- ray_peaks.load_grid).  The
-                 # figure reference that ended the old second paragraph is
-                 # kept as its own sentence.
-                 "The network receives two input channels, each with the "
-                 "dimensions of the full stability diagram. The first "
-                 "contains the sensor signal, min–max normalised to "
-                 "[0, 1] for each device, at every pixel traversed by a ray, "
-                 "and zero at all other pixels. The second is a binary mask "
-                 "that is one at every sampled pixel and zero otherwise. A "
-                 "single channel would not suffice. A convolutional network "
-                 "requires a value at every pixel, so the unsampled pixels "
-                 "must be assigned a placeholder, and after normalisation "
-                 "zero is also the value taken by the lowest measured signal "
-                 "in each diagram. In the signal channel alone, a zero would "
-                 "therefore be ambiguous: it could be a sampled pixel with "
-                 "low sensor signal or a pixel that was never measured. The "
-                 "network could not separate the absence of a measurement "
-                 "from a measurement indicating the absence of a transition. "
-                 "The mask removes this ambiguity by specifying where "
-                 "measured information exists and where the prediction must "
-                 "be inferred from neighbouring rays. Because both channels "
-                 "always span the full diagram, the input dimensions and the "
-                 "network architecture are identical for every measurement "
-                 "budget, and only the density of sampled pixels changes.",
-                 "Figure {fig:inputs}(c) and (d) show the two channels "
-                 "for one held-out device.",
-                 # your text, word for word, 2026-09-27; the ending changed
-                 # at your request ("alone" dropped, run-to-run variation
-                 # added) because the retrained budgets show that training
-                 # varies between runs of the same budget
-                 "An important property of this encoding is that the input "
-                 "dimensions are independent of the measurement budget. "
-                 "Changing n_rays or n_points alters only the fraction of "
-                 "pixels populated in the two channels, not the size of the "
-                 "channels themselves. The same network architecture, with "
-                 "the same number of trainable parameters, can therefore be "
-                 "used for every budget. A separate model is trained for "
-                 "each budget, but because the architecture and training "
-                 "procedure are identical, differences in performance across "
-                 "budgets can be attributed to the measurement rather than "
-                 "to differences in model capacity, within the run-to-run "
-                 "variation of training.",
+                 # YOUR TEXT, word for word, 2026-09-28, replacing the whole
+                 # subsection.  Checked against the code that day: the
+                 # signal is min-max normalised over the full simulated
+                 # diagram (ray_peaks.load_grid); every budget trained at
+                 # train_seed 0 (torch.manual_seed: initial weights and
+                 # batch order); the four retrained budgets and their seeds
+                 # are in retrain_collapsed.json, described in 3.3.3; 6 x 50
+                 # scores 0.661 and 5 x 50 0.736 at tau = 1.  The counts and
+                 # the grid size are still read from the run.  "Fig." in the
+                 # text is printed "Figure" (your rule, 2026-09-28).
+                 # one paragraph, no colon and no list; this opening is your
+                 # rewrite of 2026-09-28 (the closing full stop added)
+                 "The rays measure only a few percent of the pixels, but a "
+                 "convolutional network requires an input image with a value"
+                 " at every pixel. The measured values are therefore placed "
+                 "on the full %d × %d grid, and the network receives two "
+                 "input channels [Figure {fig:inputs}(c) and (d)]. In the "
+                 "first, the signal channel, each pixel crossed by a ray "
+                 "holds the charge-sensor signal measured there, and every other "
+                 "pixel is set to zero. The signal is normalised to [0, 1] "
+                 "using the minimum and maximum of the full simulated "
+                 "diagram. In the second, the mask channel, each pixel "
+                 "crossed by a ray is set to one and every other pixel to "
+                 "zero." % (f["res"], f["res"]),
+                 "The mask is needed because the signal channel alone is "
+                 "ambiguous. After normalisation, a measured pixel with low "
+                 "charge-sensor signal also has a value at or near zero. A zero in "
+                 "the signal channel could therefore mean either “measured,"
+                 " and the signal here is low” or “not measured”. "
+                 "These two cases carry different information. The first is "
+                 "real evidence about the diagram at that pixel. The second "
+                 "is no evidence at all, and the network must infer that "
+                 "region from the surrounding rays. The mask tells the "
+                 "network which case applies at each pixel.",
+                 "Because both channels always cover the full grid, the size "
+                 "of the input does not depend on the measurement budget. "
+                 "Changing n_rays or n_points changes only how many pixels "
+                 "are filled, not the size of the channels. "
+                 # "budget" -> "measurement configuration", your request,
+                 # 2026-09-30
+                 "Every measurement configuration "
+                 "therefore uses the same architecture, with the same number "
+                 "of trainable parameters.",
+                 "A separate network is trained for each of the %s measurement budgets. "
+                 "The comparison between measurement budgets is meant to work like a "
+                 "controlled experiment in which only the measurement "
+                 "changes. Every network is therefore trained with the same "
+                 "loss function, optimiser, number of epochs and training "
+                 "devices, and its threshold is selected in the same way. If "
+                 "the networks differed in size, a higher score at a larger "
+                 "measurement budget could simply come from a larger model. With "
+                 "identical networks, a difference in score reflects how "
+                 "much information the rays provide."
+                 % _word(f["n_budgets"]),
+                 "One source of difference nevertheless remains. The initial "
+                 "weights of the network, and the order in which the "
+                 "training devices are presented, are drawn from a "
+                 "pseudo-random number generator. In this study the "
+                 "generator was started from the same seed for every "
+                 "measurement budget, so all networks began from identical weights and "
+                 "saw the training devices in the same order. The choice of "
+                 "seed is, however, arbitrary. With a different seed, "
+                 "training follows a different path and ends at a somewhat "
+                 "different score. We refer to this spread as run-to-run "
+                 "variation. %s measurement budgets show that it matters: their first "
+                 "training runs did not converge, and they converged only "
+                 "after being retrained with a different seed (Sec. 3.3.3). "
+                 "Each measurement budget was trained to convergence only once, so the "
+                 "size of this variation was not measured. Large "
+                 "differences between measurement budgets can therefore be attributed "
+                 "to the measurement. Small differences between neighbouring "
+                 "measurement budgets, such as 6 × 50 scoring below 5 × 50, should not "
+                 "be over-interpreted."
+                 % _word(len(_run.SEEDS)).capitalize(),
              ]),
          ],
          # The ray-fan figure is gone (2026-09-26): the fan is shown by
@@ -1307,12 +1552,13 @@ def parts():
              ("1. Architecture", [
                  "Figure 1 shows the architecture of the fully "
                  "convolutional U-Net. The input is a two-channel "
-                 "%d × %d tensor (sensor signal and sampling mask). "
+                 "%d × %d tensor (charge-sensor signal and sampling mask). "
                  "Each encoder stage (%d, %d and %d channels) consists of "
                  "two 3 × 3 convolutions, each followed by batch "
                  "normalisation and a GELU activation, and is followed by "
-                 "2 × 2 max pooling (%d → %d → %d "
-                 "→ %d). The bottleneck has %d channels. In the "
+                 # " (100 -> 50 -> 25 -> 12)" deleted (your call,
+                 # 2026-09-27)
+                 "2 × 2 max pooling. The bottleneck has %d channels. In the "
                  "decoder, feature maps are upsampled by nearest-neighbour "
                  "interpolation to the size of the corresponding encoder "
                  "output and concatenated with it through skip "
@@ -1324,8 +1570,7 @@ def parts():
                  "lines from this map is a separate decision step, "
                  "described in Sec. 3.4."
                  % ((f["res"], f["res"]) + tuple(f["widths"][:3])
-                    + (f["res"], f["res"] // 2, f["res"] // 4,
-                       f["res"] // 8, f["widths"][3], f["res"], f["res"])),
+                    + (f["widths"][3], f["res"], f["res"])),
              ]),
              # YOUR TEXT, word for word, 2026-09-26.  Checked against
              # grid_train.py: BCEWithLogitsLoss with pos_weight
@@ -1338,7 +1583,7 @@ def parts():
                  "loss prevent this. First, the per-pixel binary "
                  "cross-entropy is weighted so that a missed "
                  "transition-line pixel costs more than an error on a pixel "
-                 "without a line. Second, a Dice term compares the "
+                 "without a line. Second, a Dice term [23] compares the "
                  "predicted and true line maps as a whole and penalises "
                  "predictions that place lines where there are none.",
              ]),
@@ -1369,7 +1614,7 @@ def parts():
          # 2026-09-26), with your caption of the same day.
          [("fig_model_flow.png",
            "Network input and output for one held-out device (%d rays "
-           "× %d points). Left: normalised sensor signal along the "
+           "× %d points). Left: normalised charge-sensor signal along the "
            "rays and the binary sampling mask. Centre: U-Net. Right: "
            "predicted %d × %d transition-line probability map."
            % (f["n_rays"], f["n_points"], f["res"], f["res"]))]),
@@ -1379,12 +1624,12 @@ def parts():
          "The network outputs a continuous probability map, while transition "
          "lines are binary, so two decisions stand between the output and a "
          "score. Where to cut the map is the threshold, chosen on the "
-         "validation devices and stored in the checkpoint; for the headline "
-         "budget it is %g. How strictly to compare the result with the truth "
+         "validation devices and stored in the checkpoint; for the "
+         "best-performing configuration (%d × %d) it is %g. How strictly to compare the result with the truth "
          "is the tolerance tau, a distance in pixels. We report F1 at "
          "tau = 0 to 3 and quote tau = 1 as the headline, always beside the "
          "area that tolerance covers."
-         % f["threshold"],
+         % (f["n_rays"], f["n_points"], f["threshold"]),
          [
              # YOUR TEXT, word for word, 2026-09-26: the opening of 3.4,
              # before 3.4.1, unheaded.  The definitions match
@@ -1452,7 +1697,7 @@ def parts():
                  "transition lines are unknown, so the threshold must be "
                  "fixed before the measurement using simulated data alone, "
                  "which is exactly what is done here. The validation curve "
-                 "(Fig. 1(b)) is nearly flat over a broad range of "
+                 "(Figure 1(b)) is nearly flat over a broad range of "
                  "thresholds and decreases only at very high values, so the "
                  "result is insensitive to the exact choice. Figures "
                  "1(a), (c) and (d) show a representative probability map "
@@ -1468,7 +1713,8 @@ def parts():
                  "case, constructed and scored with the same metric "
                  "code used throughout: strict F1 = 0.00, and F1 at "
                  "tau = 1 equal to 1.00.",
-                 "We therefore report F1 at a tolerance tau: a predicted "
+                 "We therefore report F1 at a tolerance tau, as is standard "
+                 "in boundary-detection benchmarks [24]: a predicted "
                  "pixel counts as correct if a true line pixel lies within "
                  "tau pixels of it, and a true pixel counts as found if a "
                  "predicted one lies within tau. Distances are Euclidean. "
@@ -1547,10 +1793,11 @@ def parts():
         ("4", "results_and_Discussion",
          "Results and Discussion",
          "We report the recovery of charge-transition lines as a function of "
-         "the measurement budget, on %d held-out devices. The best budget "
-         "is %d rays x %d points: F1 at tau = 1 of %.3f from "
+         "the measurement budget, on %d held-out devices. The "
+         "best-performing configuration (%d × %d) reaches F1 at tau = 1 of "
+         "%.3f from "
          "%.2f %% of the gate-voltage plane, at a threshold of %g chosen on "
-         "the validation split."
+         "the validation dataset."
          % (f["n_test"], f["n_rays"], f["n_points"], f["f1"][1],
             f["coverage"], f["threshold"]),
          [
@@ -1570,103 +1817,147 @@ def parts():
                  # are now computed -- with the retrained budgets, 6 x 50
                  # scores below 5 x 50 and 2 of the 5 comparable pairs go
                  # the other way, which the typed text no longer matched.
-                 "of the voltage plane sampled. %s The best budget, %d rays "
-                 "× %d points, reaches F1@1 = %.3f (precision %.3f, recall "
+                 "of the voltage plane sampled. %s The best-performing "
+                 "configuration (%d × %d) reaches F1@1 = %.3f (precision %.3f, recall "
                  "%.3f) while sampling %.2f %% of the plane, at a "
                  "binarisation threshold of %g selected on the validation "
-                 "split. %s"
+                 "dataset. %s"
                  % (f["n_test"], _monotonic_sentence(), f["n_rays"],
                     f["n_points"], f["f1"][1], f["prec1"], f["rec1"],
                     f["coverage"], f["threshold"], _equal_cov_short())
                  # 2026-09-27, your request: the final scores of every
                  # budget as a table, read from comparison.csv
-                 + " The scores of all %s budgets are listed in Table I."
+                 + " The scores of all %s measurement budgets are listed in Table I."
                  % _word(f["n_budgets"]),
                  ("Table I. Scores of every measurement budget (rays × points "
                   "per ray) on the %d "
                   "held-out devices: fraction of the voltage plane sampled, "
-                  "binarisation threshold selected on the validation split, "
+                  "binarisation threshold selected on the validation dataset, "
                   "precision, recall and F1 at tau = 1, and strict F1 at "
-                  "tau = 0. Budgets "
+                  "tau = 0. Measurement budgets "
                   "marked * were retrained from a different random "
-                  "initialisation (Sec. 3.3). The best budget is %d "
-                  "× %d." % (f["n_test"], f["n_rays"], f["n_points"]),
-                  ["Budget", "Coverage (%)", "Threshold", "Precision",
+                  "initialisation (Sec. 3.3). The best-performing "
+                  "configuration (%d × %d) has the highest F1@1."
+                  % (f["n_test"], f["n_rays"], f["n_points"]),
+                  ["Measurement budget", "Coverage (%)", "Threshold", "Precision",
                    "Recall", "F1@0", "F1@1"],
                   TABLE_R_ROWS,
-                  [0.85, 0.95, 0.95, 0.9, 0.7, 0.65, 0.65],
+                  [1.3, 0.95, 0.9, 0.85, 0.7, 0.65, 0.65],
                   TABLE_R_RULES),
                  "The dependence of the scores on the tolerance τ is shown "
-                 "in Fig. 2 for three budgets. For the headline budget, F1 "
-                 "increases from %.3f at τ = 0 to %.3f at τ = 1, and "
-                 "then saturates, reaching %.3f at τ = 2 and %.3f at "
-                 "τ = 3. The dominant remaining error is therefore the "
-                 "sub-pixel misplacement of lines that were detected, rather "
-                 "than the omission of lines. This gain has a cost in the "
-                 "area over which the score is evaluated: the fraction of "
-                 "the plane lying within τ of a sampled pixel rises from "
-                 "%.2f %% at τ = 0 to %.2f %% at τ = 1. Since the "
+                 # YOUR TEXT, word for word, 2026-09-28
+                 "in Figure 2 for three measurement budgets. For %s, F1 "
+                 "rises from %.3f at τ = 0 to %.3f at τ = 1, and "
+                 "then increases more slowly, reaching %.3f at τ = 2 and "
+                 "%.3f at "
+                 # "The dominant remaining error ... 18.91 % at tau = 1."
+                 # deleted at your request, 2026-09-27
+                 "τ = 3. Since the "
                  "improvement between τ = 0 and τ = 1 is obtained at "
                  "the expense of a several-fold increase in this area, "
                  "τ = 1, rather than a larger value, is adopted as the "
                  "headline tolerance. Pixel accuracy is included in "
-                 "Fig. 2(a) solely to illustrate why it is unsuitable as a "
-                 "metric. Transition lines occupy %.1f %% of the diagram, so "
-                 "a trivial prediction containing no lines would already "
-                 "achieve a pixel accuracy of %.3f. At τ = 0, the "
-                 "budgets score between %.3f and %.3f, below this "
-                 "trivial value, and from τ = 1 onward all exceed %.2f. "
-                 "In neither regime does pixel accuracy indicate whether the "
-                 "lines were recovered, and it is therefore not reported as "
-                 "a result."
-                 % (f["f1"][0], f["f1"][1], f["f1"][2], f["f1"][3],
-                    f["coverage"], f["coverage1"], f["line_frac"],
-                    1 - f["line_frac"] / 100.0, min(f["acc0"]),
-                    max(f["acc0"]), math.floor(f["acc1_min"] * 100) / 100.0),
-                 "These results may be compared with the work of Hernandes "
-                 "et al.,^{5)} who reconstructed the full sensor image using "
-                 "a diffusion model trained on approximately 9000 measured "
-                 "diagrams. They reported that the transition lines were "
-                 "preserved at about 4 % coverage with a uniform point grid, "
-                 "and evaluated horizontal and vertical line cuts at "
-                 "23–44 % coverage. Although our headline budget samples a "
-                 "comparable fraction of the plane, the two results are not "
-                 "directly comparable: their data are measured and noisy, "
-                 "whereas ours are simulated and noise-free, and the "
-                 "evaluation metrics differ. The two approaches nonetheless "
-                 "differ in principle. The present network predicts the "
-                 "transition lines directly rather than the sensor image, "
-                 "and its training labels are exact, since they are "
-                 "computed by the simulator rather than extracted from "
-                 "measurements by edge detectors.",
-                 # Added 2026-09-27 at your request: the probabilistic
-                 # formulation as the central step.  The prob_map_stats.json
-                 # numbers that followed were removed at your request.
-                 "The central step of this work is the formulation itself: "
-                 "the reconstruction of a stability diagram is posed as the "
-                 "probabilistic reconstruction of its transition lines, "
-                 "rather than of the sensor image from which lines must "
-                 "later be extracted. The network therefore returns the "
-                 "quantity that determines the charge occupation in a "
-                 "single step, with no detector between the measurement and "
-                 "the lines, and the map carries its own uncertainty.",
+                 "Figure 2(a) solely to illustrate why it is unsuitable as a "
+                 # simplified at your request, 2026-09-27: no accuracy
+                 # ranges any more, only why accuracy is not used
+                 # no number (your call, 2026-09-27)
+                 "metric. Transition lines make up only a few percent of "
+                 "the diagram, so a prediction containing no lines at all "
+                 "would already reach a high pixel accuracy. Accuracy is "
+                 "therefore not used; the results are assessed with "
+                 "precision, recall and their harmonic mean, the F1 score."
+                 % (BEST_CFG, f["f1"][0], f["f1"][1], f["f1"][2],
+                    f["f1"][3]),
+                 # Rewritten at your request, 2026-09-30, around the
+                 # pipeline figure (local Figure 3).  Every statement about
+                 # Ref. 12 checked against its PDF: ~9000 measured diagrams,
+                 # 128 x 128, MSE to the original image, Canny + Frangi run
+                 # on "both ground truth and predicted CSDs", ~4 % grid,
+                 # line cuts 23-44 %.  The separate "central step"
+                 # paragraph (2026-09-27) is folded into the second one
+                 # here, so it is not said twice.
+                 # YOUR TEXT, 2026-09-30, with: the "closest work" opening
+                 # you asked for folded into its first sentence; "sensor"
+                 # -> "charge-sensor" (your rule); "summarized" ->
+                 # "summarised"; Ref. xx -> 12; the figure cited; and the
+                 # fairness sentence at the end.  Checked against Ref. 12:
+                 # its U-Net takes "the sparse measurement y, the binary
+                 # mask M" as channels, beside the noisy image and time.
+                 # YOUR TEXT, word for word, 2026-09-30, in place of the
+                 # paragraph and the two displayed pipelines; "Fig. 13" is
+                 # written as the part's own "Figure 3" (printed as Figure
+                 # 13), "sensor image" -> "charge-sensor image" (your rule),
+                 # and the final full stop added.
+                 "The work most closely related to the present study is that "
+                 "of Hernandes et al.,^{12)} which differs from the present "
+                 "method primarily in the quantity that is inferred. They "
+                 "employ a conditional diffusion model with a similar input "
+                 "encoding, in which the sparse charge-sensor signal and a "
+                 "binary sampling mask are supplied as separate channels. "
+                 "Their network, however, is trained to reconstruct the "
+                 "complete charge-sensor image, and the charge transition "
+                 "lines are obtained only in a subsequent step, by applying "
+                 "edge and ridge detectors to the reconstructed image. The "
+                 "two approaches are compared in Figure 3. In the approach "
+                 "of Ref. 12, the sparse measurement is first used to "
+                 "reconstruct the full charge-sensor image, from which the "
+                 "transition lines are then extracted by a separate "
+                 "detection stage. In the present work, the network infers "
+                 "the transition lines directly from the sparse measurement, "
+                 "producing for each pixel the probability that it lies on a "
+                 "charge transition line, without any intermediate image "
+                 "reconstruction or detection step.",
+                 "In the image-reconstruction approach, most of the "
+                 "network's output describes Coulomb-blockaded regions, "
+                 "where the signal carries no information about the charge "
+                 "configuration, and the transition lines depend on a "
+                 "subsequent detection step whose threshold and scale "
+                 "parameters introduce additional sources of error. In the "
+                 "present approach, the transition lines are the direct "
+                 "output of the network, so no intermediate detection stage "
+                 "is required, and the result is a probabilistic estimate of "
+                 "the quantity that determines the charge configuration. "
+                 "Moreover, because the training labels are defined by the "
+                 "charge configuration itself rather than extracted from a "
+                 "measured image, the accuracy of the inferred lines can be "
+                 "evaluated against an exact reference. Image reconstruction "
+                 "retains the full charge-sensor response, which may be "
+                 "useful for other characterisation tasks; for the purpose "
+                 "of determining the charge configuration, however, the "
+                 "direct inference of transition lines is sufficient.",
+
+                 "The numerical results of the two studies are nevertheless "
+                 "not directly comparable. Reference 12 reports that the "
+                 "transition lines were preserved with about 4 %% of the "
+                 "data measured on a uniform grid, and evaluates line cuts "
+                 "at 23–44 %%; the present network reaches F1@1 = %.2f at "
+                 "%s %% coverage. The data of Ref. 12 are measured and "
+                 "noisy, whereas ours are simulated and noise-free; its "
+                 "reference lines are the output of detectors, whereas ours "
+                 "are exact; and the two studies score the lines with "
+                 "different metrics. The present results therefore "
+                 "establish the formulation on simulated devices, and a "
+                 "comparison on the same measured diagrams, against the "
+                 "same reference, remains to be made."
+                 % (f["f1"][1], _rounded(f["coverage"])),
                  "The principal open question is whether a model trained on "
                  "noise-free constant-capacitance diagrams transfers to "
-                 "fabricated devices. Measured diagrams contain sensor "
+                 "fabricated devices. Measured diagrams contain charge-sensor "
                  "noise, charge switching, drift, and curved or broadened "
-                 "lines arising from finite tunnel coupling and non-constant "
+                 "lines arising from finite tunnel coupling [25] and "
+                 "non-constant "
                  "charging energies, none of which are present in the "
                  "training data. Several strategies may reduce this gap, "
                  "including the introduction of realistic noise models "
                  "during training, the use of simulators that incorporate "
-                 "tunnel coupling, such as QArray+,^{9)} and fine-tuning on a "
+                 "tunnel coupling, such as QArray+,^{18)} and fine-tuning on a "
                  "small number of measured diagrams. The per-device min–max "
                  "normalisation of the input may also require revision, "
                  "since a single outlier caused by charge switching would "
                  "compress the dynamic range of the remaining signal.",
                  # Added 2026-09-27 at your request, verbatim (8 paragraphs).  The
-                 # TRACS, Carlsson and Roux are references 11-13, from
-                 # csd-materials/citations, 2026-09-27.
+                 # TRACS, Carlsson and Roux are references 26, 28 and 29
+                 # (renumbered 2026-09-28), from csd-materials/citations.
                  "A further consideration concerns which transition lines "
                  "are needed in practice. The present metric weights every "
                  "line pixel equally, so the reported F1 score measures the "
@@ -1685,8 +1976,10 @@ def parts():
                  "The choice of window is itself a limitation of the present"
                  " study. Every diagram is simulated over a voltage window "
                  "of fixed size, 2 × 2 mV, at a fixed resolution of 100 × "
-                 "100 pixels, and the window is placed at a random position "
-                 "that generally does not contain the (0,0) configuration. "
+                 # ", and the window is placed at a random position that
+                 # generally does not contain the (0,0) configuration"
+                 # deleted at your request, 2026-09-27
+                 "100 pixels. "
                  "The variation in the capacitances changes the number of "
                  "honeycomb cells that fall inside this window, but the "
                  "network is never presented with windows of a different "
@@ -1697,7 +1990,7 @@ def parts():
                  "not been tested.",
                  "A related approach that addresses several of these points "
                  "is the transformer-based model TRACS of Marchand et "
-                 "al.^{11)} Rather than classifying individual pixels, TRACS "
+                 "al.^{26)} Rather than classifying individual pixels, TRACS "
                  "detects the triple points of a diagram together with their"
                  " connectivity, and thus directly returns the features "
                  "required for gate virtualisation and charge-state "
@@ -1721,12 +2014,15 @@ def parts():
                  " measurements, and the time spent processing them to "
                  "decide on the next step. The ray-based approach reduces "
                  "only the first, and its benefit therefore depends on the "
-                 "second remaining small. Fast readout hardware has recently"
-                 " been shown to shorten the first part considerably. "
-                 "Carlsson et al. used radio-frequency (RF) charge sensing "
+                 "second remaining small. Fast readout hardware, in "
+                 "particular radio-frequency (RF) reflectometry [27], has "
+                 "recently been shown to shorten the first part "
+                 "considerably. "
+                 # "(RF)" moved up to the first mention, 2026-09-28
+                 "Carlsson et al. used RF charge sensing "
                  "to tune spin qubits automatically, with a median tuning "
                  "time of about 15 minutes, locating interdot transitions "
-                 "with a neural network trained on QArray simulations.^{12)} "
+                 "with a neural network trained on QArray simulations.^{28)} "
                  "Roux et al. controlled the stability-diagram measurements "
                  "with an FPGA, which reduced the communication latency and "
                  "allowed shorter integration times and faster voltage ramps"
@@ -1734,7 +2030,7 @@ def parts():
                  "measurements with a neural network for charge-transition "
                  "detection, they automatically tuned a SiGe quantum dot "
                  "into the single-electron regime with a success rate of 90 "
-                 "%.^{13)} Once the measurements were accelerated, however, "
+                 "%.^{29)} Once the measurements were accelerated, however, "
                  "the decision-making between measurements, performed on the"
                  " host computer, became the limiting step. They noted "
                  "accordingly that sparse measurement strategies are "
@@ -1748,7 +2044,7 @@ def parts():
                  "acquired, so this cost is incurred a single time. The "
                  "network is also small and fully convolutional, which makes"
                  " its deployment on the host computer, or on the FPGA "
-                 "itself as suggested by Roux et al.,^{13)} feasible. A short "
+                 "itself as suggested by Roux et al.,^{29)} feasible. A short "
                  "measurement–prediction loop would further allow the "
                  "acquisition to become adaptive: the probability map "
                  "indicates where the model is uncertain, and this "
@@ -1761,10 +2057,9 @@ def parts():
                  "knowledge of the device. In many experimental situations, "
                  "the approximate positions of the transition lines are "
                  "already known from earlier measurements of the same "
-                 "device. These positions nevertheless change over time: "
-                 "charge offsets drift, adjustments of barrier or virtual "
-                 "gates shift and tilt the lines, and thermal cycling alters"
-                 " the diagram as a whole. In such cases, the task is not to"
+                 "device. These positions nevertheless change over time and "
+                 "between cooldowns; thermal cycling, for example, can alter"
+                 " the diagram as a whole [30]. In such cases, the task is not to"
                  " locate the transitions from scratch but to update their "
                  "positions quickly, and a few rays are better suited to "
                  "this than a repeated full raster scan. Prior knowledge "
@@ -1773,7 +2068,8 @@ def parts():
                  "particular the interdot transitions of interest, or by "
                  "supplying a previously measured diagram to the network as "
                  "an additional input channel. The network would then need "
-                 "to infer only how the lines have moved rather than where "
+                 "to infer only how transition lines have moved rather "
+                 "than where "
                  "they are. The setting studied here, in which no prior "
                  "information is used, therefore represents the most "
                  "demanding case, and fewer rays may suffice when such "
@@ -1784,18 +2080,30 @@ def parts():
            # three ladders, 40/50/60 points per ray (2026-09-27)
            "F1 at tau = 1 against the fraction of the plane measured, for "
            "%s points per ray; the number beside each point is the ray "
-           "count. The best budget is ringed."
+           "count. The best-performing configuration (%d × %d) is ringed."
            % (", ".join(str(n) for n in f["points_swept"][:-1])
-              + " and %d" % f["points_swept"][-1])),
+              + " and %d" % f["points_swept"][-1],
+              f["n_rays"], f["n_points"])),
           ("fig_tau_metrics.png",
            "(a) Pixel accuracy, (b) precision, (c) recall and (d) F1 "
-           "against the tolerance tau, for three budgets, on %d held-out "
+           "against the tolerance tau, for three measurement budgets, on %d held-out "
            # 2026-09-26: the pixel-accuracy remark is gone; the reader is
            # pointed at the tau 0 -> 1 jump instead.  Checked: it is the
            # largest step for all three budgets drawn (+0.33 to +0.35;
            # the later steps are at most +0.15).
            "devices. Note the jump in F1 in (d) from tau = 0 to tau = 1, "
-           "the largest step for all three budgets." % f["n_test"])]),
+           "the largest step for all three measurement budgets." % f["n_test"]),
+          # 2026-09-30.  Row (a) of the figure is Fig. 3 of Ref. 12, from
+          # the author's Presentation1.pptx; check its licence before
+          # submission.
+          ("pipeline_comparison_ref12.png",
+           "Pipelines of (a) Hernandes et al.^{12)} and (b) this work. "
+           "Images in (a) are reproduced from Fig. 3 of Ref. 12 (grid "
+           "mask, reduce factor 5): the masked measurement, the diffusion "
+           "reconstruction, and its ridges compared with those of the "
+           "measured image (white, both; blue, reconstruction only; red, "
+           "measured image only). Images in (b): one held-out device of "
+           "this work.")]),
 
         ("5", "conclusions",
          "Conclusions",
@@ -1810,10 +2118,13 @@ def parts():
                  # YOUR TEXT, word for word, 2026-09-27: the Conclusions as four
                  # paragraphs.  Its numbers are typed, so _check_conclusions()
                  # refuses to build if the run stops supporting them.
+                 # your text, word for word, 2026-09-30
                  "We have formulated the reconstruction of a charge "
-                 "stability diagram from sparse measurements as the "
-                 "probabilistic reconstruction of its transition lines, "
-                 "rather than of the sensor image. Given a small number of "
+                 "stability diagram from sparse measurements as a "
+                 "probabilistic inference of the positions of its charge "
+                 "transition lines, the features that fully determine the "
+                 "charge configuration of the double quantum dot. "
+                 "Given a small number of "
                  "one-dimensional voltage sweeps, a U-Net returns, for every"
                  " pixel of the gate-voltage plane, the probability that a "
                  "transition line passes through it. The quantity that "
@@ -1825,17 +2136,10 @@ def parts():
                  "effort.",
                  "On 50 simulated test devices, the transition lines were "
                  "recovered with F1@1 between 0.66 and 0.82 while sampling "
-                 "only 1.6–4.7 % of the voltage plane. The best budget, 8 "
-                 "rays of 60 points, reached F1@1 = 0.82 at a coverage of "
+                 "only 1.6–4.7 % of the voltage plane. The best-performing "
+                 "configuration (8 × 60) reached F1@1 = 0.82 at a coverage of "
                  "4.7 %, and the score increased with the number of rays for"
-                 " nearly all budgets. The remaining errors are dominated by"
-                 " lines displaced by a single pixel rather than by missed "
-                 "lines, as shown by the rise of F1 from 0.47 at τ = 0 to "
-                 "0.82 at τ = 1. To make these scores interpretable, the "
-                 "binarisation threshold was selected on validation data "
-                 "only, and every score is reported together with its "
-                 "tolerance and the fraction of the plane that this "
-                 "tolerance admits.",
+                 " nearly all measurement budgets.",
                  "These results were obtained under idealised conditions. "
                  "The devices were simulated with a noise-free constant-"
                  "capacitance model, over a voltage window of fixed size, "
@@ -1845,9 +2149,9 @@ def parts():
                  "diagram can in principle be recovered from rays covering a"
                  " few percent of the plane; it does not yet demonstrate "
                  "this on measured devices. In addition, the network outcome"
-                 " depends on training, as shown by the four budgets that "
+                 " depends on training, as shown by the four measurement budgets that "
                  "had to be retrained, so small differences between "
-                 "individual budgets should not be over-interpreted.",
+                 "individual measurement budgets should not be over-interpreted.",
                  "Several directions follow from this work. Training on "
                  "simulations that include noise and tunnel coupling, and "
                  "testing on measured diagrams, is the essential next step. "
@@ -1878,19 +2182,31 @@ def _check_conclusions():
         "On %d simulated test devices" % F["n_test"],
         "F1@1 between %.2f and %.2f" % (min(f1), max(f1)),
         "sampling only %.1f–%.1f %%" % (min(cov), max(cov)),
-        "The best budget, %d rays of %d points" % (F["n_rays"],
-                                                  F["n_points"]),
+        "The best-performing configuration (%d × %d)" % (F["n_rays"],
+                                                         F["n_points"]),
         "reached F1@1 = %.2f at a coverage of %.1f %%" % (F["f1"][1],
                                                          F["coverage"]),
-        "from %.2f at τ = 0 to %.2f at τ = 1" % (F["f1"][0],
-                                                          F["f1"][1]),
-        "the %s budgets that had to be retrained" % _word(len(_run.SEEDS)),
+        "the %s measurement budgets that had to be retrained" % _word(len(_run.SEEDS)),
     ]
     missing = [c for c in claims if c not in text]
     if missing:
         raise SystemExit("the Conclusions no longer match the run: %s. "
                          "Edit them in make_method_docs.py."
                          % "; ".join(missing))
+
+
+def _keep_full_resolution(doc):
+    """Stop Word compressing the pictures.
+
+    Word's default is to downsample every picture to its "default
+    resolution" when it saves or exports a PDF; Fig. 13 came out of
+    make_pdfs at 1219 px (200 dpi) from a 3420-px PNG.  The document
+    setting doNotAutoCompressPictures ("Do not compress images in file")
+    turns that off, for the .docx and for the PDF exported from it.
+    Added 2026-09-30."""
+    settings = doc.settings.element
+    if settings.find(qn("w:doNotAutoCompressPictures")) is None:
+        settings.append(OxmlElement("w:doNotAutoCompressPictures"))
 
 
 # ── building one document ─────────────────────────────────────────────────
@@ -1975,7 +2291,10 @@ NBSP = u"\u202f"   # narrow no-break space
 _NUM = r"[0-9]+(?:\([a-z]\))?|[IVXL]+"
 REF = re.compile(
     r"\b(Figures?|Fig\.|Tables?)\s+(" + _NUM + r")"
-    r"(?:(\s+(?:to|and)\s+|\s*[-–]\s*)(" + _NUM + r"))?(?![\w(])")
+    r"(?:(\s+(?:to|and)\s+|\s*[-–]\s*)(" + _NUM + r"))?(?![\w(])"
+    # "Fig. 3 of Ref. 12" is another paper's figure: not ours to renumber
+    # or link (2026-09-30)
+    r"(?!\s+of\s+Ref\.)")
 # The caption label: "Fig. 1." or "Table I." at the very start of a caption.
 LABEL = re.compile(r"^(Fig\.|Table)\s+([0-9]+(?:\([a-z]\))?|[IVXL]+)\.")
 
@@ -2127,6 +2446,46 @@ def _cite(text):
                     text)
 
 
+# A citation once it is set: the superscript "4)", "1–3)" or "5,9)".
+CITE_SUP = re.compile(r"^([1-9]\d*)(?:\s*[–,-]\s*\d+)*\)$")
+# ...and as the source may already write it: "et al.,^{7)}".
+CITE_SET = re.compile(r"\^\{([1-9]\d*(?:\s*[–,-]\s*\d+)*)\)\}")
+
+
+def paper_references():
+    """The paper's reference list -- the part that carries it."""
+    for spec in parts():
+        if len(spec) > 6 and "references" in spec[6]:
+            return spec[6]["references"]
+    return ()
+
+
+def cited_references(sections):
+    """[(number, entry)] for every reference `sections` cites, in order.
+
+    A part printed on its own lists these at its end, under the paper's
+    numbers, so each citation still jumps to its entry (your request,
+    2026-09-28).  The paper's own list is untouched."""
+    nums = set()
+
+    def scan(text):
+        for rx in (CITE, CITE_SET):
+            for m in rx.finditer(text):
+                for item in m.group(1).split(","):
+                    ends = [int(x) for x in re.split(r"[–-]", item)]
+                    nums.update(range(ends[0], ends[-1] + 1))
+
+    for _heading, paragraphs in sections:
+        for text in paragraphs:
+            if isinstance(text, str):
+                scan(text)
+            elif isinstance(text, list):
+                for item in text:
+                    scan(item)
+    refs = paper_references()
+    return [(n, refs[n - 1]) for n in sorted(nums) if n <= len(refs)]
+
+
 PANELS = re.compile(r"(?:\s*(?:,\s*and|,|and|to|–|-)\s*\([a-z]\))+")
 
 
@@ -2189,6 +2548,10 @@ def _runs(p, text, size, bold, name, label=False):
         if m.start() > last:
             pieces.append((text[last:m.start()], None, None, None))
         kind = m.group(1)
+        # the text always says "Figure", never "Fig." -- that is for the
+        # caption label only (your rule, 2026-09-28)
+        if kind == "Fig." and not label:
+            kind = "Figure"
         pieces.append((kind + NBSP + m.group(2), True,
                        _anchor(kind, m.group(2)), None))
         if m.group(4):
@@ -2217,6 +2580,11 @@ def _runs(p, text, size, bold, name, label=False):
             elif script == "sup":
                 run.font.superscript = True
             made.append(run)
+            # a citation "4)" or "1–3)" jumps to its entry in the reference
+            # list -- to the first one of a range (your request, 2026-09-27)
+            cite = CITE_SUP.match(piece) if script == "sup" else None
+            if cite and not link:
+                _link(p, [run], "ref_%s" % cite.group(1))
         if mark and made:
             _bookmark(p, made[0], mark)
         if link and made:
@@ -2389,7 +2757,7 @@ def _place_static(figures):
 
 SIGNATURE = (
     "Ehsan Alizadeh Kashtiban, on behalf of all authors",
-    "Department of Physics, Graduate School of Science, Osaka University",
+    "Department of Physics, Graduate School of Science, The University of Osaka",
     "E-mail: alizadeh21@sanken.osaka-u.ac.jp",
 )
 
@@ -2582,6 +2950,7 @@ def build_title_page(number, slug, title, abstract, sections, figures,
     # the page that is not 1.5 lines
     _clone(doc, proto["abstract"], abstract, FONT_PT)
 
+    _keep_full_resolution(doc)
     doc.save(work)
     return _place(work, number, slug)
 
@@ -2623,6 +2992,7 @@ def build_letter(number, slug, title, abstract, sections, figures,
         para = doc.add_paragraph(line)
         para.paragraph_format.space_after = Pt(0)
 
+    _keep_full_resolution(doc)
     doc.save(work)
     return _place(work, number, slug)
 
@@ -2727,7 +3097,14 @@ def build(number, slug, title, abstract, sections, figures,
         doc.add_page_break()
         _heading(doc, "References")
         for i, ref in enumerate(references, 1):
-            _para(doc, "%d) %s" % (i, ref), S_BODY, indent=False)
+            # a part's own list is [(paper number, entry)], see
+            # cited_references
+            if isinstance(ref, tuple):
+                i, ref = ref
+            p = _para(doc, "%d) %s" % (i, ref), S_BODY, indent=False)
+            # the target of every citation "i)" in the text
+            if p.runs:
+                _bookmark(p, p.runs[0], "ref_%d" % i)
 
     # ── tables, one per page ─────────────────────────────────────────────
     for i, spec in enumerate(tables):
@@ -2757,6 +3134,7 @@ def build(number, slug, title, abstract, sections, figures,
                                     renumber(caption, fig_offset, tbl_offset)),
               S_BODY, indent=False, label=True)
 
+    _keep_full_resolution(doc)
     doc.save(work)
 
     # No copying: the figures this part uses are written straight into
@@ -2807,6 +3185,9 @@ def main():
             make = build_title_page
         else:
             extra["fig_offset"], extra["tbl_offset"] = fig_at, tbl_at
+        if number == "4":
+            # the Results, read on their own, end with the entries they cite
+            extra["references"] = cited_references(sections)
         span = numbering_span(fig_at, len(figures), tbl_at, n_tables)
         fig_at += len(figures)
         tbl_at += n_tables

@@ -61,19 +61,47 @@ NET_CHANNELS = 2     # the network input is X[:, :NET_CHANNELS]
 
 def load_grid(sample_dir: str):
     """
-    (ux, uy, Z) for one sample, Z min-max normalised to [0, 1].
+    (ux, uy, Z) for one sample, Z the RAW sensor signal.
 
-    Normalisation matches RayProcessor.run, which rescales the current before
-    firing any ray, so peak positions here and in the pipeline agree.
+    Not normalised here.  The dense grid is the simulator's answer key, not a
+    measurement: its min and max are numbers an experiment firing rays never
+    sees.  Scaling the ray values by them leaks the whole diagram into
+    channel 0, so every measurement normalises by the points it actually
+    measured (normalise_measured) instead.
     """
     path = os.path.join(sample_dir, "numpy", "simulation", SENSOR_GRID)
     data = np.load(path)
     ux, uy = np.unique(data[:, 0]), np.unique(data[:, 1])
     Z = data[:, 2].reshape(len(uy), len(ux)).astype(np.float32)
-    lo, hi = float(Z.min()), float(Z.max())
-    if hi > lo:
-        Z = (Z - lo) / (hi - lo)
     return ux, uy, Z
+
+
+# How channel 0 is scaled.  Stored in every train.npz / test.npz, and a
+# dataset cut under any other rule is rebuilt rather than reused: the
+# datasets made before 2026-10-22 were scaled by the min and max of the full
+# dense diagram, which is information from outside the measurement.
+NORMALISATION = "measured_points_minmax"
+
+
+def normalise_measured(values: np.ndarray, *arrays: np.ndarray):
+    """
+    Min-max scale to [0, 1] using ONLY the measured values.
+
+    lo and hi come from `values` — the signal at the points that were
+    actually measured — and the same affine map is applied to every array in
+    `arrays` (the per-ray traces, which hold the same numbers in sweep
+    order).  A device whose measured points are all equal is shifted to 0
+    and not stretched.  Returns the scaled values, then the scaled arrays.
+    """
+    values = np.asarray(values, dtype=np.float32)
+    if values.size == 0:
+        return (values, *arrays)
+    lo, hi = float(values.min()), float(values.max())
+    scale = (hi - lo) if hi > lo else 1.0
+    out = [((values - lo) / scale).astype(np.float32)]
+    out += [((np.asarray(a, dtype=np.float32) - lo) / scale).astype(np.float32)
+            for a in arrays]
+    return tuple(out)
 
 
 def load_ground_truth(sample_dir: str) -> np.ndarray:
@@ -189,6 +217,9 @@ def measure(sample_dir: str,
     # the grid value there — dedup-safe by construction.
     values = (Z[visited[:, 0], visited[:, 1]].astype(np.float32)
               if len(visited) else np.empty(0, dtype=np.float32))
+    # Scaled by what the rays measured and nothing else.  Peaks were found on
+    # the raw traces; find_peaks is unchanged by an affine rescale.
+    values, traces = normalise_measured(values, traces)
     return Measurement(peak_rc=_stack(peak_rows, peak_cols),
                        visited_rc=visited, visited_val=values,
                        traces=traces, n_rays=n_rays, n_points=n_points)

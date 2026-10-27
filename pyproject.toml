@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "csdrecon"
 version = "1.0.0"
-description = "Probabilistic reconstruction of quantum-dot charge stability diagrams from sparse ray measurements"
+description = "Two-step localization of charge transition lines in double quantum dots: U-Net prediction from sparse rays, then local sweeps verified by the charge sensor"
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }
@@ -23,6 +23,7 @@ dependencies = [
   "torch>=2.0",
   "qarray>=1.6",
   "PyYAML>=6.0",
+  "scikit-image>=0.22",
 ]
 
 [project.urls]

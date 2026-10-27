@@ -6,3 +6,4 @@ pillow>=9.5
 torch>=2.0
 qarray>=1.6
 PyYAML>=6.0
+scikit-image>=0.22   # run_12 slope study only (Canny, Hough)

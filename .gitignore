@@ -60,3 +60,34 @@ paper_figures/method_docs/_trash/
 /QArray_A_physics-informed_GPU-accelerated_simulato.pdf
 /qdarts.pdf
 /Qdsim.pdf
+
+# --- Manuscript and journal templates: kept locally, never pushed (2026-10-24) ---
+/paper_figures/method_docs/
+/paper_figures/templates/
+
+# --- Private correspondence, drafts, talks and agent notes in the root: never pushed (2026-10-24) ---
+/Fujita_*.docx
+/Fujita_*.txt
+/Manuscript_final.docx
+/SSDMpresentation_*.pdf
+/CLAUDE_*.md
+/image.jpg
+
+# --- Unpublished manuscript (ver2+), its arXiv source and generators that
+# --- carry the manuscript text, and private correspondence: never pushed (2026-10-27)
+/paper_figures/method_docs_ver2/
+/Arxiv/
+/paper_figures/programs/make_manuscript_ver3.py
+/paper_figures/programs/make_manuscript_conceptual.py
+/paper_figures/programs/make_arxiv.py
+/Email_to_Fujita*
+/docs/charge_states/make_email_fujita.py
+/Figure 1 Exact Text Replacement Reference.pdf
+/UNet_vs_raster_vs_full_scan.*
+/fig12.txt
+/unet_sample.png
+# Crops of Ref. 12's figures (Hernandes et al.) and the composites built from them:
+# other publishers' material, never pushed (2026-10-27)
+/paper_figures/deck_figures/pipeline_comparison/Presentation1.pptx
+/paper_figures/deck_figures/pipeline_comparison/tiles/h_*.png
+/paper_figures/deck_figures/pipeline_comparison/pipeline_comparison_ref12.*
